@@ -1,0 +1,12 @@
+http:
+  routers:
+    coabitante:
+      rule: Host(`coabitante.teste`)
+      entryPoints: [websecure]
+      tls: {}
+      service: whoami
+  services:
+    whoami:
+      loadBalancer:
+        servers:
+          - url: http://whoami:80

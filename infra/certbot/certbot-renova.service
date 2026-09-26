@@ -1,0 +1,9 @@
+# Renovação do certificado de IP. O Certbot fica em /opt/certbot, instalado por
+# pip porque a VPS não tem snap; por isso o timer é este, e não o do snap.
+[Unit]
+Description=Renova os certificados do Certbot
+After=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/opt/certbot/bin/certbot renew --quiet

@@ -1,0 +1,11 @@
+# Duas vezes por dia, com atraso aleatório: o certificado de IP vale 160 horas.
+[Unit]
+Description=Renova os certificados do Certbot duas vezes por dia
+
+[Timer]
+OnCalendar=*-*-* 00,12:00:00
+RandomizedDelaySec=1h
+Persistent=true
+
+[Install]
+WantedBy=timers.target

@@ -1,0 +1,62 @@
+# Ensaio local: réplica da borda com o proxy do coabitante já na configuração nova.
+name: inoxio-ensaio
+networks:
+  ensaio:
+    ipam:
+      config:
+        - subnet: 172.30.99.0/24
+          # IPs dinâmicos só na metade de cima: a borda (.2) e o cliente (.10) são fixos.
+          ip_range: 172.30.99.128/25
+
+services:
+  whoami:
+    image: traefik/whoami
+    networks: [ensaio]
+
+  app-falso:
+    image: traefik/whoami
+    command: ["--port", "8100"]
+    networks: [ensaio]
+
+  traefik:
+    image: traefik:v3
+    command:
+      - --entrypoints.websecure.address=:8443
+      - --entrypoints.websecure.proxyProtocol.trustedIPs=172.30.99.2/32
+      - --providers.file.filename=/etc/traefik/dinamico.yml
+      - --log.level=INFO
+    volumes:
+      - ./dinamico.yml:/etc/traefik/dinamico.yml:ro
+    networks: [ensaio]
+
+  gerar-tls:
+    image: nginx:stable@sha256:b972f831f200b19ef0767938224f9711e74cd783718738cd7405d5cabf75c442
+    command:
+      - sh
+      - -c
+      - "[ -f /tls/ensaio.crt ] || openssl req -x509 -newkey rsa:2048 -nodes -days 2 -subj /CN=inoxio-ensaio -keyout /tls/ensaio.key -out /tls/ensaio.crt"
+    volumes:
+      - ./tls:/tls
+
+  borda:
+    image: nginx:stable@sha256:b972f831f200b19ef0767938224f9711e74cd783718738cd7405d5cabf75c442
+    depends_on:
+      gerar-tls: {condition: service_completed_successfully}
+      traefik: {condition: service_started}
+      app-falso: {condition: service_started}
+    volumes:
+      - ../borda/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ../borda/ambientes/local:/etc/nginx/borda:ro
+      - ../borda/em-construcao.html:/usr/share/nginx/borda/em-construcao.html:ro
+      - ./tls:/etc/nginx/tls:ro
+      - ./webroot:/var/www/certbot:ro
+    networks:
+      ensaio:
+        ipv4_address: 172.30.99.2
+
+  cliente:
+    image: nginx:stable@sha256:b972f831f200b19ef0767938224f9711e74cd783718738cd7405d5cabf75c442
+    command: ["sleep", "infinity"]
+    networks:
+      ensaio:
+        ipv4_address: 172.30.99.10

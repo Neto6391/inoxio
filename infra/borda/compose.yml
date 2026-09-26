@@ -1,0 +1,15 @@
+# Borda de produção. Aplicada à mão, por root, em /opt/inoxio-borda.
+# O CI não publica este arquivo.
+services:
+  borda:
+    image: nginx:stable@sha256:b972f831f200b19ef0767938224f9711e74cd783718738cd7405d5cabf75c442
+    container_name: inoxio-borda
+    network_mode: host
+    restart: always
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./ambientes/producao:/etc/nginx/borda:ro
+      - ./em-construcao.html:/usr/share/nginx/borda/em-construcao.html:ro
+      - ./tls:/etc/nginx/tls:ro
+      - /var/www/certbot:/var/www/certbot:ro
+      - /etc/letsencrypt:/etc/letsencrypt:ro
