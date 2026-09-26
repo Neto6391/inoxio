@@ -1,6 +1,6 @@
 import { Tag } from "antd";
 
-// Nenhuma cor sugere "seguro": sem evidência é azul, não verde.
+// Nenhuma cor sugere que o indicador é inofensivo: sem evidência é azul, não verde.
 export const CORES_VEREDITO: Record<string, string> = {
   malicioso: "#ef4444",
   suspeito: "#f59e0b",
