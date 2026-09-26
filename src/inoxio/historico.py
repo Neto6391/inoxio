@@ -1,8 +1,9 @@
 """Reaproveitamento de consultas recentes.
 
 O mesmo indicador investigado há menos de 24 horas devolve o resultado salvo,
-sem gastar a cota do VirusTotal, do AbuseIPDB nem do Groq. Resultado
-inconclusivo nunca é reaproveitado: ele significa que alguma fonte falhou.
+sem gastar a cota do VirusTotal, do AbuseIPDB nem do Groq. Resultado em que
+alguma fonte falhou nunca é reaproveitado, mesmo que a outra tenha bastado
+para um veredito: a que falhou poderia mudá-lo.
 """
 
 from __future__ import annotations
@@ -35,7 +36,7 @@ def buscador(fabrica: sessionmaker) -> Buscar:
                 .order_by(Investigacao.criada_em.desc())
                 .limit(1)
             )
-        if anterior is None:
+        if anterior is None or any(e["status"] == "falha" for e in anterior.evidencias):
             return None
         return {
             "evidencias": anterior.evidencias,

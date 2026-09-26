@@ -46,6 +46,17 @@ def test_nao_reaproveita_inconclusivo(fabrica):
     assert buscar("ip", "8.8.8.8") is None
 
 
+def test_nao_reaproveita_resultado_com_fonte_em_falha(fabrica):
+    # O AbuseIPDB bastou para "suspeito", mas o VirusTotal falhou e poderia dizer mais.
+    buscar = preparar(fabrica)
+    evidencias = [
+        {"fonte": "abuseipdb", "status": "ok", "dados": {"score": 30}},
+        {"fonte": "virustotal", "status": "falha", "dados": None},
+    ]
+    gravar(fabrica, veredito="suspeito", nota=30, evidencias=evidencias)
+    assert buscar("ip", "8.8.8.8") is None
+
+
 def test_nao_encadeia_reaproveitamentos(fabrica):
     # Uma cópia não renova o prazo: só a consulta original conta.
     buscar = preparar(fabrica)
