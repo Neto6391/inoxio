@@ -10,13 +10,17 @@ ROTULOS = {
     "inconclusivo": "Inconclusivo: nem todas as fontes responderam",
 }
 _GRAVIDADE = {"suspeito": 1, "malicioso": 2}
+# Faixas da nota: a partir de 25 é suspeito e a partir de 75 é malicioso. As duas
+# fontes caem nas mesmas faixas, então a nota sempre combina com o veredito.
+NOTA_SUSPEITO = 25
+NOTA_MALICIOSO = 75
 
 
 def _classe_abuseipdb(dados: dict[str, Any]) -> str | None:
     score = dados["score"]
-    if score >= 75:
+    if score >= NOTA_MALICIOSO:
         return "malicioso"
-    return "suspeito" if score >= 25 else None
+    return "suspeito" if score >= NOTA_SUSPEITO else None
 
 
 def _classe_virustotal(dados: dict[str, Any]) -> str | None:
@@ -30,6 +34,19 @@ def _classe_virustotal(dados: dict[str, Any]) -> str | None:
     return None
 
 
+def _nota_virustotal(dados: dict[str, Any]) -> int:
+    # Cada detecção a mais sobe a nota dentro da faixa da classe: 1 a 4 detecções
+    # vão de 25 a 70, e 5 ou mais partem de 75 e chegam a 100 com 10.
+    maliciosos = dados["malicioso"]
+    classe = _classe_virustotal(dados)
+    if classe == "malicioso":
+        return min(100, NOTA_MALICIOSO + 5 * (maliciosos - 5))
+    if classe == "suspeito":
+        return NOTA_SUSPEITO + 15 * (maliciosos - 1)
+    # Detecções descontadas pela reputação também não pesam na nota.
+    return 0
+
+
 _CLASSES = {"abuseipdb": _classe_abuseipdb, "virustotal": _classe_virustotal}
 
 
@@ -39,9 +56,7 @@ def _nota(respondidas: list[dict[str, Any]]) -> int | None:
         if item["fonte"] == "abuseipdb":
             valores.append(item["dados"]["score"])
         elif item["fonte"] == "virustotal":
-            # Detecções descontadas pela reputação também não pesam na nota.
-            contam = _classe_virustotal(item["dados"]) is not None
-            valores.append(min(100, 10 * item["dados"]["malicioso"]) if contam else 0)
+            valores.append(_nota_virustotal(item["dados"]))
     return max(valores) if valores else None
 
 

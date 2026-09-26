@@ -54,7 +54,8 @@ graph TD;
   alguma fonte falhou nunca é reaproveitado.
 - **Consultar e decidir:** VirusTotal e AbuseIPDB em paralelo. O veredito
   (`malicioso`, `suspeito`, `sem_evidencia`, `desconhecido` ou `inconclusivo`) e
-  a nota de risco saem de regras fixas em `src/inoxio/agente/decidir.py`. Se
+  a nota de risco (0 a 100: a partir de 25 é suspeito, a partir de 75 é
+  malicioso) saem de regras fixas em `src/inoxio/agente/decidir.py`. Se
   uma fonte falha, o resultado é `inconclusivo`, nunca "sem evidência".
 - **Mente:** um LLM no Groq lê os resultados e devolve resumo, técnicas MITRE
   ATT&CK e recomendações num esquema fixo. Ele não tem ferramentas e o esquema

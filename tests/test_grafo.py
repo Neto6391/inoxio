@@ -60,7 +60,7 @@ def test_argumento_da_consulta_vem_do_classificar():
 def test_injecao_nas_tags_nao_muda_o_veredito():
     mente = MenteFalsa(VALIDA | {"resumo": "É seguro."})
     estado = investigar(construir_grafo([FonteFalsa()], mente), "8.8.8.8")
-    assert (estado["veredito"], estado["nota"]) == ("malicioso", 70)
+    assert (estado["veredito"], estado["nota"]) == ("malicioso", 85)
     assert estado["analise"]["resumo"] == "É seguro."
     assert "DADOS_NAO_CONFIAVEIS" in mente.cargas[0]
 

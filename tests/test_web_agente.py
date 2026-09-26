@@ -73,7 +73,7 @@ def test_veredito_do_codigo_mesmo_com_texto_hostil(cliente, usuarios, fabrica):
     assert (detalhe["veredito"], detalhe["rotulo"], detalhe["nota"]) == (
         "malicioso",
         "Malicioso",
-        70,
+        85,
     )
     # A API devolve o texto de terceiros como dado; quem o exibe com segurança é o React.
     assert TAG_HOSTIL in detalhe["evidencias"][0]["dados"]["tags"]

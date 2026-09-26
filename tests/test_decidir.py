@@ -1,6 +1,6 @@
 import pytest
 
-from inoxio.agente.decidir import ROTULOS, decidir_veredito
+from inoxio.agente.decidir import NOTA_MALICIOSO, NOTA_SUSPEITO, ROTULOS, decidir_veredito
 from inoxio.agente.fontes import evidencia
 
 
@@ -26,9 +26,9 @@ NAO_ACHOU_VT = evidencia("virustotal", "nao_encontrado")
         ([abuse(80)], ("malicioso", 80)),
         ([abuse(30)], ("suspeito", 30)),
         ([abuse(10), vt(0)], ("sem_evidencia", 10)),
-        ([vt(5)], ("malicioso", 50)),
-        ([vt(1)], ("suspeito", 10)),
-        ([abuse(10), vt(7)], ("malicioso", 70)),
+        ([vt(5)], ("malicioso", 75)),
+        ([vt(1)], ("suspeito", 25)),
+        ([abuse(10), vt(7)], ("malicioso", 85)),
         ([abuse(30), FALHA_VT], ("suspeito", 30)),
         ([abuse(0), FALHA_VT], ("inconclusivo", 0)),
         ([NAO_ACHOU_VT], ("desconhecido", None)),
@@ -53,10 +53,10 @@ def test_rotulos_nunca_dizem_seguro_ou_limpo():
         # Caso real: google.com, com 2 detecções e reputação +725.
         ([vt(2, reputacao=725)], ("sem_evidencia", 0)),
         ([vt(4, reputacao=1)], ("sem_evidencia", 0)),
-        ([vt(2, reputacao=0)], ("suspeito", 20)),
-        ([vt(2, reputacao=-30)], ("suspeito", 20)),
+        ([vt(2, reputacao=0)], ("suspeito", 40)),
+        ([vt(2, reputacao=-30)], ("suspeito", 40)),
         # A reputação nunca apaga 5 ou mais detecções.
-        ([vt(6, reputacao=900)], ("malicioso", 60)),
+        ([vt(6, reputacao=900)], ("malicioso", 80)),
     ],
 )
 def test_reputacao_positiva_desconta_poucas_deteccoes(evidencias, esperado):
@@ -65,4 +65,29 @@ def test_reputacao_positiva_desconta_poucas_deteccoes(evidencias, esperado):
 
 def test_sem_campo_de_reputacao_conta_como_zero():
     sem_reputacao = evidencia("virustotal", "ok", {"malicioso": 1, "suspeito": 0, "tags": []})
-    assert decidir_veredito([sem_reputacao]) == ("suspeito", 10)
+    assert decidir_veredito([sem_reputacao]) == ("suspeito", 25)
+
+
+def faixa(nota):
+    if nota >= NOTA_MALICIOSO:
+        return "malicioso"
+    return "suspeito" if nota >= NOTA_SUSPEITO else "sem_evidencia"
+
+
+def test_nota_sempre_cai_na_faixa_do_veredito():
+    for score in range(0, 101, 5):
+        for maliciosos in range(15):
+            for reputacao in (-10, 0, 10):
+                for evidencias in (
+                    [abuse(score), vt(maliciosos, reputacao)],
+                    [vt(maliciosos, reputacao)],
+                ):
+                    veredito, nota = decidir_veredito(evidencias)
+                    assert 0 <= nota <= 100, (score, maliciosos, reputacao, nota)
+                    assert faixa(nota) == veredito, (score, maliciosos, reputacao, veredito, nota)
+
+
+def test_mais_deteccoes_nunca_baixam_a_nota():
+    notas = [decidir_veredito([vt(maliciosos)])[1] for maliciosos in range(15)]
+    assert notas == sorted(notas)
+    assert notas[10] == 100
