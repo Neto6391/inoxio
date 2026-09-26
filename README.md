@@ -90,6 +90,7 @@ falha se ele for removido.
 | --- | --- | --- |
 | Toda rota da API, fora login e sessão, exige sessão válida | `sessao_atual` em `src/inoxio/web/dependencias.py` | `test_autenticacao.py::test_rotas_protegidas_sem_sessao_sao_401` |
 | Cada usuário só lista as próprias investigações; abrir a de outro responde 404, sem revelar que ela existe. Só o papel `admin` abre qualquer uma | `listar` e `ver` em `src/inoxio/web/agente.py` | `test_web_agente.py::test_lista_so_as_investigacoes_do_proprio_usuario`, `::test_investigacao_de_outro_usuario_e_404`, `::test_admin_ve_investigacao_de_qualquer_um` |
+| Cadastro e lista de usuários só para o papel `admin`, que nunca vê o hash das senhas | `exigir_admin` em `src/inoxio/web/dependencias.py`; `src/inoxio/web/usuarios.py` | `test_usuarios.py::test_analista_nao_lista_nem_cadastra`, `::test_admin_lista_sem_expor_hash` |
 | Escrita exige o token CSRF da sessão no cabeçalho `X-CSRF-Token`, comparado em tempo constante | `conferir_csrf` em `src/inoxio/web/dependencias.py`; o frontend envia em `frontend/src/api.ts` | `test_web_agente.py::test_post_sem_csrf_e_recusado`, `test_autenticacao.py::test_logout_sem_csrf_e_recusado` |
 | A API só aceita corpo JSON, o que barra formulário vindo de outro site | modelos Pydantic em `src/inoxio/web/autenticacao.py` | `test_autenticacao.py::test_login_por_formulario_e_recusado` |
 

@@ -15,7 +15,7 @@ def test_cria_usuario_com_hash(fabrica):
 
 def test_papel_invalido_e_recusado(fabrica):
     with pytest.raises(ValueError):
-        criar_usuario(fabrica, "x", "root", "senha-de-teste-longa")
+        criar_usuario(fabrica, "xavier", "root", "senha-de-teste-longa")
 
 
 def test_main_le_a_senha_do_terminal(monkeypatch, tmp_path):

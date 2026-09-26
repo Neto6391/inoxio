@@ -38,6 +38,12 @@ def sessao_atual(ctx: Contexto | None = Depends(sessao_opcional)) -> Contexto:
     return ctx
 
 
+def exigir_admin(ctx: Contexto = Depends(sessao_atual)) -> Contexto:
+    if ctx.usuario.papel != "admin":
+        raise HTTPException(status_code=403)
+    return ctx
+
+
 def conferir_csrf(ctx: Contexto, token: str) -> None:
     if not hmac.compare_digest(ctx.sessao.csrf.encode(), token.encode()):
         raise HTTPException(status_code=403)

@@ -9,18 +9,15 @@ import sys
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import sessionmaker
 
+from inoxio import usuarios
 from inoxio.config import Config
-from inoxio.db import Usuario, criar_fabrica
-from inoxio.seguranca.senhas import gerar_hash
-
-PAPEIS = ("admin", "analista")
+from inoxio.db import criar_fabrica
+from inoxio.usuarios import PAPEIS
 
 
 def criar_usuario(fabrica: sessionmaker, nome: str, papel: str, senha: str) -> None:
-    if papel not in PAPEIS:
-        raise ValueError(f"papel deve ser um de {PAPEIS}")
     with fabrica() as db, db.begin():
-        db.add(Usuario(nome=nome, senha_hash=gerar_hash(senha), papel=papel))
+        usuarios.criar(db, nome, papel, senha)
 
 
 def main(argv: list[str] | None = None) -> int:

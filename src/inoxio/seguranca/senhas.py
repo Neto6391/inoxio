@@ -13,7 +13,7 @@ _HASH_FALSO = _hasher.hash(_SENHA_FALSA)
 
 def gerar_hash(senha: str) -> str:
     if len(senha) < TAMANHO_MINIMO:
-        raise ValueError(f"a senha precisa de pelo menos {TAMANHO_MINIMO} caracteres")
+        raise ValueError(f"A senha precisa de pelo menos {TAMANHO_MINIMO} caracteres.")
     return _hasher.hash(senha)
 
 
