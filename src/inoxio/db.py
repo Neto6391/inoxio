@@ -10,7 +10,18 @@ import uuid
 from datetime import UTC, datetime
 from typing import Any
 
-from sqlalchemy import JSON, Boolean, DateTime, ForeignKey, Integer, String, create_engine
+from sqlalchemy import (
+    JSON,
+    Boolean,
+    DateTime,
+    ForeignKey,
+    Integer,
+    String,
+    create_engine,
+    inspect,
+    text,
+)
+from sqlalchemy.engine import Engine
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, sessionmaker
 from sqlalchemy.pool import StaticPool
 
@@ -34,6 +45,7 @@ class Usuario(Base):
     senha_hash: Mapped[str] = mapped_column(String(255))
     papel: Mapped[str] = mapped_column(String(16))
     criado_em: Mapped[datetime] = mapped_column(DateTime, default=agora)
+    ativo: Mapped[bool] = mapped_column(Boolean, default=True, server_default="1")
 
 
 class Sessao(Base):
@@ -76,4 +88,16 @@ def criar_fabrica(url: str) -> sessionmaker:
         opcoes["poolclass"] = StaticPool
     motor = create_engine(url, **opcoes)
     Base.metadata.create_all(motor)
+    _migrar(motor)
     return sessionmaker(motor, expire_on_commit=False)
+
+
+def _migrar(motor: Engine) -> None:
+    # O create_all não acrescenta coluna em tabela que já existe. Bancos criados
+    # antes da coluna "ativo" ganham a coluna aqui, com todo mundo ativo.
+    colunas = {coluna["name"] for coluna in inspect(motor).get_columns("usuarios")}
+    if "ativo" not in colunas:
+        with motor.begin() as conexao:
+            conexao.execute(
+                text("ALTER TABLE usuarios ADD COLUMN ativo BOOLEAN NOT NULL DEFAULT 1")
+            )

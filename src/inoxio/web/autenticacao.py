@@ -55,6 +55,9 @@ def _entrar(request: Request, credenciais: Credenciais, db: Session):
     if limites.login_bloqueado(db, credenciais.nome, ip):
         return JSONResponse({"erro": BLOQUEADO}, status_code=429)
     usuario = db.scalar(select(Usuario).where(Usuario.nome == credenciais.nome))
+    # Conta desativada responde como senha errada, e também passa pelo argon2.
+    if usuario is not None and not usuario.ativo:
+        usuario = None
     senha_correta = senhas.conferir(usuario.senha_hash if usuario else None, credenciais.senha)
     limites.registrar_tentativa(db, credenciais.nome, ip, sucesso=senha_correta)
     if not senha_correta:

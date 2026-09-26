@@ -1,8 +1,8 @@
-"""API de usuários, só para o papel admin: listar e cadastrar."""
+"""API de usuários, só para o papel admin: listar, cadastrar, editar e desativar."""
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 from sqlalchemy import select
@@ -16,6 +16,12 @@ from inoxio.web.dependencias import Contexto, banco, conferir_csrf, exigir_admin
 rotas = APIRouter(prefix="/api")
 
 
+class Alteracao(BaseModel):
+    papel: str | None = Field(default=None, max_length=16)
+    senha: str | None = Field(default=None, max_length=256)
+    ativo: bool | None = None
+
+
 class NovoUsuario(BaseModel):
     nome: str = Field(max_length=64)
     senha: str = Field(max_length=256)
@@ -27,6 +33,7 @@ def _publico(usuario: Usuario) -> dict:
         "nome": usuario.nome,
         "papel": usuario.papel,
         "criado_em": usuario.criado_em.isoformat(),
+        "ativo": usuario.ativo,
     }
 
 
@@ -52,3 +59,27 @@ def cadastrar(
         db.rollback()
         return JSONResponse({"erro": "Já existe um usuário com esse nome."}, status_code=409)
     return _publico(usuario)
+
+
+@rotas.patch("/usuarios/{nome}")
+def alterar(
+    nome: str,
+    request: Request,
+    pedido: Alteracao,
+    ctx: Contexto = Depends(exigir_admin),
+    db: Session = Depends(banco),
+):
+    conferir_csrf(ctx, token_csrf(request))
+    alvo = db.scalar(select(Usuario).where(Usuario.nome == nome))
+    if alvo is None:
+        raise HTTPException(status_code=404)
+    try:
+        usuarios.alterar(
+            db, alvo, ctx.usuario, papel=pedido.papel, senha=pedido.senha, ativo=pedido.ativo
+        )
+    except ValueError as erro:
+        return JSONResponse({"erro": str(erro)}, status_code=400)
+    except usuarios.Conflito as erro:
+        return JSONResponse({"erro": str(erro)}, status_code=409)
+    db.commit()
+    return _publico(alvo)

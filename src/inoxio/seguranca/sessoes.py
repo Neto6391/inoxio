@@ -39,7 +39,12 @@ def validar(db: Session, token: str | None) -> tuple[Usuario, Sessao] | None:
         return None
     sessao.ultimo_uso = momento
     usuario = db.get(Usuario, sessao.usuario_id)
-    return (usuario, sessao) if usuario else None
+    return (usuario, sessao) if usuario and usuario.ativo else None
+
+
+def fechar_todas(db: Session, usuario_id: str) -> None:
+    """Derruba todas as sessões do usuário: senha trocada ou conta desativada."""
+    db.execute(delete(Sessao).where(Sessao.usuario_id == usuario_id))
 
 
 def fechar(db: Session, token: str | None) -> None:
