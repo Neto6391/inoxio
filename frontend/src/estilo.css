@@ -1,0 +1,43 @@
+body {
+  margin: 0;
+}
+.casca {
+  min-height: 100vh;
+}
+.topo {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.marca {
+  color: #fff;
+  font-size: 18px;
+  font-weight: 700;
+}
+.quem {
+  margin-left: auto;
+  color: rgba(255, 255, 255, 0.85);
+}
+.conteudo {
+  width: 100%;
+  max-width: 1000px;
+  margin: 24px auto;
+  padding: 0 16px;
+  box-sizing: border-box;
+}
+.login {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  background: #f5f5f5;
+}
+.cartao-login {
+  width: 360px;
+}
+.espaco {
+  margin-bottom: 16px;
+}
+.campo-largo {
+  flex: 1;
+  min-width: 260px;
+}
