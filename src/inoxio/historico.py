@@ -13,7 +13,7 @@ from datetime import timedelta
 from typing import Any
 
 from sqlalchemy import select
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import Session, sessionmaker
 
 from inoxio.db import Investigacao, agora
 
@@ -36,13 +36,30 @@ def buscador(fabrica: sessionmaker) -> Buscar:
                 .order_by(Investigacao.criada_em.desc())
                 .limit(1)
             )
-        if anterior is None or any(e["status"] == "falha" for e in anterior.evidencias):
-            return None
+            if anterior is None or any(e["status"] == "falha" for e in anterior.evidencias):
+                return None
+            analise = anterior.analise or _analise_de_uma_copia(db, anterior)
         return {
             "evidencias": anterior.evidencias,
             "veredito": anterior.veredito,
             "nota": anterior.nota,
-            "analise": anterior.analise,
+            "analise": analise,
         }
 
     return buscar
+
+
+def _analise_de_uma_copia(db: Session, original: Investigacao) -> dict[str, Any] | None:
+    """Se a IA falhou na consulta original, uma cópia posterior pode ter conseguido."""
+    copias = db.scalars(
+        select(Investigacao)
+        .where(
+            Investigacao.tipo == original.tipo,
+            Investigacao.valor == original.valor,
+            Investigacao.reaproveitada.is_(True),
+            Investigacao.criada_em >= original.criada_em,
+        )
+        .order_by(Investigacao.criada_em.desc())
+        .limit(20)
+    )
+    return next((copia.analise for copia in copias if copia.analise), None)

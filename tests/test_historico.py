@@ -62,3 +62,26 @@ def test_nao_encadeia_reaproveitamentos(fabrica):
     buscar = preparar(fabrica)
     gravar(fabrica, reaproveitada=True)
     assert buscar("ip", "8.8.8.8") is None
+
+
+def test_analise_obtida_numa_copia_e_reaproveitada(fabrica):
+    # A IA falhou na consulta original e respondeu num reaproveitamento seguinte:
+    # os próximos reaproveitamentos usam essa análise, sem chamar a IA de novo.
+    buscar = preparar(fabrica)
+    gravar(fabrica, analise=None)
+    gravar(fabrica, reaproveitada=True, analise={"resumo": "da cópia"})
+    gravar(fabrica, valor="1.1.1.1", reaproveitada=True, analise={"resumo": "de outro IP"})
+    assert buscar("ip", "8.8.8.8")["analise"] == {"resumo": "da cópia"}
+
+
+def test_analise_de_copia_de_um_ciclo_anterior_nao_vale(fabrica):
+    # Uma cópia de antes da consulta original descreve outras evidências.
+    buscar = preparar(fabrica)
+    gravar(
+        fabrica,
+        reaproveitada=True,
+        analise={"resumo": "velha"},
+        criada_em=agora() - timedelta(hours=30),
+    )
+    gravar(fabrica, analise=None)
+    assert buscar("ip", "8.8.8.8")["analise"] is None
