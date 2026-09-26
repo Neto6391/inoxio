@@ -44,6 +44,17 @@ def test_senhas_erradas_de_outro_ip_nao_trancam_o_dono(fabrica, usuarios, config
     assert de("8.8.4.4", SENHA) == 200
 
 
+def test_conta_tem_teto_somando_todas_as_origens(cliente, usuarios, fabrica):
+    with fabrica() as db, db.begin():
+        for numero in range(99):
+            db.add(
+                TentativaLogin(nome="ana", ip=f"10.0.{numero // 250}.{numero % 250}", sucesso=False)
+            )
+    assert entrar(cliente, "ana", ERRADA).status_code == 401
+    assert entrar(cliente, "ana").status_code == 429
+    assert entrar(cliente, "beto").status_code == 200
+
+
 def test_bloqueio_e_por_conta(cliente, usuarios):
     for _ in range(5):
         entrar(cliente, "ana", ERRADA)

@@ -14,6 +14,9 @@ JANELA_LOGIN = timedelta(minutes=15)
 # Por conta e origem juntas: senhas erradas vindas de outro lugar não trancam o
 # dono. Quem tenta de muitos lugares esbarra no teto por origem.
 FALHAS_POR_CONTA_E_ORIGEM = 5
+# Teto de qualquer origem somada: alto o bastante para só um ataque distribuído
+# chegar nele, e ainda assim um limite para quem tenta de muitos lugares.
+FALHAS_POR_CONTA = 100
 FALHAS_POR_IP = 20
 INVESTIGACOES_POR_HORA = 20
 JANELA_INVESTIGACOES = timedelta(hours=1)
@@ -41,7 +44,12 @@ def login_bloqueado(db: Session, nome: str, ip: str) -> bool:
     daqui = falhas.where(TentativaLogin.ip == origem(ip))
     por_conta = db.scalar(daqui.where(TentativaLogin.nome == nome))
     por_origem = db.scalar(daqui)
-    return por_conta >= FALHAS_POR_CONTA_E_ORIGEM or por_origem >= FALHAS_POR_IP
+    por_conta_total = db.scalar(falhas.where(TentativaLogin.nome == nome))
+    return (
+        por_conta >= FALHAS_POR_CONTA_E_ORIGEM
+        or por_origem >= FALHAS_POR_IP
+        or por_conta_total >= FALHAS_POR_CONTA
+    )
 
 
 def registrar_tentativa(db: Session, nome: str, ip: str, sucesso: bool) -> None:
