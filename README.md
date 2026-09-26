@@ -64,6 +64,15 @@ graph TD;
   não tem campo de veredito. Se o Groq falhar ou demorar mais de 10 s, a tela
   mostra o resultado sem a análise.
 
+## Telas
+
+- **Login**, com usuário e senha.
+- **Painel:** campo para investigar e a lista das últimas investigações do usuário.
+- **Investigação:** veredito com a nota num medidor, as evidências de cada fonte e
+  a análise da IA, com links para as técnicas do MITRE ATT&CK.
+- **Usuários:** só para o papel `admin`, que cadastra usuários por ali (ou pelo
+  terminal, com `inoxio criar-usuario`).
+
 ## Stack
 
 FastAPI + LangGraph (Python 3.12) na API, React 19 + Ant Design 6 no frontend,

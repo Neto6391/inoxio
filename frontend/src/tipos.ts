@@ -1,5 +1,6 @@
 export type Papel = "admin" | "analista";
 export type Usuario = { nome: string; papel: Papel };
+export type UsuarioListado = Usuario & { criado_em: string };
 export type Sessao = { usuario: Usuario; csrf: string };
 // Resposta do GET /api/sessao: sem sessão, usuario e csrf vêm nulos (status 200).
 export type RespostaSessao = { usuario: Usuario | null; csrf: string | null };

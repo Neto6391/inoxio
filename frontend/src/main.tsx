@@ -1,4 +1,4 @@
-import { App as AntApp, ConfigProvider } from "antd";
+import { App as AntApp, ConfigProvider, theme } from "antd";
 import ptBR from "antd/locale/pt_BR";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
@@ -10,9 +10,25 @@ import "./estilo.css";
 const meta = document.querySelector<HTMLMetaElement>('meta[name="csp-nonce"]');
 const nonce = meta && meta.content !== "__CSP_NONCE__" ? meta.content : undefined;
 
+const tema = {
+  algorithm: theme.darkAlgorithm,
+  token: {
+    colorPrimary: "#3b82f6",
+    colorBgBase: "#0b1016",
+    colorBgContainer: "#111821",
+    colorBorderSecondary: "#1e2935",
+    borderRadius: 6,
+    fontFamily:
+      "Inter, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif",
+  },
+  components: {
+    Layout: { headerBg: "#0d141c", bodyBg: "#0b1016", headerPadding: "0 24px" },
+  },
+};
+
 createRoot(document.getElementById("raiz") as HTMLElement).render(
   <StrictMode>
-    <ConfigProvider locale={ptBR} csp={nonce ? { nonce } : undefined}>
+    <ConfigProvider locale={ptBR} theme={tema} csp={nonce ? { nonce } : undefined}>
       <AntApp>
         <App />
       </AntApp>

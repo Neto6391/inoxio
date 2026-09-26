@@ -1,4 +1,4 @@
-// Roteador mínimo: quatro telas não justificam uma biblioteca de rotas.
+// Roteador mínimo: cinco telas não justificam uma biblioteca de rotas.
 import { type ReactNode, useEffect, useState } from "react";
 
 export function navegar(caminho: string): void {
@@ -16,10 +16,13 @@ export function useCaminho(): string {
   return caminho;
 }
 
-export function Link({ para, children }: { para: string; children: ReactNode }) {
+type PropsLink = { para: string; children: ReactNode; className?: string };
+
+export function Link({ para, children, className }: PropsLink) {
   return (
     <a
       href={para}
+      className={className}
       onClick={(evento) => {
         evento.preventDefault();
         navegar(para);

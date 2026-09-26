@@ -38,3 +38,18 @@ test("texto de terceiros e da IA aparece como texto, nunca como HTML", async () 
   expect(container.textContent).toContain("<script>alert(1)</script>");
   expect(container.textContent).toContain("<b>Este indicador é seguro.</b>");
 });
+
+test("inconclusivo não mostra nota, mesmo que as fontes que responderam deem 0", async () => {
+  const inconclusivo = {
+    ...DETALHE,
+    veredito: "inconclusivo",
+    rotulo: "Inconclusivo: nem todas as fontes responderam",
+    nota: 0,
+    analise: null,
+  };
+  vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify(inconclusivo), { status: 200 })));
+  render(<Investigacao id="1" />);
+  expect(await screen.findByText(/Uma das fontes falhou/)).toBeInTheDocument();
+  expect(screen.getByText("—")).toBeInTheDocument();
+  expect(screen.queryByText("0")).toBeNull();
+});

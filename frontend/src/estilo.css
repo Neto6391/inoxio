@@ -1,43 +1,129 @@
 body {
   margin: 0;
+  background: #0b1016;
+  color-scheme: dark;
+}
+a {
+  color: #60a5fa;
 }
 .casca {
   min-height: 100vh;
 }
+
+/* Cabeçalho */
 .topo {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 24px;
+  border-bottom: 1px solid #1e2935;
 }
 .marca {
-  color: #fff;
-  font-size: 18px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #e6edf3;
+  font-size: 17px;
   font-weight: 700;
+  letter-spacing: 0.2px;
+}
+.marca-simbolo {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  background: linear-gradient(135deg, #2563eb, #0ea5e9);
+  color: #fff;
+  font-size: 15px;
+}
+.navegacao {
+  display: flex;
+  gap: 4px;
+}
+.navegacao a {
+  padding: 6px 12px;
+  border-radius: 6px;
+  color: #9aa7b4;
+  font-weight: 500;
+}
+.navegacao a:hover {
+  color: #e6edf3;
+  background: #16202b;
+}
+.navegacao a.ativo {
+  color: #e6edf3;
+  background: #1a2633;
 }
 .quem {
   margin-left: auto;
-  color: rgba(255, 255, 255, 0.85);
+  color: #9aa7b4;
+  white-space: nowrap;
 }
 .conteudo {
   width: 100%;
-  max-width: 1000px;
-  margin: 24px auto;
+  max-width: 1080px;
+  margin: 28px auto;
   padding: 0 16px;
   box-sizing: border-box;
 }
+
+/* Login */
 .login {
   min-height: 100vh;
   display: grid;
   place-items: center;
-  background: #f5f5f5;
+  padding: 16px;
+  box-sizing: border-box;
+  background: radial-gradient(circle at 50% 0%, #13263d 0%, #0b1016 60%);
 }
 .cartao-login {
-  width: 360px;
+  width: 100%;
+  max-width: 380px;
+}
+
+/* Conteúdo */
+.indicador {
+  font-family: "JetBrains Mono", "Cascadia Code", Consolas, "SFMono-Regular", monospace;
+  word-break: break-all;
+}
+.titulo-indicador {
+  margin: 0 !important;
+  font-size: 26px !important;
 }
 .espaco {
   margin-bottom: 16px;
 }
 .campo-largo {
   flex: 1;
-  min-width: 260px;
+  min-width: 240px;
+}
+.veredito {
+  border-left: 4px solid var(--cor-veredito);
+}
+.rotulo-veredito {
+  font-size: 22px;
+  font-weight: 600;
+  color: var(--cor-veredito);
+}
+.espaco-topo {
+  margin: 12px 0 0 !important;
+}
+.item-recente {
+  cursor: pointer;
+}
+.item-recente:hover {
+  background: #141d27;
+}
+
+@media (max-width: 640px) {
+  .topo {
+    gap: 12px;
+    padding: 0 12px !important;
+  }
+  .quem-texto {
+    display: none;
+  }
+  .conteudo {
+    margin: 16px auto;
+  }
 }

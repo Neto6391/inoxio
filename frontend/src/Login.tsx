@@ -23,7 +23,11 @@ export function Login({ aoEntrar }: { aoEntrar: (sessao: Sessao) => void }) {
 
   return (
     <div className="login">
-      <Card title="Inóxio" className="cartao-login">
+      <Card className="cartao-login">
+        <div className="marca espaco">
+          <span className="marca-simbolo">I</span>
+          Inóxio
+        </div>
         <Typography.Paragraph type="secondary">
           Investigação de indicadores suspeitos: IPs, domínios e arquivos.
         </Typography.Paragraph>

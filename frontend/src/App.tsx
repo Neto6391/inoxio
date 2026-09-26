@@ -6,17 +6,27 @@ import { Login } from "./Login";
 import { Painel } from "./Painel";
 import { Link, navegar, useCaminho } from "./rotas";
 import type { RespostaSessao, Sessao } from "./tipos";
+import { Usuarios } from "./Usuarios";
 
-function Tela({ caminho }: { caminho: string }) {
+function Tela({ caminho, sessao }: { caminho: string; sessao: Sessao }) {
   const investigacao = caminho.match(/^\/investigacoes\/([\w-]+)$/);
   if (investigacao) return <Investigacao id={investigacao[1]} />;
   if (caminho === "/") return <Painel />;
+  if (caminho === "/usuarios" && sessao.usuario.papel === "admin") return <Usuarios />;
   return (
     <Result
       status="404"
       title="Página não encontrada"
       extra={<Button onClick={() => navegar("/")}>Voltar ao painel</Button>}
     />
+  );
+}
+
+function ItemMenu({ para, ativo, children }: { para: string; ativo: boolean; children: string }) {
+  return (
+    <Link para={para} className={ativo ? "ativo" : undefined}>
+      {children}
+    </Link>
   );
 }
 
@@ -74,19 +84,35 @@ export function App() {
   }
   if (sessao === null) return <Login aoEntrar={entrarCom} />;
 
+  const admin = sessao.usuario.papel === "admin";
   return (
     <Layout className="casca">
       <Layout.Header className="topo">
         <Link para="/">
-          <span className="marca">Inóxio</span>
+          <span className="marca">
+            <span className="marca-simbolo">I</span>
+            Inóxio
+          </span>
         </Link>
+        <nav className="navegacao">
+          <ItemMenu para="/" ativo={caminho === "/" || caminho.startsWith("/investigacoes")}>
+            Investigações
+          </ItemMenu>
+          {admin && (
+            <ItemMenu para="/usuarios" ativo={caminho === "/usuarios"}>
+              Usuários
+            </ItemMenu>
+          )}
+        </nav>
         <span className="quem">
-          {sessao.usuario.nome} · {sessao.usuario.papel}
+          <span className="quem-texto">
+            {sessao.usuario.nome} · {sessao.usuario.papel}
+          </span>
         </span>
         <Button onClick={sair}>Sair</Button>
       </Layout.Header>
       <Layout.Content className="conteudo">
-        <Tela caminho={caminho} />
+        <Tela caminho={caminho} sessao={sessao} />
       </Layout.Content>
     </Layout>
   );
