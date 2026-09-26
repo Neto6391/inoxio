@@ -19,7 +19,7 @@ export function guardarCsrf(token: string): void {
   tokenCsrf = token;
 }
 
-type Opcoes = { metodo?: "GET" | "POST"; corpo?: unknown };
+type Opcoes = { metodo?: "GET" | "POST" | "PATCH"; corpo?: unknown };
 
 export async function chamar<T>(caminho: string, opcoes: Opcoes = {}): Promise<T> {
   const metodo = opcoes.metodo ?? "GET";

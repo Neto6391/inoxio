@@ -12,7 +12,9 @@ function Tela({ caminho, sessao }: { caminho: string; sessao: Sessao }) {
   const investigacao = caminho.match(/^\/investigacoes\/([\w-]+)$/);
   if (investigacao) return <Investigacao id={investigacao[1]} />;
   if (caminho === "/") return <Painel />;
-  if (caminho === "/usuarios" && sessao.usuario.papel === "admin") return <Usuarios />;
+  if (caminho === "/usuarios" && sessao.usuario.papel === "admin") {
+    return <Usuarios eu={sessao.usuario.nome} />;
+  }
   return (
     <Result
       status="404"

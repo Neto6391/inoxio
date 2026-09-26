@@ -127,3 +127,7 @@ a {
     margin: 16px auto;
   }
 }
+.inativo {
+  color: #6b7785;
+  text-decoration: line-through;
+}

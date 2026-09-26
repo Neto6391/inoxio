@@ -70,8 +70,10 @@ graph TD;
 - **Painel:** campo para investigar e a lista das últimas investigações do usuário.
 - **Investigação:** veredito com a nota num medidor, as evidências de cada fonte e
   a análise da IA, com links para as técnicas do MITRE ATT&CK.
-- **Usuários:** só para o papel `admin`, que cadastra usuários por ali (ou pelo
-  terminal, com `inoxio criar-usuario`).
+- **Usuários:** só para o papel `admin`, que cadastra, edita (papel e senha),
+  desativa e reativa usuários por ali. O cadastro também existe no terminal, com
+  `inoxio criar-usuario`. Ninguém desativa a própria conta, e o último admin
+  ativo não perde o papel.
 
 ## Stack
 
@@ -121,6 +123,7 @@ falha se ele for removido.
 | Usuário inexistente e senha errada dão a mesma resposta; o inexistente também passa pelo argon2, para o tempo não denunciar quem existe | `_HASH_FALSO` em `senhas.py`; `entrar` em `src/inoxio/web/autenticacao.py` | `test_autenticacao.py::test_usuario_inexistente_e_senha_errada_respondem_igual` |
 | Bloqueio de 15 min após 5 falhas da mesma conta vindas do mesmo IP, ou 20 falhas de um IP em qualquer conta (IPv6 conta pela rede /64); senhas erradas de outro IP não trancam o dono, até o teto de 100 falhas da conta somando todos os IPs; tentativas em paralelo não furam o limite; um `X-Forwarded-For` forjado não troca o IP | `src/inoxio/seguranca/limites.py`; `entrar` em `src/inoxio/web/autenticacao.py`; `ProxyHeadersMiddleware` em `src/inoxio/web/app.py` | `test_limites_login.py` |
 | Sessão no servidor: o banco guarda só o SHA-256 do token; cookie `__Host-`, `HttpOnly`, `Secure`, `SameSite=Strict` | `src/inoxio/seguranca/sessoes.py` | `test_autenticacao.py::test_banco_guarda_so_o_hash_do_token`, `::test_cookie_de_sessao_protegido` |
+| Conta desativada não entra (mesma resposta de senha errada) e perde as sessões abertas; senha trocada pelo admin também derruba as sessões | `alterar` em `src/inoxio/usuarios.py`; `validar` em `src/inoxio/seguranca/sessoes.py` | `test_usuarios.py::test_desativado_nao_entra_e_perde_a_sessao_aberta`, `::test_senha_nova_derruba_as_sessoes_e_so_ela_vale` |
 | Token novo a cada login, expiração por 30 min de inatividade ou 8 h de duração, logout que apaga a sessão no servidor | `sessoes.py`; `entrar` e `sair` em `autenticacao.py` | `test_autenticacao.py::test_login_troca_o_token_e_fecha_o_antigo`, `::test_sessao_ociosa_expira`, `::test_logout_invalida_no_servidor` |
 
 Além dos três, o código também trata A10 (Mishandling of Exceptional
