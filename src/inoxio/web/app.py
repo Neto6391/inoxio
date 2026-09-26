@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import logging
 import mimetypes
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from http import HTTPStatus
 from pathlib import Path
 
@@ -43,8 +45,9 @@ MENSAGENS = {
 }
 
 
-def grafo_de_producao(config: Config, fabrica: sessionmaker) -> CompiledStateGraph:
-    cliente = httpx.Client()
+def grafo_de_producao(
+    config: Config, fabrica: sessionmaker, cliente: httpx.Client
+) -> CompiledStateGraph:
     fontes = [
         AbuseIPDB(config.abuseipdb_chave, cliente),
         VirusTotal(config.virustotal_chave, cliente),
@@ -59,10 +62,19 @@ def criar_app(
 ) -> FastAPI:
     config = config or Config.do_ambiente()
     frontend = Path(config.frontend_dir)
-    app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
+    # Um cliente HTTP para todas as consultas às fontes, fechado quando o app para.
+    cliente_http = httpx.Client()
+
+    @asynccontextmanager
+    async def ciclo_de_vida(app: FastAPI) -> AsyncIterator[None]:
+        yield
+        cliente_http.close()
+
+    app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None, lifespan=ciclo_de_vida)
     app.state.config = config
     app.state.fabrica = fabrica or criar_fabrica(config.banco_url)
-    app.state.grafo = grafo or grafo_de_producao(config, app.state.fabrica)
+    app.state.cliente_http = cliente_http
+    app.state.grafo = grafo or grafo_de_producao(config, app.state.fabrica, cliente_http)
     app.include_router(autenticacao.rotas)
     app.include_router(rotas_agente.rotas)
     app.mount("/assets", StaticFiles(directory=frontend / "assets", check_dir=False), "assets")
