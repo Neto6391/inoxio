@@ -8,11 +8,11 @@ def abuse(score):
     return evidencia("abuseipdb", "ok", {"score": score, "relatos": 0, "pais": "", "isp": ""})
 
 
-def vt(maliciosos, reputacao=0):
+def vt(maliciosos, reputacao=0, suspeitos=0):
     return evidencia(
         "virustotal",
         "ok",
-        {"malicioso": maliciosos, "suspeito": 0, "reputacao": reputacao, "tags": []},
+        {"malicioso": maliciosos, "suspeito": suspeitos, "reputacao": reputacao, "tags": []},
     )
 
 
@@ -78,16 +78,35 @@ def test_nota_sempre_cai_na_faixa_do_veredito():
     for score in range(0, 101, 5):
         for maliciosos in range(15):
             for reputacao in (-10, 0, 10):
-                for evidencias in (
-                    [abuse(score), vt(maliciosos, reputacao)],
-                    [vt(maliciosos, reputacao)],
-                ):
-                    veredito, nota = decidir_veredito(evidencias)
-                    assert 0 <= nota <= 100, (score, maliciosos, reputacao, nota)
-                    assert faixa(nota) == veredito, (score, maliciosos, reputacao, veredito, nota)
+                for suspeitos in (0, 1, 3, 12):
+                    for evidencias in (
+                        [abuse(score), vt(maliciosos, reputacao, suspeitos)],
+                        [vt(maliciosos, reputacao, suspeitos)],
+                    ):
+                        veredito, nota = decidir_veredito(evidencias)
+                        caso = (score, maliciosos, reputacao, suspeitos, veredito, nota)
+                        assert 0 <= nota <= 100, caso
+                        assert faixa(nota) == veredito, caso
 
 
 def test_mais_deteccoes_nunca_baixam_a_nota():
     notas = [decidir_veredito([vt(maliciosos)])[1] for maliciosos in range(15)]
     assert notas == sorted(notas)
     assert notas[10] == 100
+
+
+@pytest.mark.parametrize(
+    ("evidencias", "esperado"),
+    [
+        ([vt(0, suspeitos=3)], ("suspeito", 55)),
+        ([vt(1, suspeitos=1)], ("suspeito", 40)),
+        # Só "suspicious" nunca chega a malicioso, por mais motores que sejam.
+        ([vt(0, suspeitos=12)], ("suspeito", 70)),
+        ([vt(4, suspeitos=12)], ("suspeito", 70)),
+        ([vt(5, suspeitos=12)], ("malicioso", 75)),
+        # A reputação positiva também desconta as suspeitas.
+        ([vt(0, reputacao=50, suspeitos=3)], ("sem_evidencia", 0)),
+    ],
+)
+def test_deteccoes_suspeitas_somam_para_suspeito(evidencias, esperado):
+    assert decidir_veredito(evidencias) == esperado

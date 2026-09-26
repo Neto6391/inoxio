@@ -52,7 +52,9 @@ graph TD;
 - **Reaproveitar:** o mesmo indicador investigado há menos de 24 h devolve o
   resultado salvo, sem gastar a cota das fontes nem da IA. Resultado em que
   alguma fonte falhou nunca é reaproveitado.
-- **Consultar e decidir:** VirusTotal e AbuseIPDB em paralelo. O veredito
+- **Consultar e decidir:** VirusTotal e AbuseIPDB em paralelo. No VirusTotal,
+  motores que marcam o indicador como *malicious* ou *suspicious* somam para
+  `suspeito`; só os *malicious* (5 ou mais) levam a `malicioso`. O veredito
   (`malicioso`, `suspeito`, `sem_evidencia`, `desconhecido` ou `inconclusivo`) e
   a nota de risco (0 a 100: a partir de 25 é suspeito, a partir de 75 é
   malicioso) saem de regras fixas em `src/inoxio/agente/decidir.py`. Se

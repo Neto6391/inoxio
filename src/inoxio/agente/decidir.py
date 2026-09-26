@@ -23,26 +23,30 @@ def _classe_abuseipdb(dados: dict[str, Any]) -> str | None:
     return "suspeito" if score >= NOTA_SUSPEITO else None
 
 
+def _deteccoes(dados: dict[str, Any]) -> int:
+    # Motores que marcam "suspicious" somam com os que marcam "malicious" para o
+    # veredito suspeito; para malicioso, só contam os "malicious".
+    return dados["malicioso"] + dados.get("suspeito", 0)
+
+
 def _classe_virustotal(dados: dict[str, Any]) -> str | None:
-    maliciosos = dados["malicioso"]
-    if maliciosos >= 5:
+    if dados["malicioso"] >= 5:
         return "malicioso"
     # Poucas detecções com reputação positiva na comunidade costumam ser falso
     # positivo de antivírus: só contam se a reputação for zero ou negativa.
-    if maliciosos >= 1 and dados.get("reputacao", 0) <= 0:
+    if _deteccoes(dados) >= 1 and dados.get("reputacao", 0) <= 0:
         return "suspeito"
     return None
 
 
 def _nota_virustotal(dados: dict[str, Any]) -> int:
-    # Cada detecção a mais sobe a nota dentro da faixa da classe: 1 a 4 detecções
-    # vão de 25 a 70, e 5 ou mais partem de 75 e chegam a 100 com 10.
-    maliciosos = dados["malicioso"]
+    # Cada detecção a mais sobe a nota dentro da faixa da classe: suspeito vai de
+    # 25 a 70; malicioso parte de 75 com 5 detecções e chega a 100 com 10.
     classe = _classe_virustotal(dados)
     if classe == "malicioso":
-        return min(100, NOTA_MALICIOSO + 5 * (maliciosos - 5))
+        return min(100, NOTA_MALICIOSO + 5 * (dados["malicioso"] - 5))
     if classe == "suspeito":
-        return NOTA_SUSPEITO + 15 * (maliciosos - 1)
+        return min(NOTA_MALICIOSO - 5, NOTA_SUSPEITO + 15 * (_deteccoes(dados) - 1))
     # Detecções descontadas pela reputação também não pesam na nota.
     return 0
 
