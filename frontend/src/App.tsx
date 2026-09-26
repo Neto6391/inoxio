@@ -1,6 +1,6 @@
 import { Button, Flex, Layout, Result, Spin } from "antd";
 import { useEffect, useState } from "react";
-import { chamar, guardarCsrf, SESSAO_EXPIRADA } from "./api";
+import { chamar, ErroApi, guardarCsrf, SESSAO_EXPIRADA, SESSAO_TROCADA } from "./api";
 import { Investigacao } from "./Investigacao";
 import { Login } from "./Login";
 import { Painel } from "./Painel";
@@ -31,18 +31,36 @@ export function App() {
   }
 
   useEffect(() => {
-    chamar<RespostaSessao>("/api/sessao")
-      .then(({ usuario, csrf }) =>
-        usuario && csrf ? entrarCom({ usuario, csrf }) : setSessao(null),
-      )
-      .catch(() => setSessao(null));
+    function perguntarAoServidor() {
+      chamar<RespostaSessao>("/api/sessao")
+        .then(({ usuario, csrf }) =>
+          usuario && csrf ? entrarCom({ usuario, csrf }) : setSessao(null),
+        )
+        .catch(() => setSessao(null));
+    }
     const expirou = () => setSessao(null);
+    perguntarAoServidor();
     window.addEventListener(SESSAO_EXPIRADA, expirou);
-    return () => window.removeEventListener(SESSAO_EXPIRADA, expirou);
+    window.addEventListener(SESSAO_TROCADA, perguntarAoServidor);
+    return () => {
+      window.removeEventListener(SESSAO_EXPIRADA, expirou);
+      window.removeEventListener(SESSAO_TROCADA, perguntarAoServidor);
+    };
   }, []);
 
   async function sair() {
-    await chamar("/api/logout", { metodo: "POST" }).catch(() => undefined);
+    try {
+      await chamar("/api/logout", { metodo: "POST" });
+    } catch (falha) {
+      // Token velho porque outra aba entrou de novo: sai da sessão que está valendo.
+      if (falha instanceof ErroApi && falha.status === 403) {
+        const atual = await chamar<RespostaSessao>("/api/sessao").catch(() => null);
+        if (atual?.csrf) {
+          guardarCsrf(atual.csrf);
+          await chamar("/api/logout", { metodo: "POST" }).catch(() => undefined);
+        }
+      }
+    }
     setSessao(null);
     navegar("/");
   }

@@ -21,8 +21,8 @@ export function AnaliseIA({ analise }: { analise: Analise | null }) {
         </Typography.Paragraph>
       )}
       <ul>
-        {analise.recomendacoes.map((recomendacao) => (
-          <li key={recomendacao}>{recomendacao}</li>
+        {analise.recomendacoes.map((recomendacao, posicao) => (
+          <li key={`${posicao}-${recomendacao}`}>{recomendacao}</li>
         ))}
       </ul>
       <Typography.Text type="secondary">

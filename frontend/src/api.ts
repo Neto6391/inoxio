@@ -1,6 +1,8 @@
 // Cliente da API: sempre JSON, e o token CSRF em todo pedido que não é GET.
 
 export const SESSAO_EXPIRADA = "inoxio:sessao-expirada";
+// Outra aba entrou de novo: o cookie mudou e o token CSRF guardado aqui ficou velho.
+export const SESSAO_TROCADA = "inoxio:sessao-trocada";
 
 export class ErroApi extends Error {
   readonly status: number;

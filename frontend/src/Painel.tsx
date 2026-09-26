@@ -1,19 +1,20 @@
 import { Alert, Button, Card, Flex, Form, Input, List, Typography } from "antd";
 import { useEffect, useState } from "react";
-import { chamar, mensagemDeErro } from "./api";
+import { chamar, ErroApi, mensagemDeErro, SESSAO_TROCADA } from "./api";
 import { quando, TagVeredito } from "./formato";
 import { Link, navegar } from "./rotas";
 import type { ResumoInvestigacao } from "./tipos";
 
 export function Painel() {
   const [recentes, setRecentes] = useState<ResumoInvestigacao[]>([]);
+  const [erroLista, setErroLista] = useState<string | null>(null);
   const [erro, setErro] = useState<string | null>(null);
   const [ocupado, setOcupado] = useState(false);
 
   useEffect(() => {
     chamar<ResumoInvestigacao[]>("/api/investigacoes")
       .then(setRecentes)
-      .catch(() => undefined);
+      .catch((falha) => setErroLista(mensagemDeErro(falha)));
   }, []);
 
   async function investigar({ entrada }: { entrada: string }) {
@@ -24,6 +25,9 @@ export function Painel() {
       const { id } = await chamar<{ id: string }>("/api/investigacoes", { metodo: "POST", corpo });
       navegar(`/investigacoes/${id}`);
     } catch (falha) {
+      if (falha instanceof ErroApi && falha.status === 403) {
+        window.dispatchEvent(new Event(SESSAO_TROCADA));
+      }
       setErro(mensagemDeErro(falha));
     } finally {
       setOcupado(false);
@@ -52,18 +56,22 @@ export function Painel() {
         </Form>
       </Card>
       <Card title="Suas investigações recentes">
-        <List<ResumoInvestigacao>
-          dataSource={recentes}
-          locale={{ emptyText: "Nenhuma investigação ainda." }}
-          renderItem={(item) => (
-            <List.Item extra={<TagVeredito veredito={item.veredito} />}>
-              <List.Item.Meta
-                title={<Link para={`/investigacoes/${item.id}`}>{item.valor}</Link>}
-                description={`${item.tipo} · ${quando(item.criada_em)}`}
-              />
-            </List.Item>
-          )}
-        />
+        {erroLista ? (
+          <Alert type="error" showIcon title={erroLista} />
+        ) : (
+          <List<ResumoInvestigacao>
+            dataSource={recentes}
+            locale={{ emptyText: "Nenhuma investigação ainda." }}
+            renderItem={(item) => (
+              <List.Item extra={<TagVeredito veredito={item.veredito} />}>
+                <List.Item.Meta
+                  title={<Link para={`/investigacoes/${item.id}`}>{item.valor}</Link>}
+                  description={`${item.tipo} · ${quando(item.criada_em)}`}
+                />
+              </List.Item>
+            )}
+          />
+        )}
       </Card>
     </Flex>
   );
