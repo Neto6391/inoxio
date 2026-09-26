@@ -11,7 +11,9 @@ from sqlalchemy.orm import Session
 from inoxio.db import Investigacao, TentativaLogin, agora
 
 JANELA_LOGIN = timedelta(minutes=15)
-FALHAS_POR_CONTA = 5
+# Por conta e origem juntas: senhas erradas vindas de outro lugar não trancam o
+# dono. Quem tenta de muitos lugares esbarra no teto por origem.
+FALHAS_POR_CONTA_E_ORIGEM = 5
 FALHAS_POR_IP = 20
 INVESTIGACOES_POR_HORA = 20
 JANELA_INVESTIGACOES = timedelta(hours=1)
@@ -36,9 +38,10 @@ def login_bloqueado(db: Session, nome: str, ip: str) -> bool:
             TentativaLogin.sucesso.is_(False), TentativaLogin.criada_em >= agora() - JANELA_LOGIN
         )
     )
-    por_conta = db.scalar(falhas.where(TentativaLogin.nome == nome))
-    por_ip = db.scalar(falhas.where(TentativaLogin.ip == origem(ip)))
-    return por_conta >= FALHAS_POR_CONTA or por_ip >= FALHAS_POR_IP
+    daqui = falhas.where(TentativaLogin.ip == origem(ip))
+    por_conta = db.scalar(daqui.where(TentativaLogin.nome == nome))
+    por_origem = db.scalar(daqui)
+    return por_conta >= FALHAS_POR_CONTA_E_ORIGEM or por_origem >= FALHAS_POR_IP
 
 
 def registrar_tentativa(db: Session, nome: str, ip: str, sucesso: bool) -> None:

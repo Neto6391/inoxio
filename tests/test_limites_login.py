@@ -1,6 +1,6 @@
 from concurrent.futures import ThreadPoolExecutor
 
-from ajudantes import entrar
+from ajudantes import SENHA, entrar
 from fastapi.testclient import TestClient
 from sqlalchemy import select
 
@@ -24,6 +24,24 @@ def test_tentativas_em_paralelo_nao_furam_o_limite(cliente, usuarios):
             executor.map(lambda _: entrar(cliente, "ana", ERRADA).status_code, range(10))
         )
     assert sorted(respostas) == [401] * 5 + [429] * 5
+
+
+def test_senhas_erradas_de_outro_ip_nao_trancam_o_dono(fabrica, usuarios, config):
+    app = criar_app(
+        Config(proxies_confiaveis="*", frontend_dir=config.frontend_dir), fabrica=fabrica
+    )
+    cliente = TestClient(app, base_url="https://testserver")
+
+    def de(ip, senha=ERRADA):
+        resposta = cliente.post(
+            "/api/login", json={"nome": "ana", "senha": senha}, headers={"X-Forwarded-For": ip}
+        )
+        return resposta.status_code
+
+    for _ in range(5):
+        assert de("6.6.6.6") == 401
+    assert de("6.6.6.6") == 429
+    assert de("8.8.4.4", SENHA) == 200
 
 
 def test_bloqueio_e_por_conta(cliente, usuarios):
