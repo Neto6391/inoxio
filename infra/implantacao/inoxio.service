@@ -1,0 +1,15 @@
+# Unidade de usuário (systemctl --user) do app. Instalada em ~/.config/systemd/user/.
+# Sem NoNewPrivileges: ele bloquearia o sudo do coletor de hardening.
+[Unit]
+Description=Inóxio (app web)
+After=network-online.target
+
+[Service]
+WorkingDirectory=%h/inoxio
+EnvironmentFile=%h/.config/inoxio/env
+ExecStart=%h/inoxio/.venv/bin/uvicorn inoxio.web.app:criar_app --factory --host 127.0.0.1 --port 8100 --no-proxy-headers --no-server-header
+Restart=on-failure
+RestartSec=2
+
+[Install]
+WantedBy=default.target

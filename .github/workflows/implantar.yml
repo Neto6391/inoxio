@@ -1,0 +1,66 @@
+name: implantar
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: producao
+  cancel-in-progress: false
+
+jobs:
+  testar:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          version: "0.11.3"
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "22"
+      - run: uv sync --frozen
+      - run: uv run ruff format --check .
+      - run: uv run ruff check .
+      - run: uv run pytest
+      - name: Frontend
+        working-directory: frontend
+        run: |
+          npm ci --ignore-scripts
+          npm test
+          npm run build
+
+  implantar:
+    needs: testar
+    runs-on: ubuntu-24.04
+    environment: producao
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "22"
+      # Compila de novo em vez de baixar artefato: a conta está sem cota para eles.
+      # Os Secrets não aparecem neste passo, só no do ssh.
+      - name: Compilar o frontend
+        working-directory: frontend
+        run: |
+          npm ci --ignore-scripts
+          npm run build
+      - name: Publicar o commit na VPS
+        env:
+          CHAVE: ${{ secrets.INOXIO_SSH_KEY }}
+          CONHECIDOS: ${{ secrets.INOXIO_SSH_KNOWN_HOSTS }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$CHAVE" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          printf '%s\n' "$CONHECIDOS" > ~/.ssh/known_hosts
+          tar -czf - -C frontend/dist . |
+            ssh -o StrictHostKeyChecking=yes -o BatchMode=yes inoxio@179.199.133.136 "$GITHUB_SHA"

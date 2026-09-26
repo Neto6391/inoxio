@@ -1,0 +1,70 @@
+#!/usr/bin/env bash
+# Forced command da chave do CI. Recebe o SHA do commit como único argumento e o
+# frontend compilado (tar.gz) pela entrada padrão.
+# Instalado à mão em /home/inoxio/bin/implantar: um push não consegue mudá-lo.
+set -euo pipefail
+
+LIMITE=$((20 * 1024 * 1024))
+
+sha="${SSH_ORIGINAL_COMMAND:-}"
+if [[ ! "$sha" =~ ^[0-9a-f]{40}$ ]]; then
+  echo "recusado: esperado um SHA de 40 hexadecimais" >&2
+  exit 2
+fi
+
+pacote="$(mktemp)"
+trap 'rm -f "$pacote"' EXIT
+head -c $((LIMITE + 1)) >"$pacote"
+tamanho="$(stat -c %s "$pacote")"
+if [ "$tamanho" -eq 0 ] || [ "$tamanho" -gt "$LIMITE" ]; then
+  echo "recusado: pacote do frontend vazio ou maior que 20 MB" >&2
+  exit 2
+fi
+if ! tar -tzf "$pacote" 2>/dev/null | grep -qxE '(\./)?index\.html'; then
+  echo "recusado: pacote do frontend sem index.html" >&2
+  exit 2
+fi
+
+export XDG_RUNTIME_DIR="/run/user/$(id -u)"
+frente="$HOME/frontend"
+cd "$HOME/inoxio"
+anterior="$(git rev-parse HEAD)"
+frente_anterior="$(readlink -f "$frente/atual" 2>/dev/null || true)"
+
+publicar() { # publicar <sha> <pasta do frontend>
+  git checkout --quiet --detach "$1" &&
+    "$HOME/.local/bin/uv" sync --frozen --no-dev --quiet &&
+    ln -sfn "$2" "$frente/atual" &&
+    systemctl --user restart inoxio
+}
+
+saudavel() {
+  for _ in $(seq 1 15); do
+    curl -fsS --max-time 2 http://127.0.0.1:8100/saude >/dev/null 2>&1 && return 0
+    sleep 1
+  done
+  return 1
+}
+
+git fetch --quiet origin
+git cat-file -e "${sha}^{commit}" || { echo "commit desconhecido: $sha" >&2; exit 3; }
+
+destino="$frente/$sha"
+rm -rf "$destino"
+mkdir -p "$destino"
+tar -xzf "$pacote" -C "$destino" --no-same-owner --no-same-permissions
+
+if publicar "$sha" "$destino" && saudavel; then
+  # Guarda só os três frontends mais recentes; "atual" é link e não entra.
+  find "$frente" -mindepth 1 -maxdepth 1 -type d -regextype posix-extended \
+    -regex '.*/[0-9a-f]{40}' -printf '%T@ %p\n' |
+    sort -rn | tail -n +4 | cut -d' ' -f2- | xargs -r rm -rf
+  echo "publicado $sha"
+  exit 0
+fi
+
+echo "falhou; voltando para $anterior" >&2
+if [ -n "$frente_anterior" ]; then
+  publicar "$anterior" "$frente_anterior" && saudavel || true
+fi
+exit 1
