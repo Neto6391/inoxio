@@ -62,3 +62,8 @@ def test_interface_nunca_diz_seguro_ou_limpo():
     for palavra in ("seguro", "limpo"):
         assert palavra not in textos
         assert palavra not in telas
+
+
+def test_servico_nao_ganha_privilegios():
+    unidade = (RAIZ / "infra" / "implantacao" / "inoxio.service").read_text(encoding="utf-8")
+    assert "NoNewPrivileges=true" in unidade.splitlines()
