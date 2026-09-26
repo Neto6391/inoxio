@@ -2,6 +2,10 @@
 
 from __future__ import annotations
 
+import threading
+from collections.abc import Iterator
+from contextlib import contextmanager
+
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
@@ -41,6 +45,25 @@ def listar(ctx: Contexto = Depends(sessao_atual), db: Session = Depends(banco)):
     return [_resumo(investigacao) for investigacao in recentes]
 
 
+# A contagem do limite só enxerga investigações já gravadas, e o grafo leva
+# segundos: pedidos em paralelo do mesmo usuário passariam todos. Uma por vez.
+_em_andamento: set[str] = set()
+_trava = threading.Lock()
+
+
+@contextmanager
+def _uma_por_usuario(usuario_id: str) -> Iterator[None]:
+    with _trava:
+        if usuario_id in _em_andamento:
+            raise HTTPException(status_code=429)
+        _em_andamento.add(usuario_id)
+    try:
+        yield
+    finally:
+        with _trava:
+            _em_andamento.discard(usuario_id)
+
+
 @rotas.post("/investigacoes", status_code=201)
 def investigar(
     request: Request,
@@ -49,6 +72,11 @@ def investigar(
     db: Session = Depends(banco),
 ):
     conferir_csrf(ctx, token_csrf(request))
+    with _uma_por_usuario(ctx.usuario.id):
+        return _investigar(request, pedido, ctx, db)
+
+
+def _investigar(request: Request, pedido: PedidoInvestigacao, ctx: Contexto, db: Session):
     if limites.investigacao_excedida(db, ctx.usuario.id):
         raise HTTPException(status_code=429)
     estado = request.app.state.grafo.invoke({"entrada": pedido.entrada})

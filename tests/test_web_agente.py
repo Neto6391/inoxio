@@ -1,3 +1,6 @@
+import threading
+from concurrent.futures import ThreadPoolExecutor
+
 import pytest
 from ajudantes import csrf, entrar
 from fastapi.testclient import TestClient
@@ -131,7 +134,7 @@ def test_post_sem_csrf_e_recusado(cliente, usuarios):
 def test_limite_de_investigacoes(cliente, usuarios, fabrica):
     uid = id_de(fabrica, "ana")
     with fabrica() as db, db.begin():
-        for _ in range(20):
+        for _ in range(19):
             db.add(
                 Investigacao(
                     usuario_id=uid,
@@ -142,4 +145,43 @@ def test_limite_de_investigacoes(cliente, usuarios, fabrica):
                 )
             )
     entrar(cliente, "ana")
+    assert investigar(cliente, "8.8.8.8").status_code == 201
     assert investigar(cliente, "8.8.8.8").status_code == 429
+
+
+def test_segunda_investigacao_simultanea_do_mesmo_usuario_e_recusada(fabrica, config, usuarios):
+    dentro, liberar = threading.Event(), threading.Event()
+
+    class GrafoLento:
+        def invoke(self, estado):
+            dentro.set()
+            liberar.wait(5)
+            return {
+                "tipo": "ip",
+                "valor": "8.8.8.8",
+                "veredito": "inconclusivo",
+                "evidencias": [],
+                "reaproveitada": False,
+            }
+
+    cliente = TestClient(
+        criar_app(config, fabrica=fabrica, grafo=GrafoLento()), base_url="https://testserver"
+    )
+    entrar(cliente, "ana")
+    cabecalho = csrf(cliente)
+    with ThreadPoolExecutor(1) as executor:
+        primeira = executor.submit(
+            cliente.post, "/api/investigacoes", json={"entrada": "8.8.8.8"}, headers=cabecalho
+        )
+        assert dentro.wait(5)
+        segunda = cliente.post("/api/investigacoes", json={"entrada": "8.8.8.8"}, headers=cabecalho)
+        liberar.set()
+        assert segunda.status_code == 429
+        assert primeira.result(5).status_code == 201
+    # Terminada a primeira, o usuário volta a poder investigar.
+    assert (
+        cliente.post(
+            "/api/investigacoes", json={"entrada": "1.1.1.1"}, headers=cabecalho
+        ).status_code
+        == 201
+    )
