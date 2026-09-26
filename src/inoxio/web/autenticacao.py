@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import threading
+
 from fastapi import APIRouter, Depends, Request, Response
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
@@ -22,6 +24,10 @@ from inoxio.web.dependencias import (
 rotas = APIRouter(prefix="/api")
 INVALIDO = "Usuário ou senha inválidos."
 BLOQUEADO = "Muitas tentativas. Tente de novo em 15 minutos."
+# Conferir o limite, verificar a senha e registrar a tentativa precisam ser
+# uma coisa só: em paralelo, várias tentativas leriam a mesma contagem. De
+# quebra, só um argon2 roda por vez, o que limita a memória de um ataque.
+_UM_LOGIN_POR_VEZ = threading.Lock()
 
 
 class Credenciais(BaseModel):
@@ -40,6 +46,11 @@ def _sessao_json(usuario: Usuario, sessao: Sessao) -> dict:
 
 @rotas.post("/login")
 def entrar(request: Request, credenciais: Credenciais, db: Session = Depends(banco)):
+    with _UM_LOGIN_POR_VEZ:
+        return _entrar(request, credenciais, db)
+
+
+def _entrar(request: Request, credenciais: Credenciais, db: Session):
     ip = _ip(request)
     if limites.login_bloqueado(db, credenciais.nome, ip):
         return JSONResponse({"erro": BLOQUEADO}, status_code=429)
