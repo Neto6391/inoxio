@@ -1,0 +1,25 @@
+name: certificado
+
+# Confere, de fora da VPS, o certificado que o navegador recebe. Se a renovação
+# automática falhar, este job falha, e o GitHub avisa por e-mail. O Certbot renova
+# na metade da vida do certificado (cerca de 3 dias antes de vencer), então
+# faltar menos de 2 dias já é sinal de que algo quebrou.
+
+on:
+  schedule:
+    - cron: "0 11 * * *"
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  conferir:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Certificado confiável e com mais de 2 dias de validade
+        run: |
+          curl -fsS --max-time 20 -o /dev/null https://179.199.133.136/saude
+          certificado="$(openssl s_client -connect 179.199.133.136:443 </dev/null 2>/dev/null |
+            openssl x509)"
+          echo "$certificado" | openssl x509 -noout -subject -issuer -enddate
+          echo "$certificado" | openssl x509 -noout -checkend $((2 * 24 * 3600))
