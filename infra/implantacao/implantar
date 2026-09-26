@@ -5,6 +5,7 @@
 set -euo pipefail
 
 LIMITE=$((20 * 1024 * 1024))
+LIMITE_DESCOMPACTADO=$((100 * 1024 * 1024))
 
 sha="${SSH_ORIGINAL_COMMAND:-}"
 if [[ ! "$sha" =~ ^[0-9a-f]{40}$ ]]; then
@@ -22,6 +23,18 @@ if [ "$tamanho" -eq 0 ] || [ "$tamanho" -gt "$LIMITE" ]; then
 fi
 if ! tar -tzf "$pacote" 2>/dev/null | grep -qxE '(\./)?index\.html'; then
   echo "recusado: pacote do frontend sem index.html" >&2
+  exit 2
+fi
+# Só arquivo comum e pasta: um link no pacote poderia apontar para fora dele,
+# e o app serviria o alvo (o arquivo de ambiente, por exemplo) como página.
+listagem="$(tar -tvzf "$pacote")"
+if printf '%s\n' "$listagem" | cut -c1 | grep -qv '[-d]'; then
+  echo "recusado: pacote do frontend com link ou arquivo especial" >&2
+  exit 2
+fi
+descompactado="$(printf '%s\n' "$listagem" | awk '{soma += $3} END {print soma + 0}')"
+if [ "$descompactado" -gt "$LIMITE_DESCOMPACTADO" ]; then
+  echo "recusado: pacote do frontend passa de 100 MB descompactado" >&2
   exit 2
 fi
 
