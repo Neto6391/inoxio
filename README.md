@@ -125,6 +125,9 @@ VPS na Hostinger com Ubuntu Server 24.04.4 LTS.
   Na 443, o Nginx lê o nome pedido no TLS sem abrir a conexão: o acesso pelo IP
   é terminado nele e repassado ao app; qualquer outro nome segue para o outro
   sistema da máquina.
+- **Limite de requisições:** a borda aceita até 10 requisições por segundo por
+  IP (com folga de 40) e 10 tentativas de login por minuto (folga de 5). Acima
+  disso responde `429` em JSON, antes de chegar ao app.
 - **TLS:** TLS 1.3 e 1.2, com troca de chaves pós-quântica `X25519MLKEM768`
   como preferida. Certificado do Let's Encrypt emitido para o IP, no perfil de
   curta duração (cerca de 6 dias).
