@@ -20,3 +20,5 @@ def test_confere_certa_e_errada():
 
 def test_usuario_inexistente_nunca_confere():
     assert not senhas.conferir(None, "qualquer-coisa-aqui")
+    # Nem com a senha do hash usado para gastar tempo.
+    assert not senhas.conferir(None, senhas._SENHA_FALSA)

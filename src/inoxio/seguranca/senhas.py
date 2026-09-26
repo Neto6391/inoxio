@@ -7,7 +7,8 @@ TAMANHO_MINIMO = 12
 _hasher = PasswordHasher()
 # Usuário inexistente confere contra este hash, para o tempo de resposta não
 # revelar quais usuários existem.
-_HASH_FALSO = _hasher.hash("hash-falso-que-so-serve-para-gastar-tempo")
+_SENHA_FALSA = "hash-falso-que-so-serve-para-gastar-tempo"
+_HASH_FALSO = _hasher.hash(_SENHA_FALSA)
 
 
 def gerar_hash(senha: str) -> str:
