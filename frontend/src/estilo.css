@@ -114,6 +114,13 @@ a {
 .item-recente:hover {
   background: #141d27;
 }
+/* URL longa na lista: duas linhas no máximo. */
+.item-recente .indicador {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
 
 @media (max-width: 640px) {
   .topo {

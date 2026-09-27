@@ -36,6 +36,7 @@ export const NOMES_TIPO: Record<string, string> = {
   ip: "IP",
   dominio: "Domínio",
   hash: "Hash",
+  url: "URL",
 };
 
 export function quando(iso: string): string {

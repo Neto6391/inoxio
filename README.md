@@ -48,13 +48,15 @@ graph TD;
 <!-- grafo:fim -->
 
 - **Classificar:** a entrada só segue se for IP público, hash MD5/SHA-1/SHA-256
-  ou domínio. De um endereço de site (`https://exemplo.com/pagina`) vale o
-  domínio, e o formato desarmado (`hxxps://exemplo[.]com`) também é aceito. O
-  resto é recusado sem consultar nada.
+  ou domínio, ou o endereço de uma página (`https://exemplo.com/pagina`). O
+  formato desarmado (`hxxps://exemplo[.]com`) também é aceito. O resto é recusado
+  sem consultar nada.
 - **Reaproveitar:** o mesmo indicador investigado há menos de 24 h devolve o
   resultado salvo, sem gastar a cota das fontes nem da IA. Resultado em que
   alguma fonte falhou nunca é reaproveitado.
-- **Consultar e decidir:** VirusTotal e AbuseIPDB em paralelo. No VirusTotal,
+- **Consultar e decidir:** VirusTotal e AbuseIPDB em paralelo. Para o endereço de
+  uma página, o VirusTotal é consultado pela URL e pelo domínio dela, e vale o mais
+  grave dos dois; a URL só é consultada, nunca enviada para análise. No VirusTotal,
   motores que marcam o indicador como *malicious* ou *suspicious* somam para
   `suspeito`; só os *malicious* (5 ou mais) levam a `malicioso`. Para um
   domínio, o DNS dá até dois IPs públicos, e o AbuseIPDB diz a reputação de cada
