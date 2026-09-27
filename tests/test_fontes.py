@@ -1,6 +1,15 @@
+import socket
+import time
+
 import httpx
 
-from inoxio.agente.fontes import AbuseIPDB, VirusTotal, consultar_fontes
+from inoxio.agente.fontes import (
+    AbuseIPDB,
+    ResolucaoDNS,
+    VirusTotal,
+    consultar_fontes,
+    evidencia,
+)
 
 MD5 = "d41d8cd98f00b204e9800998ecf8427e"
 
@@ -94,3 +103,100 @@ def test_fonte_que_explode_vira_falha():
     assert consultar_fontes([Quebrada()], "ip", "8.8.8.8") == [
         {"fonte": "quebrada", "status": "falha", "dados": {}}
     ]
+
+
+class AbuseFalso:
+    NOME = "abuseipdb"
+
+    def __init__(self):
+        self.consultados = []
+
+    def consultar(self, tipo, valor):
+        self.consultados.append((tipo, valor))
+        return evidencia("abuseipdb", "ok", {"score": 90, "relatos": 7, "pais": "NL", "isp": "x"})
+
+
+def test_dns_consulta_so_ips_publicos_e_no_maximo_dois():
+    abuse = AbuseFalso()
+    enderecos = ["10.0.0.1", "2606:4700::1", "104.16.1.1", "104.16.1.1", "127.0.0.1", "104.16.2.2"]
+    resultado = ResolucaoDNS(abuse, resolver=lambda dominio: enderecos).consultar(
+        "dominio", "exemplo.com"
+    )
+    assert resultado["contexto"] is True
+    assert resultado["status"] == "ok"
+    assert [item["ip"] for item in resultado["dados"]["ips"]] == ["104.16.1.1", "104.16.2.2"]
+    assert resultado["dados"]["ips"][0]["score"] == 90
+    assert abuse.consultados == [("ip", "104.16.1.1"), ("ip", "104.16.2.2")]
+
+
+def test_dns_so_para_dominio():
+    assert (
+        ResolucaoDNS(AbuseFalso(), resolver=lambda d: ["8.8.8.8"]).consultar("ip", "8.8.8.8")
+        is None
+    )
+
+
+def test_dominio_que_nao_existe_e_nao_encontrado():
+    def nxdomain(dominio):
+        raise socket.gaierror("nome desconhecido")
+
+    resultado = ResolucaoDNS(AbuseFalso(), resolver=nxdomain).consultar(
+        "dominio", "nao-existe.exemplo"
+    )
+    assert (resultado["status"], resultado["contexto"]) == ("nao_encontrado", True)
+
+
+def test_dominio_so_com_ip_privado_e_nao_encontrado():
+    abuse = AbuseFalso()
+    resultado = ResolucaoDNS(abuse, resolver=lambda d: ["192.168.0.10"]).consultar(
+        "dominio", "interno.exemplo"
+    )
+    assert resultado["status"] == "nao_encontrado"
+    assert abuse.consultados == []
+
+
+def test_dns_lento_vira_falha_sem_travar():
+    def lento(dominio):
+        time.sleep(2)
+        return ["8.8.8.8"]
+
+    inicio = time.monotonic()
+    resultado = ResolucaoDNS(AbuseFalso(), resolver=lento, timeout=0.2).consultar(
+        "dominio", "lento.exemplo"
+    )
+    assert resultado["status"] == "falha"
+    assert time.monotonic() - inicio < 1
+
+
+def test_grafo_de_producao_traz_os_ips_do_dominio(monkeypatch):
+    from inoxio.config import Config
+    from inoxio.db import criar_fabrica
+    from inoxio.web.app import grafo_de_producao
+
+    def responder(requisicao):
+        if "abuseipdb" in requisicao.url.host:
+            corpo = {
+                "data": {
+                    "abuseConfidenceScore": 3,
+                    "totalReports": 1,
+                    "countryCode": "US",
+                    "isp": "CDN",
+                }
+            }
+            return httpx.Response(200, json=corpo)
+        return httpx.Response(404)
+
+    monkeypatch.setattr(socket, "getaddrinfo", lambda *a, **k: [(0, 0, 0, "", ("104.16.1.1", 0))])
+    config = Config(abuseipdb_chave="a", virustotal_chave="v")
+    grafo = grafo_de_producao(config, criar_fabrica("sqlite://"), cliente(responder))
+    estado = grafo.invoke({"entrada": "https://exemplo.com/pagina"})
+    dns = next(item for item in estado["evidencias"] if item["fonte"] == "dns")
+    assert dns["dados"]["ips"][0] == {
+        "ip": "104.16.1.1",
+        "abuseipdb": "ok",
+        "score": 3,
+        "relatos": 1,
+        "pais": "US",
+        "isp": "CDN",
+    }
+    assert estado["veredito"] == "desconhecido"

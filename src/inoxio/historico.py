@@ -36,7 +36,12 @@ def buscador(fabrica: sessionmaker) -> Buscar:
                 .order_by(Investigacao.criada_em.desc())
                 .limit(1)
             )
-            if anterior is None or any(e["status"] == "falha" for e in anterior.evidencias):
+            falhou = (
+                any(e["status"] == "falha" for e in anterior.evidencias if not e.get("contexto"))
+                if anterior
+                else False
+            )
+            if anterior is None or falhou:
                 return None
             analise = anterior.analise or _analise_de_uma_copia(db, anterior)
         return {

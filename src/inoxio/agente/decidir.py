@@ -65,7 +65,8 @@ def _nota(respondidas: list[dict[str, Any]]) -> int | None:
 
 
 def decidir_veredito(evidencias: list[dict[str, Any]]) -> tuple[str, int | None]:
-    """Aplica as regras na ordem; a primeira que casar decide."""
+    """Aplica as regras na ordem; a primeira que casar decide. Contexto não entra."""
+    evidencias = [item for item in evidencias if not item.get("contexto")]
     respondidas = [item for item in evidencias if item["status"] == "ok"]
     nota = _nota(respondidas)
     classes = [classe for item in respondidas if (classe := _CLASSES[item["fonte"]](item["dados"]))]

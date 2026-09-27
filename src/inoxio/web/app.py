@@ -19,7 +19,7 @@ from sqlalchemy.orm import sessionmaker
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 
-from inoxio.agente.fontes import AbuseIPDB, VirusTotal
+from inoxio.agente.fontes import AbuseIPDB, ResolucaoDNS, VirusTotal
 from inoxio.agente.grafo import construir_grafo
 from inoxio.agente.mente import criar_invocar
 from inoxio.config import Config
@@ -48,10 +48,8 @@ MENSAGENS = {
 def grafo_de_producao(
     config: Config, fabrica: sessionmaker, cliente: httpx.Client
 ) -> CompiledStateGraph:
-    fontes = [
-        AbuseIPDB(config.abuseipdb_chave, cliente),
-        VirusTotal(config.virustotal_chave, cliente),
-    ]
+    abuseipdb = AbuseIPDB(config.abuseipdb_chave, cliente)
+    fontes = [abuseipdb, VirusTotal(config.virustotal_chave, cliente), ResolucaoDNS(abuseipdb)]
     return construir_grafo(fontes, criar_invocar(config), buscador(fabrica))
 
 

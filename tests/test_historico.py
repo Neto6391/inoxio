@@ -85,3 +85,19 @@ def test_analise_de_copia_de_um_ciclo_anterior_nao_vale(fabrica):
     )
     gravar(fabrica, analise=None)
     assert buscar("ip", "8.8.8.8")["analise"] is None
+
+
+def test_falha_so_no_contexto_do_dns_ainda_reaproveita(fabrica):
+    buscar = preparar(fabrica)
+    evidencias = [
+        {"fonte": "virustotal", "status": "ok", "dados": {"malicioso": 0}},
+        {"fonte": "dns", "status": "falha", "dados": {}, "contexto": True},
+    ]
+    gravar(
+        fabrica,
+        tipo="dominio",
+        valor="exemplo.com",
+        veredito="sem_evidencia",
+        evidencias=evidencias,
+    )
+    assert buscar("dominio", "exemplo.com") is not None

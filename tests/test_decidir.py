@@ -110,3 +110,18 @@ def test_mais_deteccoes_nunca_baixam_a_nota():
 )
 def test_deteccoes_suspeitas_somam_para_suspeito(evidencias, esperado):
     assert decidir_veredito(evidencias) == esperado
+
+
+DNS_MAL_FALADO = evidencia(
+    "dns", "ok", {"ips": [{"ip": "104.16.1.1", "abuseipdb": "ok", "score": 100}]}, contexto=True
+)
+
+
+def test_contexto_do_dns_nunca_muda_o_veredito():
+    # IP de CDN mal falado não torna o domínio malicioso.
+    assert decidir_veredito([vt(0), DNS_MAL_FALADO]) == ("sem_evidencia", 0)
+    # E a falha do DNS não torna o resultado inconclusivo.
+    assert decidir_veredito([vt(0), evidencia("dns", "falha", contexto=True)]) == (
+        "sem_evidencia",
+        0,
+    )
