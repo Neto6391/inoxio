@@ -6,6 +6,7 @@ campos entram no estado, cortados em 200 caracteres.
 
 from __future__ import annotations
 
+import base64
 import ipaddress
 import logging
 import socket
@@ -76,10 +77,16 @@ class AbuseIPDB:
             return evidencia(self.NOME, "falha")
 
 
+def id_da_url(url: str) -> str:
+    """Identificador que o VirusTotal usa para uma URL: base64 de URL, sem o '='."""
+    return base64.urlsafe_b64encode(url.encode()).decode().rstrip("=")
+
+
 class VirusTotal:
     NOME = "virustotal"
+    NOME_URL = "virustotal_url"
     BASE = "https://www.virustotal.com/api/v3"
-    CAMINHOS = {"ip": "ip_addresses", "hash": "files", "dominio": "domains"}
+    CAMINHOS = {"ip": "ip_addresses", "hash": "files", "dominio": "domains", "url": "urls"}
 
     def __init__(self, chave: str, cliente: httpx.Client) -> None:
         self._chave = chave
@@ -89,22 +96,25 @@ class VirusTotal:
         caminho = self.CAMINHOS.get(tipo)
         if caminho is None:
             return None
+        nome = self.NOME_URL if tipo == "url" else self.NOME
+        # Só consulta o que o VirusTotal já analisou: a URL nunca é enviada para análise.
+        identificador = id_da_url(valor) if tipo == "url" else valor
         if not self._chave:
-            return evidencia(self.NOME, "falha")
+            return evidencia(nome, "falha")
         try:
             resposta = self._cliente.get(
-                f"{self.BASE}/{caminho}/{valor}",
+                f"{self.BASE}/{caminho}/{identificador}",
                 headers={"x-apikey": self._chave},
                 timeout=TIMEOUT,
             )
             if resposta.status_code == 404:
-                return evidencia(self.NOME, "nao_encontrado")
+                return evidencia(nome, "nao_encontrado")
             if resposta.status_code != 200:
-                return evidencia(self.NOME, "falha")
+                return evidencia(nome, "falha")
             atributos = resposta.json()["data"]["attributes"]
             estatisticas = atributos.get("last_analysis_stats") or {}
             return evidencia(
-                self.NOME,
+                nome,
                 "ok",
                 {
                     "malicioso": int(estatisticas.get("malicious", 0)),
@@ -114,7 +124,7 @@ class VirusTotal:
                 },
             )
         except _ERROS:
-            return evidencia(self.NOME, "falha")
+            return evidencia(nome, "falha")
 
 
 def _resolver_no_sistema(dominio: str) -> list[str]:

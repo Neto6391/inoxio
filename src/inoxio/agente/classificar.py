@@ -6,7 +6,7 @@ Endereço de site (https://exemplo.com/pagina) vira o domínio dele, e o indicad
 
 import ipaddress
 import re
-from urllib.parse import urlsplit
+from urllib.parse import SplitResult, urlsplit
 
 MOTIVO = (
     "Entrada não reconhecida. Informe o endereço de um site, um domínio, um IP público "
@@ -27,27 +27,20 @@ def _desarmado(texto: str) -> str:
     return _PONTO_DESARMADO.sub(".", _ESQUEMA_DESARMADO.sub(r"http\1://", texto))
 
 
-def _host(texto: str) -> str | None:
-    """O host de um endereço de site; o próprio texto quando não é endereço."""
+def _endereco(texto: str) -> tuple[str | None, SplitResult | None]:
+    """O host e as partes de um endereço de site; o próprio texto quando não é endereço."""
     if "://" in texto:
         partes = urlsplit(texto)
         if partes.scheme.lower() not in _ESQUEMAS:
-            return None
-    elif "/" in texto:
-        partes = urlsplit("//" + texto)
-    else:
-        return texto
-    return partes.hostname
+            return None, None
+        return partes.hostname, partes
+    if "/" in texto:
+        # Sem o esquema não dá para saber qual URL é; vale só o host.
+        return urlsplit("//" + texto).hostname, None
+    return texto, None
 
 
-def classificar_entrada(entrada: str) -> tuple[str, str]:
-    """Devolve (tipo, valor normalizado). Tipo "rejeitado" quando não reconhece."""
-    if len(entrada) > LIMITE_ENTRADA:
-        return "rejeitado", ""
-    try:
-        texto = _host(_desarmado(entrada.strip()))
-    except ValueError:
-        return "rejeitado", ""
+def _classificar_host(texto: str) -> tuple[str, str]:
     if not texto or len(texto) > 253:
         return "rejeitado", ""
     try:
@@ -68,6 +61,41 @@ def classificar_entrada(entrada: str) -> tuple[str, str]:
         return "hash", minusculo
     dominio = _dominio(minusculo)
     return ("dominio", dominio) if dominio else ("rejeitado", "")
+
+
+def _url(partes: SplitResult, host: str) -> str:
+    """URL normalizada: sem usuário, senha nem fragmento, com o host já validado."""
+    host_na_url = f"[{host}]" if ":" in host else host
+    porta = f":{partes.port}" if partes.port else ""
+    consulta = f"?{partes.query}" if partes.query else ""
+    return f"{partes.scheme.lower()}://{host_na_url}{porta}{partes.path or '/'}{consulta}"
+
+
+def classificar_entrada(entrada: str) -> tuple[str, str]:
+    """Devolve (tipo, valor normalizado). Tipo "rejeitado" quando não reconhece.
+
+    Endereço com caminho ou parâmetros vira "url"; sem eles, vale o host.
+    """
+    if len(entrada) > LIMITE_ENTRADA:
+        return "rejeitado", ""
+    try:
+        host, partes = _endereco(_desarmado(entrada.strip()))
+        tipo, valor = _classificar_host(host or "")
+        if partes is None:
+            return tipo, valor
+        if tipo in ("rejeitado", "hash"):
+            return "rejeitado", ""
+        if (partes.path or "/") == "/" and not partes.query:
+            return tipo, valor
+        return "url", _url(partes, valor)
+    except ValueError:
+        # Porta inválida ou endereço malformado.
+        return "rejeitado", ""
+
+
+def host_da_url(url: str) -> tuple[str, str]:
+    """O domínio ou IP de uma URL já normalizada por classificar_entrada."""
+    return _classificar_host(urlsplit(url).hostname or "")
 
 
 def _dominio(texto: str) -> str | None:

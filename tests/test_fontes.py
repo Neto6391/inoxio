@@ -9,6 +9,7 @@ from inoxio.agente.fontes import (
     VirusTotal,
     consultar_fontes,
     evidencia,
+    id_da_url,
 )
 
 MD5 = "d41d8cd98f00b204e9800998ecf8427e"
@@ -200,3 +201,26 @@ def test_grafo_de_producao_traz_os_ips_do_dominio(monkeypatch):
         "isp": "CDN",
     }
     assert estado["veredito"] == "desconhecido"
+
+
+def test_virustotal_consulta_url_pelo_identificador_e_nunca_envia():
+    pedidos = []
+
+    def responder(requisicao):
+        pedidos.append(requisicao)
+        atributos = {"last_analysis_stats": {"malicious": 6, "suspicious": 0}, "reputation": 0}
+        return httpx.Response(200, json={"data": {"attributes": atributos}})
+
+    url = "https://exemplo.com/login?x=1"
+    resultado = VirusTotal("chave", cliente(responder)).consultar("url", url)
+    assert resultado["fonte"] == "virustotal_url"
+    assert resultado["dados"]["malicioso"] == 6
+    assert [(p.method, p.url.path) for p in pedidos] == [("GET", f"/api/v3/urls/{id_da_url(url)}")]
+    assert "=" not in id_da_url(url)
+
+
+def test_url_que_o_virustotal_nunca_viu_e_nao_encontrada():
+    resultado = VirusTotal("chave", cliente(lambda r: httpx.Response(404))).consultar(
+        "url", "https://exemplo.com/nova"
+    )
+    assert (resultado["fonte"], resultado["status"]) == ("virustotal_url", "nao_encontrado")
