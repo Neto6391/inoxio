@@ -74,8 +74,11 @@ graph TD;
 
 ## Telas
 
-- **Login**, com usuário e senha.
-- **Painel:** campo para investigar e a lista das últimas investigações do usuário.
+- **Página inicial** (`/`), pública: o que o produto faz, como funciona e os
+  planos. Os planos são ilustrativos: nada é vendido, porque as APIs gratuitas
+  do VirusTotal e do AbuseIPDB não permitem uso comercial.
+- **Login** (`/entrar`), com usuário e senha.
+- **Painel** (`/painel`): campo para investigar e a lista das últimas investigações do usuário.
 - **Investigação:** veredito com a nota num medidor, as evidências de cada fonte e
   a análise da IA, com links para as técnicas do MITRE ATT&CK.
 - **Usuários:** só para o papel `admin`, que cadastra, edita (papel e senha),

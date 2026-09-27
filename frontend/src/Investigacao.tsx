@@ -111,7 +111,7 @@ export function Investigacao({ id }: { id: string }) {
   }, [id]);
 
   if (erro) {
-    return <Result status="warning" title={erro} extra={<Link para="/">Voltar ao painel</Link>} />;
+    return <Result status="warning" title={erro} extra={<Link para="/painel">Voltar ao painel</Link>} />;
   }
   if (!detalhe) return <Skeleton active paragraph={{ rows: 6 }} />;
 
@@ -120,7 +120,7 @@ export function Investigacao({ id }: { id: string }) {
   const contexto = detalhe.evidencias.filter((evidencia) => evidencia.contexto);
   return (
     <Flex vertical gap="large">
-      <Link para="/">← Investigações</Link>
+      <Link para="/painel">← Investigações</Link>
       <Flex vertical gap={4}>
         <Typography.Title level={2} className="titulo-indicador indicador">
           {detalhe.valor}

@@ -39,6 +39,7 @@ function servidor(papel: "admin" | "analista", pedidos: RequestInit[] = []) {
 
 test("o menu Usuários só aparece para o admin", async () => {
   servidor("analista");
+  navegar("/painel");
   render(<App />);
   await screen.findByText("Painel");
   expect(screen.queryByRole("link", { name: "Usuários" })).toBeNull();
