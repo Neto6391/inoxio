@@ -4,7 +4,7 @@ import { AnaliseIA } from "./AnaliseIA";
 import { chamar, mensagemDeErro } from "./api";
 import { CORES_VEREDITO, comoTexto, corDaNota, NOMES_TIPO, quando } from "./formato";
 import { Link } from "./rotas";
-import type { DetalheInvestigacao, Evidencia } from "./tipos";
+import type { DetalheInvestigacao, Evidencia, IpDoDominio } from "./tipos";
 
 const NOMES_FONTE: Record<string, string> = { abuseipdb: "AbuseIPDB", virustotal: "VirusTotal" };
 
@@ -62,6 +62,40 @@ const SEM_NOTA: Record<string, string> = {
   desconhecido: "Nenhuma fonte conhece o indicador, então não há nota.",
 };
 
+function IpsDoDominio({ evidencia }: { evidencia: Evidencia }) {
+  const status = STATUS[evidencia.status] ?? { texto: evidencia.status, cor: "default" };
+  const ips = (evidencia.dados.ips as IpDoDominio[] | undefined) ?? [];
+  return (
+    <Card size="small" title="IPs do domínio (DNS)" extra={<Tag color={status.cor}>{status.texto}</Tag>}>
+      {ips.length === 0 ? (
+        <Typography.Text type="secondary">
+          {evidencia.status === "falha"
+            ? "O DNS não respondeu a tempo."
+            : "O domínio não aponta para nenhum IP público."}
+        </Typography.Text>
+      ) : (
+        <Flex vertical gap="small">
+          {ips.map((item) => (
+            <Flex key={item.ip} gap="small" align="center" wrap>
+              <span className="indicador">{item.ip}</span>
+              {item.abuseipdb === "ok" ? (
+                <>
+                  <Tag color={corDaNota(item.score ?? 0)}>AbuseIPDB {item.score}</Tag>
+                  <Typography.Text type="secondary">
+                    {comoTexto(item.relatos)} relatos · {comoTexto(item.pais)} · {comoTexto(item.isp)}
+                  </Typography.Text>
+                </>
+              ) : (
+                <Typography.Text type="secondary">AbuseIPDB indisponível</Typography.Text>
+              )}
+            </Flex>
+          ))}
+        </Flex>
+      )}
+    </Card>
+  );
+}
+
 export function Investigacao({ id }: { id: string }) {
   const [detalhe, setDetalhe] = useState<DetalheInvestigacao | null>(null);
   const [erro, setErro] = useState<string | null>(null);
@@ -78,6 +112,8 @@ export function Investigacao({ id }: { id: string }) {
   if (!detalhe) return <Skeleton active paragraph={{ rows: 6 }} />;
 
   const nota = detalhe.veredito in SEM_NOTA ? null : detalhe.nota;
+  const fontes = detalhe.evidencias.filter((evidencia) => !evidencia.contexto);
+  const contexto = detalhe.evidencias.filter((evidencia) => evidencia.contexto);
   return (
     <Flex vertical gap="large">
       <Link para="/">← Investigações</Link>
@@ -119,13 +155,13 @@ export function Investigacao({ id }: { id: string }) {
           <Typography.Title level={4}>Evidências por fonte</Typography.Title>
           <Typography.Text type="secondary">texto de terceiros, mostrado como texto</Typography.Text>
         </Flex>
-        {detalhe.evidencias.length === 0 ? (
+        {fontes.length === 0 ? (
           <Card>
             <Typography.Text type="secondary">Nenhuma fonte respondeu.</Typography.Text>
           </Card>
         ) : (
           <Row gutter={[16, 16]}>
-            {detalhe.evidencias.map((evidencia) => (
+            {fontes.map((evidencia) => (
               <Col key={evidencia.fonte} xs={24} md={12}>
                 <Fonte evidencia={evidencia} />
               </Col>
@@ -133,6 +169,20 @@ export function Investigacao({ id }: { id: string }) {
           </Row>
         )}
       </div>
+
+      {contexto.length > 0 && (
+        <div>
+          <Flex justify="space-between" align="baseline" className="espaco">
+            <Typography.Title level={4}>Contexto</Typography.Title>
+            <Typography.Text type="secondary">não entra no veredito</Typography.Text>
+          </Flex>
+          <Flex vertical gap="middle">
+            {contexto.map((evidencia) => (
+              <IpsDoDominio key={evidencia.fonte} evidencia={evidencia} />
+            ))}
+          </Flex>
+        </div>
+      )}
 
       <AnaliseIA analise={detalhe.analise} />
     </Flex>

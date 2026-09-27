@@ -77,9 +77,9 @@ export function Painel() {
           >
             <Input
               size="large"
-              maxLength={300}
+              maxLength={2048}
               className="indicador"
-              placeholder="8.8.8.8, exemplo.com ou um SHA-256"
+              placeholder="https://site.com/pagina, exemplo.com, 8.8.8.8 ou um hash"
             />
           </Form.Item>
           <Button type="primary" size="large" htmlType="submit" loading={ocupado}>
@@ -87,8 +87,9 @@ export function Painel() {
           </Button>
         </Form>
         <Typography.Paragraph type="secondary" className="espaco-topo">
-          Aceita IP público (v4 ou v6), domínio ou hash MD5, SHA-1 ou SHA-256. O mesmo indicador
-          investigado nas últimas 24 h volta na hora, sem gastar a cota das fontes.
+          Cole o endereço de um site, um domínio, um IP ou o hash (MD5, SHA-1 ou SHA-256) de um
+          arquivo. Do endereço, vale o domínio; o formato desarmado (hxxps://site[.]com) também
+          funciona. O mesmo indicador investigado nas últimas 24 h volta na hora.
         </Typography.Paragraph>
       </Card>
       <Card title="Suas investigações recentes">{listaDeRecentes()}</Card>

@@ -13,7 +13,22 @@ export type ResumoInvestigacao = {
   criada_em: string;
 };
 
-export type Evidencia = { fonte: string; status: string; dados: Record<string, unknown> };
+export type Evidencia = {
+  fonte: string;
+  status: string;
+  dados: Record<string, unknown>;
+  // Contexto (os IPs de um domínio) aparece na tela, mas não entra no veredito.
+  contexto?: boolean;
+};
+
+export type IpDoDominio = {
+  ip: string;
+  abuseipdb: string;
+  score?: number;
+  relatos?: number;
+  pais?: string;
+  isp?: string;
+};
 
 export type Analise = {
   resumo: string;

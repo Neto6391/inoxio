@@ -48,13 +48,19 @@ graph TD;
 <!-- grafo:fim -->
 
 - **Classificar:** a entrada só segue se for IP público, hash MD5/SHA-1/SHA-256
-  ou domínio. O resto é recusado sem consultar nada.
+  ou domínio. De um endereço de site (`https://exemplo.com/pagina`) vale o
+  domínio, e o formato desarmado (`hxxps://exemplo[.]com`) também é aceito. O
+  resto é recusado sem consultar nada.
 - **Reaproveitar:** o mesmo indicador investigado há menos de 24 h devolve o
   resultado salvo, sem gastar a cota das fontes nem da IA. Resultado em que
   alguma fonte falhou nunca é reaproveitado.
 - **Consultar e decidir:** VirusTotal e AbuseIPDB em paralelo. No VirusTotal,
   motores que marcam o indicador como *malicious* ou *suspicious* somam para
-  `suspeito`; só os *malicious* (5 ou mais) levam a `malicioso`. O veredito
+  `suspeito`; só os *malicious* (5 ou mais) levam a `malicioso`. Para um
+  domínio, o DNS dá até dois IPs públicos, e o AbuseIPDB diz a reputação de cada
+  um. Isso é só contexto: sites grandes ficam atrás de CDN, onde um IP serve
+  milhares de domínios, então a fama do IP não entra no veredito. O servidor só
+  consulta o DNS, nunca se conecta ao site. O veredito
   (`malicioso`, `suspeito`, `sem_evidencia`, `desconhecido` ou `inconclusivo`) e
   a nota de risco (0 a 100: a partir de 25 é suspeito, a partir de 75 é
   malicioso) saem de regras fixas em `src/inoxio/agente/decidir.py`. Se
@@ -109,7 +115,7 @@ falha se ele for removido.
 
 | Controle | Onde | Teste |
 | --- | --- | --- |
-| A entrada é validada por tipo (IP público, hash, domínio) antes de qualquer uso; o valor usado nas consultas é o normalizado, sem zona IPv6 (`%...`) nem IPv4 embutido em NAT64 | `classificar_entrada` em `src/inoxio/agente/classificar.py` | `test_classificar.py::test_entradas_recusadas`, `test_grafo.py::test_argumento_da_consulta_vem_do_classificar` |
+| A entrada é validada por tipo (IP público, hash, domínio) antes de qualquer uso; o valor usado nas consultas é o normalizado, sem zona IPv6 (`%...`) nem IPv4 embutido em NAT64; de um endereço de site sai só o host, e só de `http`/`https` | `classificar_entrada` em `src/inoxio/agente/classificar.py` | `test_classificar.py::test_entradas_recusadas`, `test_grafo.py::test_argumento_da_consulta_vem_do_classificar` |
 | SQL só por SQLAlchemy, sempre parametrizado; não há SQL montado com texto em `src/` | `src/inoxio/db.py` e as consultas em `src/inoxio/web/` | `test_grafo.py::test_entrada_rejeitada_nao_consulta_nada` (a entrada `' OR 1=1--` é recusada antes do banco) |
 | O app não executa processo nem shell | todo `src/inoxio/` | `test_arquitetura.py::test_nenhum_argumento_shell`, `::test_app_nao_executa_processo` |
 | O React nunca injeta HTML, e a CSP só aceita script próprio e estilo com nonce novo a cada resposta | `src/inoxio/web/spa.py`, `frontend/src/main.tsx` | `test_arquitetura.py::test_frontend_nunca_injeta_html`, `test_cabecalhos.py::test_pagina_do_react_leva_nonce_novo_no_cabecalho_e_na_meta` |
