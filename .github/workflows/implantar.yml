@@ -1,7 +1,11 @@
 name: implantar
 
+# Os testes rodam em todo Pull Request para a main; o deploy, só no push da main
+# (o merge). A main é protegida: só recebe merge de PR com os testes verdes.
 on:
   push:
+    branches: [main]
+  pull_request:
     branches: [main]
 
 permissions:
@@ -37,6 +41,7 @@ jobs:
 
   implantar:
     needs: testar
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-24.04
     environment: producao
     steps:
