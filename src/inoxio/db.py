@@ -71,7 +71,7 @@ class Investigacao(Base):
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=novo_id)
     usuario_id: Mapped[str] = mapped_column(ForeignKey("usuarios.id"), index=True)
     tipo: Mapped[str] = mapped_column(String(16))
-    valor: Mapped[str] = mapped_column(String(300))
+    valor: Mapped[str] = mapped_column(String(2048))
     veredito: Mapped[str] = mapped_column(String(16))
     nota: Mapped[int | None] = mapped_column(Integer, nullable=True)
     evidencias: Mapped[list[Any]] = mapped_column(JSON, default=list)

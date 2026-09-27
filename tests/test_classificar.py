@@ -1,6 +1,6 @@
 import pytest
 
-from inoxio.agente.classificar import classificar_entrada
+from inoxio.agente.classificar import classificar_entrada, host_da_url
 
 MD5 = "d41d8cd98f00b204e9800998ecf8427e"
 SHA1 = "da39a3ee5e6b4b0d3255bfef95601890afd80709"
@@ -21,15 +21,19 @@ SHA256 = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
         ("sub.exemplo.com.br", ("dominio", "sub.exemplo.com.br")),
         ("açaí.com.br", ("dominio", "xn--aa-4iaz.com.br")),
         # Endereço de site vira o domínio (ou o IP) dele.
-        ("https://www.msn.com/pt-br/noticias?ocid=x#topo", ("dominio", "www.msn.com")),
+        (
+            "https://www.msn.com/pt-br/noticias?ocid=x#topo",
+            ("url", "https://www.msn.com/pt-br/noticias?ocid=x"),
+        ),
         ("www.msn.com/pt-br", ("dominio", "www.msn.com")),
-        ("HTTP://Exemplo.COM:8080/x", ("dominio", "exemplo.com")),
+        ("HTTP://Exemplo.COM:8080/x", ("url", "http://exemplo.com:8080/x")),
         ("http://usuario:senha@exemplo.com/", ("dominio", "exemplo.com")),
-        ("http://8.8.8.8/painel", ("ip", "8.8.8.8")),
+        ("http://8.8.8.8/painel", ("url", "http://8.8.8.8/painel")),
+        ("https://exemplo.com/", ("dominio", "exemplo.com")),
         ("https://[2606:4700:4700::1111]/", ("ip", "2606:4700:4700::1111")),
-        ("https://www.msn.com/" + "x" * 1500, ("dominio", "www.msn.com")),
+        ("https://www.msn.com/" + "x" * 1500, ("url", "https://www.msn.com/" + "x" * 1500)),
         # Indicador desarmado, como analistas colam para não virar link.
-        ("hxxps://mal[.]exemplo(.)com/a", ("dominio", "mal.exemplo.com")),
+        ("hxxps://mal[.]exemplo(.)com/a", ("url", "https://mal.exemplo.com/a")),
         ("hxxp://8[.]8.8.8/", ("ip", "8.8.8.8")),
         ("exemplo[dot]com", ("dominio", "exemplo.com")),
     ],
@@ -65,6 +69,8 @@ def test_entradas_validas(entrada, esperado):
         "javascript://exemplo.com",
         "https://",
         "https://" + "a" * 3000 + ".com",
+        "https://exemplo.com:99999/x",
+        "https://" + "d41d8cd98f00b204e9800998ecf8427e" + "/x",
         "user@exemplo.com",
         "exemplo",
         "exemplo.123",
@@ -77,3 +83,8 @@ def test_entradas_validas(entrada, esperado):
 )
 def test_entradas_recusadas(entrada):
     assert classificar_entrada(entrada) == ("rejeitado", "")
+
+
+def test_host_da_url():
+    assert host_da_url("https://www.msn.com/pt-br?x=1") == ("dominio", "www.msn.com")
+    assert host_da_url("http://[2606:4700:4700::1111]/a") == ("ip", "2606:4700:4700::1111")

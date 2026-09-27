@@ -6,7 +6,11 @@ import { CORES_VEREDITO, comoTexto, corDaNota, NOMES_TIPO, quando } from "./form
 import { Link } from "./rotas";
 import type { DetalheInvestigacao, Evidencia, IpDoDominio } from "./tipos";
 
-const NOMES_FONTE: Record<string, string> = { abuseipdb: "AbuseIPDB", virustotal: "VirusTotal" };
+const NOMES_FONTE: Record<string, string> = {
+  abuseipdb: "AbuseIPDB",
+  virustotal: "VirusTotal",
+  virustotal_url: "VirusTotal (URL)",
+};
 
 const ROTULOS_CAMPO: Record<string, string> = {
   score: "Score de abuso",

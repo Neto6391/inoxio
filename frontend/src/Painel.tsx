@@ -88,8 +88,9 @@ export function Painel() {
         </Form>
         <Typography.Paragraph type="secondary" className="espaco-topo">
           Cole o endereço de um site, um domínio, um IP ou o hash (MD5, SHA-1 ou SHA-256) de um
-          arquivo. Do endereço, vale o domínio; o formato desarmado (hxxps://site[.]com) também
-          funciona. O mesmo indicador investigado nas últimas 24 h volta na hora.
+          arquivo. De um endereço, o VirusTotal avalia a página e o domínio dela; o formato
+          desarmado (hxxps://site[.]com) também funciona. O mesmo indicador investigado nas
+          últimas 24 h volta na hora.
         </Typography.Paragraph>
       </Card>
       <Card title="Suas investigações recentes">{listaDeRecentes()}</Card>

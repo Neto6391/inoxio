@@ -51,7 +51,12 @@ def _nota_virustotal(dados: dict[str, Any]) -> int:
     return 0
 
 
-_CLASSES = {"abuseipdb": _classe_abuseipdb, "virustotal": _classe_virustotal}
+_CLASSES = {
+    "abuseipdb": _classe_abuseipdb,
+    "virustotal": _classe_virustotal,
+    # A URL segue as mesmas regras do VirusTotal; o veredito é o mais grave entre ela e o host.
+    "virustotal_url": _classe_virustotal,
+}
 
 
 def _nota(respondidas: list[dict[str, Any]]) -> int | None:
@@ -59,7 +64,7 @@ def _nota(respondidas: list[dict[str, Any]]) -> int | None:
     for item in respondidas:
         if item["fonte"] == "abuseipdb":
             valores.append(item["dados"]["score"])
-        elif item["fonte"] == "virustotal":
+        elif item["fonte"] in ("virustotal", "virustotal_url"):
             valores.append(_nota_virustotal(item["dados"]))
     return max(valores) if valores else None
 

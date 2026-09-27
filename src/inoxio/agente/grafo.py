@@ -6,7 +6,7 @@ from typing import Any
 
 from langgraph.graph import END, START, StateGraph
 
-from inoxio.agente.classificar import MOTIVO, classificar_entrada
+from inoxio.agente.classificar import MOTIVO, classificar_entrada, host_da_url
 from inoxio.agente.decidir import decidir_veredito
 from inoxio.agente.estado import Estado
 from inoxio.agente.fontes import Fonte, consultar_fontes
@@ -26,11 +26,18 @@ def rota_reaproveitamento(estado: Estado) -> str:
 
 
 def dados_da_mente(estado: Estado) -> dict[str, Any]:
+    indicador = {"tipo": estado["tipo"], "valor": estado["valor"]}
+    nao_confiaveis: list[dict[str, Any]] = list(estado["evidencias"])
+    if estado["tipo"] == "url":
+        # Caminho e parâmetros da URL são texto de quem investiga: vão com os dados
+        # não confiáveis, e fora deles fica só o host, já validado.
+        indicador = {"tipo": "url", "host": host_da_url(estado["valor"])[1]}
+        nao_confiaveis.append({"fonte": "url_investigada", "dados": {"url": estado["valor"]}})
     return {
-        "indicador": {"tipo": estado["tipo"], "valor": estado["valor"]},
+        "indicador": indicador,
         "veredito_decidido": estado["veredito"],
         "nota": estado.get("nota"),
-        "DADOS_NAO_CONFIAVEIS": estado["evidencias"],
+        "DADOS_NAO_CONFIAVEIS": nao_confiaveis,
     }
 
 
@@ -45,7 +52,11 @@ def construir_grafo(fontes: list[Fonte], invocar: Invocar | None, buscar: Buscar
 
     def consultar(estado: Estado) -> dict[str, Any]:
         # O argumento vem da entrada classificada, nunca da IA.
-        return {"evidencias": consultar_fontes(fontes, estado["tipo"], estado["valor"])}
+        evidencias = consultar_fontes(fontes, estado["tipo"], estado["valor"])
+        if estado["tipo"] == "url":
+            # A URL e também o domínio (ou IP) dela: o veredito considera os dois.
+            evidencias += consultar_fontes(fontes, *host_da_url(estado["valor"]))
+        return {"evidencias": evidencias}
 
     def decidir(estado: Estado) -> dict[str, Any]:
         veredito, nota = decidir_veredito(estado["evidencias"])
