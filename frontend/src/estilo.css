@@ -122,7 +122,98 @@ a {
   overflow: hidden;
 }
 
+/* Página inicial */
+.landing {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 0 16px 48px;
+  box-sizing: border-box;
+}
+.landing-topo {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  height: 64px;
+}
+.landing-links {
+  display: flex;
+  gap: 20px;
+  margin-left: auto;
+}
+.landing-links a {
+  color: #9aa7b4;
+}
+.landing-links a:hover {
+  color: #e6edf3;
+}
+.landing-hero {
+  padding: 72px 0 56px;
+  text-align: center;
+  background: radial-gradient(circle at 50% 0%, #13263d 0%, transparent 65%);
+}
+.landing-titulo {
+  max-width: 760px;
+  margin: 16px auto !important;
+  font-size: 40px !important;
+  line-height: 1.2 !important;
+}
+.landing-subtitulo {
+  max-width: 640px;
+  margin: 0 auto 28px !important;
+  color: #9aa7b4 !important;
+  font-size: 17px;
+}
+.landing-secao {
+  padding: 40px 0 8px;
+}
+.landing-cartao {
+  height: 100%;
+}
+.landing-numero {
+  display: inline-grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  margin-bottom: 12px;
+  border-radius: 50%;
+  background: #1a2a3d;
+  color: #60a5fa;
+  font-weight: 600;
+}
+.landing-lista {
+  margin: 0;
+  padding-left: 20px;
+  color: #c9d1d9;
+  line-height: 1.9;
+}
+.landing-plano {
+  height: 100%;
+}
+.landing-plano-destaque {
+  border-color: #3b82f6 !important;
+}
+.landing-preco {
+  font-size: 30px;
+  font-weight: 700;
+}
+.landing-rodape {
+  margin-top: 56px;
+  padding-top: 20px;
+  border-top: 1px solid #1e2935;
+  color: #6b7785;
+  text-align: center;
+}
+
 @media (max-width: 640px) {
+  .landing-links {
+    display: none;
+  }
+  .landing-topo .ant-btn {
+    margin-left: auto;
+  }
+  .landing-titulo {
+    font-size: 28px !important;
+  }
   .topo {
     gap: 12px;
     padding: 0 12px !important;

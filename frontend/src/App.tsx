@@ -2,6 +2,7 @@ import { Button, Flex, Layout, Result, Spin } from "antd";
 import { useEffect, useState } from "react";
 import { chamar, ErroApi, guardarCsrf, SESSAO_EXPIRADA, SESSAO_TROCADA } from "./api";
 import { Investigacao } from "./Investigacao";
+import { Landing } from "./Landing";
 import { Login } from "./Login";
 import { Painel } from "./Painel";
 import { Link, navegar, useCaminho } from "./rotas";
@@ -11,7 +12,8 @@ import { Usuarios } from "./Usuarios";
 function Tela({ caminho, sessao }: { caminho: string; sessao: Sessao }) {
   const investigacao = caminho.match(/^\/investigacoes\/([\w-]+)$/);
   if (investigacao) return <Investigacao id={investigacao[1]} />;
-  if (caminho === "/") return <Painel />;
+  // "/entrar" depois do login também leva ao painel.
+  if (caminho === "/painel" || caminho === "/entrar") return <Painel />;
   if (caminho === "/usuarios" && sessao.usuario.papel === "admin") {
     return <Usuarios eu={sessao.usuario.nome} />;
   }
@@ -19,7 +21,7 @@ function Tela({ caminho, sessao }: { caminho: string; sessao: Sessao }) {
     <Result
       status="404"
       title="Página não encontrada"
-      extra={<Button onClick={() => navegar("/")}>Voltar ao painel</Button>}
+      extra={<Button onClick={() => navegar("/painel")}>Voltar ao painel</Button>}
     />
   );
 }
@@ -84,20 +86,25 @@ export function App() {
       </Flex>
     );
   }
+  // A página inicial é pública, com ou sem sessão.
+  if (caminho === "/") return <Landing sessao={sessao} />;
   if (sessao === null) return <Login aoEntrar={entrarCom} />;
 
   const admin = sessao.usuario.papel === "admin";
   return (
     <Layout className="casca">
       <Layout.Header className="topo">
-        <Link para="/">
+        <Link para="/painel">
           <span className="marca">
             <span className="marca-simbolo">I</span>
             Inóxio
           </span>
         </Link>
         <nav className="navegacao">
-          <ItemMenu para="/" ativo={caminho === "/" || caminho.startsWith("/investigacoes")}>
+          <ItemMenu
+            para="/painel"
+            ativo={caminho === "/painel" || caminho === "/entrar" || caminho.startsWith("/investigacoes")}
+          >
             Investigações
           </ItemMenu>
           {admin && (

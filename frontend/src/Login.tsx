@@ -1,6 +1,7 @@
 import { Alert, Button, Card, Form, Input, Typography } from "antd";
 import { useState } from "react";
 import { chamar, mensagemDeErro } from "./api";
+import { Link } from "./rotas";
 import type { Sessao } from "./tipos";
 
 type Credenciais = { nome: string; senha: string };
@@ -43,6 +44,9 @@ export function Login({ aoEntrar }: { aoEntrar: (sessao: Sessao) => void }) {
             Entrar
           </Button>
         </Form>
+        <div className="espaco-topo">
+          <Link para="/">← Conhecer o Inóxio</Link>
+        </div>
       </Card>
     </div>
   );

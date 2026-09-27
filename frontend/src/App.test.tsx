@@ -1,8 +1,13 @@
 import { fireEvent, render, screen } from "@testing-library/react";
-import { afterEach, expect, test, vi } from "vitest";
+import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { App } from "./App";
+import { navegar } from "./rotas";
 
-afterEach(() => vi.unstubAllGlobals());
+beforeEach(() => navegar("/painel"));
+afterEach(() => {
+  vi.unstubAllGlobals();
+  navegar("/");
+});
 
 function servidor(respostas: Record<string, unknown>) {
   vi.stubGlobal(
@@ -48,7 +53,8 @@ test("Sair com token velho, porque outra aba entrou de novo, encerra a sessão q
   await screen.findByText("Painel");
   csrfAtual = "novo";
   fireEvent.click(screen.getByRole("button", { name: "Sair" }));
-  expect(await screen.findByRole("button", { name: "Entrar" })).toBeInTheDocument();
+  // Depois de sair, a pessoa volta para a página inicial.
+  expect(await screen.findByText(/Descubra em segundos/)).toBeInTheDocument();
   expect(tokensDoLogout).toEqual(["velho", "novo"]);
 });
 
