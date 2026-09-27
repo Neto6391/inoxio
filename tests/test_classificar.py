@@ -20,6 +20,18 @@ SHA256 = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
         ("Exemplo.COM.", ("dominio", "exemplo.com")),
         ("sub.exemplo.com.br", ("dominio", "sub.exemplo.com.br")),
         ("açaí.com.br", ("dominio", "xn--aa-4iaz.com.br")),
+        # Endereço de site vira o domínio (ou o IP) dele.
+        ("https://www.msn.com/pt-br/noticias?ocid=x#topo", ("dominio", "www.msn.com")),
+        ("www.msn.com/pt-br", ("dominio", "www.msn.com")),
+        ("HTTP://Exemplo.COM:8080/x", ("dominio", "exemplo.com")),
+        ("http://usuario:senha@exemplo.com/", ("dominio", "exemplo.com")),
+        ("http://8.8.8.8/painel", ("ip", "8.8.8.8")),
+        ("https://[2606:4700:4700::1111]/", ("ip", "2606:4700:4700::1111")),
+        ("https://www.msn.com/" + "x" * 1500, ("dominio", "www.msn.com")),
+        # Indicador desarmado, como analistas colam para não virar link.
+        ("hxxps://mal[.]exemplo(.)com/a", ("dominio", "mal.exemplo.com")),
+        ("hxxp://8[.]8.8.8/", ("ip", "8.8.8.8")),
+        ("exemplo[dot]com", ("dominio", "exemplo.com")),
     ],
 )
 def test_entradas_validas(entrada, esperado):
@@ -47,7 +59,12 @@ def test_entradas_validas(entrada, esperado):
         "g" + MD5[1:],
         "exemplo com",
         "exemplo.com:443",
-        "http://exemplo.com",
+        "http://10.0.0.1/admin",
+        "http://[fe80::1%25eth0]/",
+        "ftp://exemplo.com/",
+        "javascript://exemplo.com",
+        "https://",
+        "https://" + "a" * 3000 + ".com",
         "user@exemplo.com",
         "exemplo",
         "exemplo.123",

@@ -12,6 +12,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from inoxio.agente.classificar import LIMITE_ENTRADA
 from inoxio.agente.decidir import ROTULOS
 from inoxio.db import Investigacao
 from inoxio.seguranca import limites
@@ -21,7 +22,7 @@ rotas = APIRouter(prefix="/api")
 
 
 class PedidoInvestigacao(BaseModel):
-    entrada: str = Field(max_length=300)
+    entrada: str = Field(max_length=LIMITE_ENTRADA)
 
 
 def _resumo(investigacao: Investigacao) -> dict:

@@ -1,18 +1,53 @@
-"""Classificação da entrada: só segue o que for IP público, hash ou domínio."""
+"""Classificação da entrada: só segue o que for IP público, hash ou domínio.
+
+Endereço de site (https://exemplo.com/pagina) vira o domínio dele, e o indicador
+"desarmado", como analistas costumam colar (hxxps://exemplo[.]com), é aceito.
+"""
 
 import ipaddress
 import re
+from urllib.parse import urlsplit
 
-MOTIVO = "Entrada não reconhecida. Informe um IP público, um hash MD5/SHA-1/SHA-256 ou um domínio."
+MOTIVO = (
+    "Entrada não reconhecida. Informe o endereço de um site, um domínio, um IP público "
+    "ou um hash MD5/SHA-1/SHA-256."
+)
+# Endereços de site com parâmetros de rastreamento passam fácil de algumas centenas.
+LIMITE_ENTRADA = 2048
+_ESQUEMAS = {"http", "https"}
+_ESQUEMA_DESARMADO = re.compile(r"^hxxp(s?)://", re.IGNORECASE)
+_PONTO_DESARMADO = re.compile(r"\[\.\]|\(\.\)|\[dot\]", re.IGNORECASE)
 _HASH = re.compile(r"[0-9a-f]{32}|[0-9a-f]{40}|[0-9a-f]{64}")
 _ROTULO = re.compile(r"(?!-)[a-z0-9-]{1,63}(?<!-)")
 # Prefixo NAT64 (RFC 6052): embute um IPv4 qualquer, inclusive privado.
 _NAT64 = ipaddress.ip_network("64:ff9b::/96")
 
 
+def _desarmado(texto: str) -> str:
+    return _PONTO_DESARMADO.sub(".", _ESQUEMA_DESARMADO.sub(r"http\1://", texto))
+
+
+def _host(texto: str) -> str | None:
+    """O host de um endereço de site; o próprio texto quando não é endereço."""
+    if "://" in texto:
+        partes = urlsplit(texto)
+        if partes.scheme.lower() not in _ESQUEMAS:
+            return None
+    elif "/" in texto:
+        partes = urlsplit("//" + texto)
+    else:
+        return texto
+    return partes.hostname
+
+
 def classificar_entrada(entrada: str) -> tuple[str, str]:
     """Devolve (tipo, valor normalizado). Tipo "rejeitado" quando não reconhece."""
-    texto = entrada.strip()
+    if len(entrada) > LIMITE_ENTRADA:
+        return "rejeitado", ""
+    try:
+        texto = _host(_desarmado(entrada.strip()))
+    except ValueError:
+        return "rejeitado", ""
     if not texto or len(texto) > 253:
         return "rejeitado", ""
     try:
