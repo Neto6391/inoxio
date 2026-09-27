@@ -1,4 +1,4 @@
-import { Alert, Button, Card, Col, Flex, Row, Tag, Typography } from "antd";
+import { Button, Card, Col, Flex, Row, Tag, Typography } from "antd";
 import { navegar } from "./rotas";
 import type { Sessao } from "./tipos";
 
@@ -158,13 +158,6 @@ export function Landing({ sessao }: { sessao: Sessao | null }) {
 
       <section id="planos" className="landing-secao">
         <Typography.Title level={2}>Planos</Typography.Title>
-        <Alert
-          type="warning"
-          showIcon
-          className="espaco"
-          title="Projeto acadêmico: planos e valores são ilustrativos, e nada é vendido."
-          description="As consultas usam as APIs gratuitas do VirusTotal e do AbuseIPDB, cujos termos não permitem uso comercial. Vender um plano exigiria as versões pagas dessas APIs."
-        />
         <Row gutter={[16, 16]}>
           {PLANOS.map((plano) => (
             <Col key={plano.nome} xs={24} md={8}>

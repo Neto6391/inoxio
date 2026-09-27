@@ -27,13 +27,15 @@ function servidor(logado: boolean) {
   );
 }
 
-test("a raiz é pública: mostra o produto e os planos, marcados como ilustrativos", async () => {
+test("a raiz é pública: mostra o produto e os planos pagos só como demonstração", async () => {
   servidor(false);
   navegar("/");
   render(<App />);
   expect(await screen.findByText(/Descubra em segundos/)).toBeInTheDocument();
   expect(screen.getByText("Profissional")).toBeInTheDocument();
-  expect(screen.getByText(/planos e valores são ilustrativos, e nada é vendido/)).toBeInTheDocument();
+  const demonstracoes = screen.getAllByRole("button", { name: "Demonstração" });
+  expect(demonstracoes).toHaveLength(2);
+  for (const botao of demonstracoes) expect(botao).toBeDisabled();
   expect(screen.queryByText("Usuário")).toBeNull();
 });
 
