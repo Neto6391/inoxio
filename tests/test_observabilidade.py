@@ -49,3 +49,17 @@ def test_grafana_so_escuta_na_maquina():
     assert "/home/inoxio/dados:/dados:ro" in servico["volumes"]
     assert "@sha256:" in servico["image"]
     assert servico["environment"]["GF_AUTH_ANONYMOUS_ENABLED"] == "false"
+    # Nada é baixado ao subir: o plugin vem conferido pelo SHA-256, montado só para leitura.
+    assert servico["environment"]["GF_PLUGINS_PREINSTALL_DISABLED"] == "true"
+    assert not any(
+        chave.startswith("GF_PLUGINS_PREINSTALL_SYNC") for chave in servico["environment"]
+    )
+    assert "./plugins:/var/lib/grafana/plugins:ro" in servico["volumes"]
+
+
+def test_plugin_e_conferido_pelo_sha256():
+    script = (RAIZ / "baixar-plugin.sh").read_text(encoding="utf-8")
+    assert "sha256sum -c" in script
+    # Sem isto o binário do plugin perde a permissão de execução e o Grafana não o inicia.
+    assert '-name "gpx_*" -type f -exec chmod 755' in script
+    assert 'SHA256="e5ce2354dd26ba9bea56b37f9ed4050cc917a46b858a0a191e1cafda382bf18a"' in script
