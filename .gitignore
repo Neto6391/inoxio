@@ -24,6 +24,7 @@ frontend/dist/
 # Observabilidade: senha e dados do Grafana só existem na VPS
 infra/observabilidade/senha-admin
 infra/observabilidade/dados-grafana/
+infra/observabilidade/plugins/
 
 # Ensaio local da borda
 infra/ensaio-local/webroot/
