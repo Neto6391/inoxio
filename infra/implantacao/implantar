@@ -21,14 +21,22 @@ if [ "$tamanho" -eq 0 ] || [ "$tamanho" -gt "$LIMITE" ]; then
   echo "recusado: pacote do frontend vazio ou maior que 20 MB" >&2
   exit 2
 fi
-if ! tar -tzf "$pacote" 2>/dev/null | grep -qxE '(\./)?index\.html'; then
+# A listagem vai para variáveis e é consultada por here-string, nunca por pipe com
+# "grep -q": ele sai no primeiro acerto, o comando anterior leva SIGPIPE e, com
+# pipefail, o teste inteiro dá falso. Foi assim que um pacote válido saiu recusado.
+if ! nomes="$(tar -tzf "$pacote" 2>/dev/null)"; then
+  echo "recusado: pacote do frontend ilegível" >&2
+  exit 2
+fi
+if ! grep -qxE '(\./)?index\.html' <<<"$nomes"; then
   echo "recusado: pacote do frontend sem index.html" >&2
   exit 2
 fi
 # Só arquivo comum e pasta: um link no pacote poderia apontar para fora dele,
 # e o app serviria o alvo (o arquivo de ambiente, por exemplo) como página.
 listagem="$(tar -tvzf "$pacote")"
-if printf '%s\n' "$listagem" | cut -c1 | grep -qv '[-d]'; then
+tipos="$(cut -c1 <<<"$listagem" | sort -u)"
+if grep -qv '[-d]' <<<"$tipos"; then
   echo "recusado: pacote do frontend com link ou arquivo especial" >&2
   exit 2
 fi
