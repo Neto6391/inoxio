@@ -46,6 +46,33 @@ class Usuario(Base):
     papel: Mapped[str] = mapped_column(String(16))
     criado_em: Mapped[datetime] = mapped_column(DateTime, default=agora)
     ativo: Mapped[bool] = mapped_column(Boolean, default=True, server_default="1")
+    # Só quem se cadastrou sozinho tem e-mail; a conta fica inativa até ele ser confirmado.
+    email: Mapped[str | None] = mapped_column(String(254), nullable=True)
+    email_confirmado_em: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    # Investigações por dia; nulo é sem cota além do limite por hora.
+    cota_diaria: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    onboarding_visto: Mapped[bool] = mapped_column(Boolean, default=False, server_default="0")
+
+
+class Ativacao(Base):
+    """Link de ativação do cadastro. O banco guarda só o SHA-256 do token."""
+
+    __tablename__ = "ativacoes"
+    token_hash: Mapped[str] = mapped_column(String(64), primary_key=True)
+    usuario_id: Mapped[str] = mapped_column(ForeignKey("usuarios.id"), index=True)
+    expira_em: Mapped[datetime] = mapped_column(DateTime)
+
+
+class Evento(Base):
+    """Trilha de auditoria: quem fez o quê, de onde e quando."""
+
+    __tablename__ = "eventos"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    quando: Mapped[datetime] = mapped_column(DateTime, default=agora, index=True)
+    tipo: Mapped[str] = mapped_column(String(32), index=True)
+    usuario: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
+    ip: Mapped[str] = mapped_column(String(64), index=True)
+    detalhe: Mapped[str] = mapped_column(String(300), default="")
 
 
 class Sessao(Base):
@@ -92,12 +119,24 @@ def criar_fabrica(url: str) -> sessionmaker:
     return sessionmaker(motor, expire_on_commit=False)
 
 
+# O create_all não acrescenta coluna em tabela que já existe. Bancos criados antes
+# de cada coluna ganham a coluna aqui; quem já existia continua ativo.
+_COLUNAS_NOVAS = {
+    "ativo": "BOOLEAN NOT NULL DEFAULT 1",
+    "email": "VARCHAR(254)",
+    "email_confirmado_em": "DATETIME",
+    "cota_diaria": "INTEGER",
+    "onboarding_visto": "BOOLEAN NOT NULL DEFAULT 0",
+}
+
+
 def _migrar(motor: Engine) -> None:
-    # O create_all não acrescenta coluna em tabela que já existe. Bancos criados
-    # antes da coluna "ativo" ganham a coluna aqui, com todo mundo ativo.
     colunas = {coluna["name"] for coluna in inspect(motor).get_columns("usuarios")}
-    if "ativo" not in colunas:
-        with motor.begin() as conexao:
-            conexao.execute(
-                text("ALTER TABLE usuarios ADD COLUMN ativo BOOLEAN NOT NULL DEFAULT 1")
-            )
+    with motor.begin() as conexao:
+        for coluna, tipo in _COLUNAS_NOVAS.items():
+            if coluna not in colunas:
+                conexao.execute(text(f"ALTER TABLE usuarios ADD COLUMN {coluna} {tipo}"))
+        # Índice à parte: o SQLite não aceita UNIQUE em ALTER TABLE ADD COLUMN.
+        conexao.execute(
+            text("CREATE UNIQUE INDEX IF NOT EXISTS ix_usuarios_email ON usuarios (email)")
+        )

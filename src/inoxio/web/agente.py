@@ -78,7 +78,7 @@ def investigar(
 
 
 def _investigar(request: Request, pedido: PedidoInvestigacao, ctx: Contexto, db: Session):
-    if limites.investigacao_excedida(db, ctx.usuario.id):
+    if limites.investigacao_excedida(db, ctx.usuario.id, ctx.usuario.cota_diaria):
         raise HTTPException(status_code=429)
     estado = request.app.state.grafo.invoke({"entrada": pedido.entrada})
     if estado["tipo"] == "rejeitado":

@@ -20,6 +20,7 @@ class Alteracao(BaseModel):
     papel: str | None = Field(default=None, max_length=16)
     senha: str | None = Field(default=None, max_length=256)
     ativo: bool | None = None
+    cota_diaria: int | None = None
 
 
 class NovoUsuario(BaseModel):
@@ -34,6 +35,9 @@ def _publico(usuario: Usuario) -> dict:
         "papel": usuario.papel,
         "criado_em": usuario.criado_em.isoformat(),
         "ativo": usuario.ativo,
+        "email": usuario.email,
+        "pendente": usuarios.pendente(usuario),
+        "cota_diaria": usuario.cota_diaria,
     }
 
 
@@ -75,7 +79,13 @@ def alterar(
         raise HTTPException(status_code=404)
     try:
         usuarios.alterar(
-            db, alvo, ctx.usuario, papel=pedido.papel, senha=pedido.senha, ativo=pedido.ativo
+            db,
+            alvo,
+            ctx.usuario,
+            papel=pedido.papel,
+            senha=pedido.senha,
+            ativo=pedido.ativo,
+            cota_diaria=pedido.cota_diaria,
         )
     except ValueError as erro:
         return JSONResponse({"erro": str(erro)}, status_code=400)

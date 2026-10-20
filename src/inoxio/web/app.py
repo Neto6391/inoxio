@@ -23,10 +23,11 @@ from inoxio.agente.fontes import AbuseIPDB, ResolucaoDNS, VirusTotal
 from inoxio.agente.grafo import construir_grafo
 from inoxio.agente.mente import criar_invocar
 from inoxio.config import Config
+from inoxio.correio import Enviar, criar_envio
 from inoxio.db import criar_fabrica
 from inoxio.historico import buscador
 from inoxio.web import agente as rotas_agente
-from inoxio.web import autenticacao, spa, usuarios
+from inoxio.web import autenticacao, cadastro, spa, usuarios
 
 log = logging.getLogger("inoxio")
 
@@ -57,6 +58,7 @@ def criar_app(
     config: Config | None = None,
     fabrica: sessionmaker | None = None,
     grafo: CompiledStateGraph | None = None,
+    enviar_email: Enviar | None = None,
 ) -> FastAPI:
     config = config or Config.do_ambiente()
     frontend = Path(config.frontend_dir)
@@ -72,10 +74,12 @@ def criar_app(
     app.state.config = config
     app.state.fabrica = fabrica or criar_fabrica(config.banco_url)
     app.state.cliente_http = cliente_http
+    app.state.enviar_email = enviar_email or criar_envio(config)
     app.state.grafo = grafo or grafo_de_producao(config, app.state.fabrica, cliente_http)
     app.include_router(autenticacao.rotas)
     app.include_router(rotas_agente.rotas)
     app.include_router(usuarios.rotas)
+    app.include_router(cadastro.rotas)
     app.mount("/assets", StaticFiles(directory=frontend / "assets", check_dir=False), "assets")
     # Só a borda declara o IP real; por isso o uvicorn roda com --no-proxy-headers.
     app.add_middleware(ProxyHeadersMiddleware, trusted_hosts=config.proxies_confiaveis)

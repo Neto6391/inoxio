@@ -35,7 +35,7 @@ class Credenciais(BaseModel):
     senha: str = Field(max_length=256)
 
 
-def _ip(request: Request) -> str:
+def ip_do_cliente(request: Request) -> str:
     # Com o ProxyHeadersMiddleware, só a borda confiável consegue declarar o IP.
     return request.client.host if request.client else "desconhecido"
 
@@ -51,7 +51,7 @@ def entrar(request: Request, credenciais: Credenciais, db: Session = Depends(ban
 
 
 def _entrar(request: Request, credenciais: Credenciais, db: Session):
-    ip = _ip(request)
+    ip = ip_do_cliente(request)
     if limites.login_bloqueado(db, credenciais.nome, ip):
         return JSONResponse({"erro": BLOQUEADO}, status_code=429)
     usuario = db.scalar(select(Usuario).where(Usuario.nome == credenciais.nome))

@@ -28,7 +28,15 @@ def test_admin_lista_sem_expor_hash(cliente, usuarios):
     entrar(cliente, "chefe")
     lista = cliente.get("/api/usuarios").json()
     assert [usuario["nome"] for usuario in lista] == ["ana", "beto", "chefe"]
-    assert set(lista[0]) == {"nome", "papel", "criado_em", "ativo"}
+    assert set(lista[0]) == {
+        "nome",
+        "papel",
+        "criado_em",
+        "ativo",
+        "email",
+        "pendente",
+        "cota_diaria",
+    }
 
 
 def test_admin_cadastra_e_o_novo_usuario_entra(cliente, usuarios):
@@ -179,7 +187,12 @@ def test_banco_antigo_ganha_a_coluna_ativo_com_todos_ativos(tmp_path):
     criar_fabrica(url)
     criar_fabrica(url)  # rodar de novo não pode falhar
     motor = create_engine(url)
-    assert "ativo" in {coluna["name"] for coluna in inspect(motor).get_columns("usuarios")}
+    colunas = {coluna["name"] for coluna in inspect(motor).get_columns("usuarios")}
+    assert {"ativo", "email", "email_confirmado_em", "cota_diaria", "onboarding_visto"} <= colunas
+    indices = {
+        indice["name"]: indice["unique"] for indice in inspect(motor).get_indexes("usuarios")
+    }
+    assert indices.get("ix_usuarios_email") in (True, 1)
     with motor.connect() as conexao:
         assert conexao.execute(text("SELECT ativo FROM usuarios")).scalar() == 1
 
