@@ -1,0 +1,314 @@
+{
+  "uid": "inoxio-visao",
+  "title": "Inóxio",
+  "tags": [
+    "inoxio"
+  ],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "editable": false,
+  "refresh": "1m",
+  "time": {
+    "from": "now-30d",
+    "to": "now"
+  },
+  "panels": [
+    {
+      "id": 1,
+      "title": "Investigações (30 dias)",
+      "type": "stat",
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "inoxio-sqlite"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 6,
+        "h": 4
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": "inoxio-sqlite"
+          },
+          "queryText": "SELECT count(*) AS investigacoes FROM investigacoes WHERE criada_em >= datetime('now', '-30 days')",
+          "rawQueryText": "SELECT count(*) AS investigacoes FROM investigacoes WHERE criada_em >= datetime('now', '-30 days')",
+          "queryType": "table"
+        }
+      ],
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "colorMode": "value",
+        "graphMode": "none"
+      }
+    },
+    {
+      "id": 2,
+      "title": "Contas ativas",
+      "type": "stat",
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "inoxio-sqlite"
+      },
+      "gridPos": {
+        "x": 6,
+        "y": 0,
+        "w": 6,
+        "h": 4
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": "inoxio-sqlite"
+          },
+          "queryText": "SELECT count(*) AS ativas FROM usuarios WHERE ativo = 1",
+          "rawQueryText": "SELECT count(*) AS ativas FROM usuarios WHERE ativo = 1",
+          "queryType": "table"
+        }
+      ],
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "colorMode": "value",
+        "graphMode": "none"
+      }
+    },
+    {
+      "id": 3,
+      "title": "Esperando confirmar o e-mail",
+      "type": "stat",
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "inoxio-sqlite"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 0,
+        "w": 6,
+        "h": 4
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": "inoxio-sqlite"
+          },
+          "queryText": "SELECT count(*) AS pendentes FROM usuarios WHERE email IS NOT NULL AND email_confirmado_em IS NULL",
+          "rawQueryText": "SELECT count(*) AS pendentes FROM usuarios WHERE email IS NOT NULL AND email_confirmado_em IS NULL",
+          "queryType": "table"
+        }
+      ],
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "colorMode": "value",
+        "graphMode": "none"
+      }
+    },
+    {
+      "id": 4,
+      "title": "Senhas erradas (24 h)",
+      "type": "stat",
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "inoxio-sqlite"
+      },
+      "gridPos": {
+        "x": 18,
+        "y": 0,
+        "w": 6,
+        "h": 4
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": "inoxio-sqlite"
+          },
+          "queryText": "SELECT count(*) AS falhas FROM eventos WHERE tipo IN ('login_falhou', 'login_bloqueado') AND quando >= datetime('now', '-1 day')",
+          "rawQueryText": "SELECT count(*) AS falhas FROM eventos WHERE tipo IN ('login_falhou', 'login_bloqueado') AND quando >= datetime('now', '-1 day')",
+          "queryType": "table"
+        }
+      ],
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "colorMode": "value",
+        "graphMode": "none"
+      }
+    },
+    {
+      "id": 5,
+      "title": "Investigações por dia",
+      "type": "timeseries",
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "inoxio-sqlite"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 4,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": "inoxio-sqlite"
+          },
+          "queryText": "SELECT CAST(strftime('%s', date(criada_em)) AS INTEGER) AS time, count(*) AS investigacoes FROM investigacoes WHERE criada_em >= datetime('now', '-30 days') GROUP BY date(criada_em) ORDER BY time",
+          "rawQueryText": "SELECT CAST(strftime('%s', date(criada_em)) AS INTEGER) AS time, count(*) AS investigacoes FROM investigacoes WHERE criada_em >= datetime('now', '-30 days') GROUP BY date(criada_em) ORDER BY time",
+          "queryType": "time series",
+          "timeColumns": [
+            "time"
+          ]
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "title": "Logins por dia",
+      "type": "timeseries",
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "inoxio-sqlite"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 4,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": "inoxio-sqlite"
+          },
+          "queryText": "SELECT CAST(strftime('%s', date(quando)) AS INTEGER) AS time, sum(tipo = 'login') AS certos, sum(tipo IN ('login_falhou', 'login_bloqueado')) AS errados FROM eventos WHERE quando >= datetime('now', '-30 days') AND tipo IN ('login', 'login_falhou', 'login_bloqueado') GROUP BY date(quando) ORDER BY time",
+          "rawQueryText": "SELECT CAST(strftime('%s', date(quando)) AS INTEGER) AS time, sum(tipo = 'login') AS certos, sum(tipo IN ('login_falhou', 'login_bloqueado')) AS errados FROM eventos WHERE quando >= datetime('now', '-30 days') AND tipo IN ('login', 'login_falhou', 'login_bloqueado') GROUP BY date(quando) ORDER BY time",
+          "queryType": "time series",
+          "timeColumns": [
+            "time"
+          ]
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "title": "Vereditos (30 dias)",
+      "type": "piechart",
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "inoxio-sqlite"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 12,
+        "w": 8,
+        "h": 9
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": "inoxio-sqlite"
+          },
+          "queryText": "SELECT veredito, count(*) AS total FROM investigacoes WHERE criada_em >= datetime('now', '-30 days') GROUP BY veredito ORDER BY total DESC",
+          "rawQueryText": "SELECT veredito, count(*) AS total FROM investigacoes WHERE criada_em >= datetime('now', '-30 days') GROUP BY veredito ORDER BY total DESC",
+          "queryType": "table"
+        }
+      ],
+      "options": {
+        "reduceOptions": {
+          "values": true,
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "legend": {
+          "displayMode": "table",
+          "placement": "right"
+        }
+      }
+    },
+    {
+      "id": 8,
+      "title": "Indicadores mais pesquisados (30 dias)",
+      "type": "table",
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "inoxio-sqlite"
+      },
+      "gridPos": {
+        "x": 8,
+        "y": 12,
+        "w": 16,
+        "h": 9
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": "inoxio-sqlite"
+          },
+          "queryText": "SELECT tipo, valor, count(*) AS vezes, max(criada_em) AS ultima FROM investigacoes WHERE criada_em >= datetime('now', '-30 days') GROUP BY tipo, valor ORDER BY vezes DESC LIMIT 10",
+          "rawQueryText": "SELECT tipo, valor, count(*) AS vezes, max(criada_em) AS ultima FROM investigacoes WHERE criada_em >= datetime('now', '-30 days') GROUP BY tipo, valor ORDER BY vezes DESC LIMIT 10",
+          "queryType": "table"
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "title": "Últimos eventos",
+      "type": "table",
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "inoxio-sqlite"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 21,
+        "w": 24,
+        "h": 10
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": "inoxio-sqlite"
+          },
+          "queryText": "SELECT quando, tipo, usuario, ip, detalhe FROM eventos ORDER BY quando DESC LIMIT 50",
+          "rawQueryText": "SELECT quando, tipo, usuario, ip, detalhe FROM eventos ORDER BY quando DESC LIMIT 50",
+          "queryType": "table"
+        }
+      ]
+    }
+  ]
+}

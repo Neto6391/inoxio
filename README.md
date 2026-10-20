@@ -191,6 +191,21 @@ Resultado dos testes de TLS, feitos em 26/09/2026 no endereço `179.199.133.136`
 - [DigiCert PQC checker](https://www.digicert.com/pqc-checker): *Pass*, com TLS 1.3 e
   troca de chaves ML-KEM (`X25519MLKEM768`).
 
+## Observabilidade
+
+Um Grafana (`infra/observabilidade/`) lê o banco SQLite do app em modo somente
+leitura e mostra investigações por dia, vereditos, logins certos e errados, contas
+ativas e pendentes, os indicadores mais pesquisados e os últimos eventos da
+auditoria. Ele escuta só em `127.0.0.1:3000` da VPS, sem porta nova na internet;
+o acesso é por túnel SSH:
+
+```bash
+ssh -L 3000:127.0.0.1:3000 <usuario>@179.199.133.136
+```
+
+Depois, abra http://localhost:3000. As consultas do painel são testadas contra o
+esquema real do banco (`tests/test_observabilidade.py`).
+
 ## Deploy
 
 Cada `git push origin main` dispara `.github/workflows/implantar.yml`:

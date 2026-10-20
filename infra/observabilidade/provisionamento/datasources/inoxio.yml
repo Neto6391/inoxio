@@ -1,0 +1,13 @@
+apiVersion: 1
+datasources:
+  - name: Inóxio
+    uid: inoxio-sqlite
+    type: frser-sqlite-datasource
+    access: proxy
+    isDefault: true
+    editable: false
+    jsonData:
+      path: /dados/inoxio.db
+      # Só leitura: o Grafana nunca escreve no banco do app.
+      pathPrefix: "file:"
+      pathOptions: "?mode=ro"

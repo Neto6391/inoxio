@@ -1,0 +1,30 @@
+# Observabilidade do Inóxio: um Grafana que lê o banco SQLite do app, só para leitura.
+# Aplicado à mão, por root, em /opt/inoxio-observabilidade. O CI não publica este arquivo.
+# Escuta só em 127.0.0.1: o acesso é por túnel SSH, sem porta nova na internet.
+services:
+  grafana:
+    image: grafana/grafana-oss:13.0.2@sha256:5dad0df181cb644a14e13617b913b261a54f7d4fd4510721dba420929f35bea2
+    container_name: inoxio-grafana
+    # O mesmo uid do usuário inoxio na VPS: é o único que lê /home/inoxio/dados (modo 700).
+    user: "1001:1001"
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3000:3000"
+    mem_limit: 384m
+    environment:
+      GF_PLUGINS_PREINSTALL_SYNC: frser-sqlite-datasource@4.0.6
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD__FILE: /run/secrets/senha_admin
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_AUTH_ANONYMOUS_ENABLED: "false"
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+      GF_ANALYTICS_CHECK_FOR_UPDATES: "false"
+      GF_ANALYTICS_CHECK_FOR_PLUGIN_UPDATES: "false"
+      GF_NEWS_NEWS_FEED_ENABLED: "false"
+      GF_SERVER_ROOT_URL: http://localhost:3000
+    volumes:
+      - /home/inoxio/dados:/dados:ro
+      - ./dados-grafana:/var/lib/grafana
+      - ./provisionamento:/etc/grafana/provisioning:ro
+      - ./paineis:/var/lib/grafana-paineis:ro
+      - ./senha-admin:/run/secrets/senha_admin:ro
