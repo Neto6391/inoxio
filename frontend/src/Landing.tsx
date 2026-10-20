@@ -48,8 +48,8 @@ const PLANOS: Plano[] = [
     preco: "R$ 0",
     detalhe: "para experimentar",
     itens: [
-      "Até 20 investigações por hora",
-      "1 usuário",
+      "10 investigações por dia",
+      "Cadastro na hora, com confirmação por e-mail",
       "URL, domínio, IP e hash",
       "Explicação da IA em cada resultado",
     ],
@@ -175,7 +175,7 @@ export function Landing({ sessao }: { sessao: Sessao | null }) {
                   </ul>
                   {plano.nome === "Gratuito" ? (
                     <Button type="primary" block onClick={irParaApp}>
-                      {acao}
+                      {sessao ? acao : "Criar conta grátis"}
                     </Button>
                   ) : (
                     <Button block disabled>

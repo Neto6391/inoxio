@@ -18,6 +18,12 @@ class Config:
     llm_esforco: str = "low"
     proxies_confiaveis: str = "127.0.0.1"
     frontend_dir: str = "frontend/dist"
+    # Endereço público, usado no link de ativação enviado por e-mail.
+    url_publica: str = "https://179.199.133.136"
+    smtp_host: str = "smtp.gmail.com"
+    smtp_porta: int = 587
+    smtp_usuario: str = ""
+    smtp_senha: str = ""
 
     @classmethod
     def do_ambiente(cls) -> Config:
@@ -33,4 +39,9 @@ class Config:
             llm_esforco=ler("INOXIO_LLM_ESFORCO", padrao.llm_esforco),
             proxies_confiaveis=ler("INOXIO_PROXIES_CONFIAVEIS", padrao.proxies_confiaveis),
             frontend_dir=ler("INOXIO_FRONTEND_DIR", padrao.frontend_dir),
+            url_publica=ler("INOXIO_URL_PUBLICA", padrao.url_publica),
+            smtp_host=ler("INOXIO_SMTP_HOST", padrao.smtp_host),
+            smtp_porta=int(ler("INOXIO_SMTP_PORTA", str(padrao.smtp_porta))),
+            smtp_usuario=ler("INOXIO_SMTP_USUARIO", ""),
+            smtp_senha=ler("INOXIO_SMTP_SENHA", ""),
         )

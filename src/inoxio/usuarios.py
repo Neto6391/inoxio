@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
+import hashlib
 import re
+import secrets
+from datetime import timedelta
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from inoxio.db import Usuario
+from inoxio.db import Ativacao, Usuario, agora
 from inoxio.seguranca import sessoes
 from inoxio.seguranca.senhas import gerar_hash
 
@@ -15,6 +18,11 @@ PAPEIS = ("admin", "analista")
 # Minúsculas, dígitos, ponto, hífen e sublinhado: o nome aparece na tela e nos logs.
 NOME_VALIDO = re.compile(r"[a-z0-9._-]{3,32}")
 NOME_INVALIDO = "O nome precisa ter de 3 a 32 caracteres: letras minúsculas, dígitos, ponto, hífen ou sublinhado."
+EMAIL_VALIDO = re.compile(r"[^@\s]{1,64}@[a-z0-9.-]{1,185}\.[a-z]{2,63}")
+EMAIL_INVALIDO = "Informe um e-mail válido."
+# Quem se cadastra sozinho começa com esta cota; o admin pode mudar.
+COTA_CADASTRO = 10
+VALIDADE_ATIVACAO = timedelta(hours=24)
 
 
 class Conflito(Exception):
@@ -26,14 +34,75 @@ def _conferir_papel(papel: str) -> None:
         raise ValueError(f"O papel precisa ser um de: {', '.join(PAPEIS)}.")
 
 
-def criar(db: Session, nome: str, papel: str, senha: str) -> Usuario:
-    """Levanta ValueError com a mensagem para o usuário; nome repetido vira IntegrityError no commit."""
+def normalizar_email(email: str) -> str:
+    email = email.strip().lower()
+    if len(email) > 254 or not EMAIL_VALIDO.fullmatch(email):
+        raise ValueError(EMAIL_INVALIDO)
+    return email
+
+
+def criar(
+    db: Session,
+    nome: str,
+    papel: str,
+    senha: str,
+    *,
+    email: str | None = None,
+    ativo: bool = True,
+    cota_diaria: int | None = None,
+) -> Usuario:
+    """Levanta ValueError com a mensagem para o usuário; nome ou e-mail repetido vira
+    IntegrityError no commit. O admin e o cadastro público passam por aqui."""
     if not NOME_VALIDO.fullmatch(nome):
         raise ValueError(NOME_INVALIDO)
     _conferir_papel(papel)
-    usuario = Usuario(nome=nome, senha_hash=gerar_hash(senha), papel=papel)
+    usuario = Usuario(
+        nome=nome,
+        senha_hash=gerar_hash(senha),
+        papel=papel,
+        email=normalizar_email(email) if email is not None else None,
+        ativo=ativo,
+        cota_diaria=cota_diaria,
+    )
     db.add(usuario)
     return usuario
+
+
+def _hash(token: str) -> str:
+    return hashlib.sha256(token.encode()).hexdigest()
+
+
+def abrir_ativacao(db: Session, usuario: Usuario) -> str:
+    """Token de uso único para o link do e-mail; o banco guarda só o hash."""
+    token = secrets.token_urlsafe(32)
+    db.add(
+        Ativacao(
+            token_hash=_hash(token), usuario_id=usuario.id, expira_em=agora() + VALIDADE_ATIVACAO
+        )
+    )
+    return token
+
+
+def ativar(db: Session, token: str) -> Usuario | None:
+    """Ativa a conta pendente do token. Token vencido ou desconhecido não ativa nada.
+
+    O link é de uso único porque só conta que ainda espera o e-mail é ativada: depois
+    da primeira vez o e-mail está confirmado, e uma conta desativada pelo admin não
+    volta por aqui.
+    """
+    ativacao = db.get(Ativacao, _hash(token)) if token else None
+    if ativacao is None or ativacao.expira_em < agora():
+        return None
+    usuario = db.get(Usuario, ativacao.usuario_id)
+    if usuario is None or usuario.email_confirmado_em is not None:
+        return None
+    usuario.ativo = True
+    usuario.email_confirmado_em = agora()
+    return usuario
+
+
+def pendente(usuario: Usuario) -> bool:
+    return usuario.email is not None and usuario.email_confirmado_em is None
 
 
 def alterar(
@@ -44,10 +113,13 @@ def alterar(
     papel: str | None = None,
     senha: str | None = None,
     ativo: bool | None = None,
+    cota_diaria: int | None = None,
 ) -> None:
-    """Muda papel, senha ou situação. Senha nova ou desativação derruba as sessões do alvo."""
+    """Muda papel, senha, cota ou situação. Senha nova ou desativação derruba as sessões."""
     if papel is not None:
         _conferir_papel(papel)
+    if cota_diaria is not None and not 1 <= cota_diaria <= 10_000:
+        raise ValueError("A cota diária precisa ficar entre 1 e 10.000 investigações.")
     novo_hash = gerar_hash(senha) if senha is not None else None
     if ativo is False and alvo.id == quem_altera.id:
         raise Conflito("Você não pode desativar a própria conta.")
@@ -64,6 +136,11 @@ def alterar(
         alvo.senha_hash = novo_hash
     if ativo is not None:
         alvo.ativo = ativo
+        # Ativar pela tela também vale como confirmação para quem ainda esperava o e-mail.
+        if ativo and pendente(alvo):
+            alvo.email_confirmado_em = agora()
+    if cota_diaria is not None:
+        alvo.cota_diaria = cota_diaria
     if novo_hash is not None or ativo is False:
         sessoes.fechar_todas(db, alvo.id)
 

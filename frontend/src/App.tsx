@@ -1,6 +1,7 @@
 import { Button, Flex, Layout, Result, Spin } from "antd";
 import { useEffect, useState } from "react";
 import { chamar, ErroApi, guardarCsrf, SESSAO_EXPIRADA, SESSAO_TROCADA } from "./api";
+import { Ativar } from "./Ativar";
 import { Investigacao } from "./Investigacao";
 import { Landing } from "./Landing";
 import { Login } from "./Login";
@@ -86,8 +87,9 @@ export function App() {
       </Flex>
     );
   }
-  // A página inicial é pública, com ou sem sessão.
+  // A página inicial e a ativação de conta são públicas, com ou sem sessão.
   if (caminho === "/") return <Landing sessao={sessao} />;
+  if (caminho === "/ativar") return <Ativar />;
   if (sessao === null) return <Login aoEntrar={entrarCom} />;
 
   const admin = sessao.usuario.papel === "admin";

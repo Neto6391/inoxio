@@ -7,6 +7,7 @@ import {
   Flex,
   Form,
   Input,
+  InputNumber,
   List,
   Popconfirm,
   Row,
@@ -22,7 +23,7 @@ import { quando } from "./formato";
 import type { Papel, UsuarioListado } from "./tipos";
 
 type Cadastro = { nome: string; senha: string; confirmacao: string; papel: Papel };
-type Edicao = { papel: Papel; senha?: string; confirmacao?: string };
+type Edicao = { papel: Papel; senha?: string; confirmacao?: string; cota?: number | null };
 
 const OPCOES_PAPEL = [
   { label: "Analista", value: "analista" as Papel },
@@ -114,11 +115,12 @@ function FormEdicao({ alvo, aoTerminar }: PropsEdicao) {
   const [enviando, setEnviando] = useState(false);
   const { message } = App.useApp();
 
-  async function salvar({ papel, senha }: Edicao) {
+  async function salvar({ papel, senha, cota }: Edicao) {
     // Só vai o que mudou: senha em branco mantém a atual.
-    const corpo: { papel?: Papel; senha?: string } = {};
+    const corpo: { papel?: Papel; senha?: string; cota_diaria?: number } = {};
     if (papel !== alvo.papel) corpo.papel = papel;
     if (senha) corpo.senha = senha;
+    if (cota && cota !== alvo.cota_diaria) corpo.cota_diaria = cota;
     if (Object.keys(corpo).length === 0) {
       aoTerminar(false);
       return;
@@ -139,9 +141,21 @@ function FormEdicao({ alvo, aoTerminar }: PropsEdicao) {
   return (
     <Card title={`Editar ${alvo.nome}`}>
       {erro && <Alert type="error" showIcon title={erro} className="espaco" />}
-      <Form<Edicao> layout="vertical" requiredMark={false} initialValues={{ papel: alvo.papel }} onFinish={salvar}>
+      <Form<Edicao>
+        layout="vertical"
+        requiredMark={false}
+        initialValues={{ papel: alvo.papel, cota: alvo.cota_diaria }}
+        onFinish={salvar}
+      >
         <Form.Item label="Papel" name="papel">
           <Segmented<Papel> options={OPCOES_PAPEL} />
+        </Form.Item>
+        <Form.Item
+          label="Cota diária"
+          name="cota"
+          extra={alvo.cota_diaria ? undefined : "Sem cota diária hoje; só o limite de 20 por hora."}
+        >
+          <InputNumber min={1} max={10000} placeholder="sem cota" />
         </Form.Item>
         <Form.Item
           label="Nova senha"
@@ -217,7 +231,7 @@ export function Usuarios({ eu }: { eu: string }) {
     } else {
       botoes.push(
         <Button key="reativar" size="small" onClick={() => mudarSituacao(usuario, true)}>
-          Reativar
+          {usuario.pendente ? "Ativar" : "Reativar"}
         </Button>,
       );
     }
@@ -264,11 +278,14 @@ export function Usuarios({ eu }: { eu: string }) {
                       <Flex gap="small" align="center" wrap>
                         <span className={usuario.ativo ? undefined : "inativo"}>{usuario.nome}</span>
                         <Tag color={usuario.papel === "admin" ? "gold" : "default"}>{usuario.papel}</Tag>
-                        {!usuario.ativo && <Tag color="red">desativado</Tag>}
+                        {usuario.pendente && <Tag color="orange">aguardando e-mail</Tag>}
+                        {!usuario.ativo && !usuario.pendente && <Tag color="red">desativado</Tag>}
                         {usuario.nome === eu && <Tag color="blue">você</Tag>}
                       </Flex>
                     }
-                    description={`desde ${quando(usuario.criado_em)}`}
+                    description={[usuario.email, `desde ${quando(usuario.criado_em)}`]
+                      .filter(Boolean)
+                      .join(" · ")}
                   />
                 </List.Item>
               )}

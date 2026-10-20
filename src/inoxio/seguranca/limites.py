@@ -20,6 +20,7 @@ FALHAS_POR_CONTA = 100
 FALHAS_POR_IP = 20
 INVESTIGACOES_POR_HORA = 20
 JANELA_INVESTIGACOES = timedelta(hours=1)
+JANELA_COTA = timedelta(hours=24)
 
 
 def origem(ip: str) -> str:
@@ -58,13 +59,15 @@ def registrar_tentativa(db: Session, nome: str, ip: str, sucesso: bool) -> None:
     db.add(TentativaLogin(nome=nome[:64], ip=origem(ip), sucesso=sucesso))
 
 
-def investigacao_excedida(db: Session, usuario_id: str) -> bool:
-    feitas = db.scalar(
+def _feitas(db: Session, usuario_id: str, janela: timedelta) -> int:
+    return db.scalar(
         select(func.count())
         .select_from(Investigacao)
-        .where(
-            Investigacao.usuario_id == usuario_id,
-            Investigacao.criada_em >= agora() - JANELA_INVESTIGACOES,
-        )
+        .where(Investigacao.usuario_id == usuario_id, Investigacao.criada_em >= agora() - janela)
     )
-    return feitas >= INVESTIGACOES_POR_HORA
+
+
+def investigacao_excedida(db: Session, usuario_id: str, cota_diaria: int | None = None) -> bool:
+    if _feitas(db, usuario_id, JANELA_INVESTIGACOES) >= INVESTIGACOES_POR_HORA:
+        return True
+    return cota_diaria is not None and _feitas(db, usuario_id, JANELA_COTA) >= cota_diaria
