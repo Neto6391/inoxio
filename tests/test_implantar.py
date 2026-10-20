@@ -100,3 +100,33 @@ def test_recusa_pacote_grande_demais_descompactado(tmp_path):
     resultado = rodar(SHA, buffer.getvalue(), tmp_path)
     assert resultado.returncode == 2
     assert b"100 MB descompactado" in resultado.stderr
+
+
+def pacote_grande(primeiro: tarfile.TarInfo | None = None) -> bytes:
+    """Milhares de arquivos depois do index.html: o tar ainda lista quando o grep acha o que procura."""
+    buffer = io.BytesIO()
+    with tarfile.open(fileobj=buffer, mode="w:gz") as tar:
+        if primeiro is not None:
+            tar.addfile(primeiro)
+        entradas = [("./index.html", b"<!doctype html>")]
+        entradas += [(f"./assets/a{numero}.js", b"x" * 64) for numero in range(4000)]
+        for nome, dados in entradas:
+            info = tarfile.TarInfo(nome)
+            info.size = len(dados)
+            tar.addfile(info, io.BytesIO(dados))
+    return buffer.getvalue()
+
+
+def test_pacote_grande_com_index_no_comeco_passa_das_checagens(tmp_path):
+    resultado = rodar(SHA, pacote_grande(), tmp_path)
+    # Passou das checagens do pacote e só parou depois, sem o clone do app neste teste.
+    assert b"recusado" not in resultado.stderr
+
+
+def test_pacote_grande_com_link_no_comeco_e_recusado(tmp_path):
+    link = tarfile.TarInfo("./aaa-link")
+    link.type = tarfile.SYMTYPE
+    link.linkname = "/home/inoxio/.config/inoxio/env"
+    resultado = rodar(SHA, pacote_grande(link), tmp_path)
+    assert resultado.returncode == 2
+    assert b"link ou arquivo especial" in resultado.stderr
