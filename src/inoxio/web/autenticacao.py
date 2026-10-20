@@ -42,7 +42,14 @@ def ip_do_cliente(request: Request) -> str:
 
 
 def _sessao_json(usuario: Usuario, sessao: Sessao) -> dict:
-    return {"usuario": {"nome": usuario.nome, "papel": usuario.papel}, "csrf": sessao.csrf}
+    return {
+        "usuario": {
+            "nome": usuario.nome,
+            "papel": usuario.papel,
+            "onboarding_visto": usuario.onboarding_visto,
+        },
+        "csrf": sessao.csrf,
+    }
 
 
 @rotas.post("/login")
@@ -97,3 +104,14 @@ def sair(request: Request, ctx: Contexto = Depends(sessao_atual), db: Session = 
         sessoes.NOME_COOKIE, path="/", secure=True, httponly=True, samesite="strict"
     )
     return resposta
+
+
+@rotas.post("/sessao/onboarding", status_code=204)
+def onboarding_visto(
+    request: Request, ctx: Contexto = Depends(sessao_atual), db: Session = Depends(banco)
+):
+    """A apresentação de primeiro acesso não volta mais para este usuário."""
+    conferir_csrf(ctx, token_csrf(request))
+    ctx.usuario.onboarding_visto = True
+    db.commit()
+    return Response(status_code=204)

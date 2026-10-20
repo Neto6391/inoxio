@@ -80,6 +80,8 @@ graph TD;
 - **Entrar ou criar conta** (`/entrar`): login e, ao lado, o cadastro com nome, e-mail
   e senha. A conta só entra depois de confirmar o e-mail pelo link (válido por 24 h)
   e começa com 10 investigações por dia.
+- **Primeiro acesso:** uma apresentação em quatro passos explica o que o sistema faz,
+  como investigar, como ler o resultado e o papel da IA. Aparece uma vez por conta.
 - **Painel** (`/painel`): estatísticas do próprio usuário (investigações por veredito,
   os 10 indicadores mais pesquisados e as ameaças encontradas, com quantos antivírus
   detectaram), campo para investigar e a lista das últimas investigações do usuário.

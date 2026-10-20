@@ -23,7 +23,7 @@ def test_login_certo_devolve_usuario_e_token_csrf(cliente, usuarios):
     resposta = entrar(cliente, "ana")
     assert resposta.status_code == 200
     corpo = resposta.json()
-    assert corpo["usuario"] == {"nome": "ana", "papel": "analista"}
+    assert corpo["usuario"] == {"nome": "ana", "papel": "analista", "onboarding_visto": False}
     assert len(corpo["csrf"]) >= 32
     assert cliente.get("/api/sessao").json()["usuario"]["nome"] == "ana"
 
@@ -99,3 +99,20 @@ def test_sessao_passa_de_8_horas_expira(cliente, usuarios, fabrica):
     with fabrica() as db, db.begin():
         db.execute(update(Sessao).values(criada_em=agora() - timedelta(hours=8, minutes=1)))
     assert cliente.get("/api/investigacoes").status_code == 401
+
+
+def test_onboarding_aparece_ate_ser_visto(cliente, usuarios):
+    resposta = entrar(cliente, "ana")
+    assert resposta.json()["usuario"]["onboarding_visto"] is False
+    cabecalho = {"X-CSRF-Token": resposta.json()["csrf"]}
+    assert cliente.post("/api/sessao/onboarding").status_code == 403
+    assert cliente.post("/api/sessao/onboarding", headers=cabecalho).status_code == 204
+    assert cliente.get("/api/sessao").json()["usuario"]["onboarding_visto"] is True
+    # Vale para a conta, não para a sessão: num login novo continua visto.
+    cliente.cookies.clear()
+    assert entrar(cliente, "ana").json()["usuario"]["onboarding_visto"] is True
+    assert entrar(cliente, "beto").json()["usuario"]["onboarding_visto"] is False
+
+
+def test_onboarding_pede_sessao(cliente, usuarios):
+    assert cliente.post("/api/sessao/onboarding").status_code == 401

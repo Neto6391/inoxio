@@ -7,6 +7,7 @@ import { VisaoGeral } from "./Estatisticas";
 import { Investigacao } from "./Investigacao";
 import { Landing } from "./Landing";
 import { Login } from "./Login";
+import { Onboarding } from "./Onboarding";
 import { Painel } from "./Painel";
 import { Link, navegar, useCaminho } from "./rotas";
 import type { RespostaSessao, Sessao } from "./tipos";
@@ -139,6 +140,12 @@ export function App() {
       <Layout.Content className="conteudo">
         <Tela caminho={caminho} sessao={sessao} />
       </Layout.Content>
+      <Onboarding
+        aberto={sessao.usuario.onboarding_visto === false}
+        aoTerminar={() =>
+          setSessao({ ...sessao, usuario: { ...sessao.usuario, onboarding_visto: true } })
+        }
+      />
     </Layout>
   );
 }
