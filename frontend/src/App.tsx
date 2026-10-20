@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { chamar, ErroApi, guardarCsrf, SESSAO_EXPIRADA, SESSAO_TROCADA } from "./api";
 import { Ativar } from "./Ativar";
 import { Auditoria } from "./Auditoria";
+import { VisaoGeral } from "./Estatisticas";
 import { Investigacao } from "./Investigacao";
 import { Landing } from "./Landing";
 import { Login } from "./Login";
@@ -20,6 +21,7 @@ function Tela({ caminho, sessao }: { caminho: string; sessao: Sessao }) {
     return <Usuarios eu={sessao.usuario.nome} />;
   }
   if (caminho === "/auditoria" && sessao.usuario.papel === "admin") return <Auditoria />;
+  if (caminho === "/visao-geral" && sessao.usuario.papel === "admin") return <VisaoGeral />;
   return (
     <Result
       status="404"
@@ -111,6 +113,11 @@ export function App() {
           >
             Investigações
           </ItemMenu>
+          {admin && (
+            <ItemMenu para="/visao-geral" ativo={caminho === "/visao-geral"}>
+              Visão geral
+            </ItemMenu>
+          )}
           {admin && (
             <ItemMenu para="/usuarios" ativo={caminho === "/usuarios"}>
               Usuários

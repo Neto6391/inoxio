@@ -80,13 +80,18 @@ graph TD;
 - **Entrar ou criar conta** (`/entrar`): login e, ao lado, o cadastro com nome, e-mail
   e senha. A conta só entra depois de confirmar o e-mail pelo link (válido por 24 h)
   e começa com 10 investigações por dia.
-- **Painel** (`/painel`): campo para investigar e a lista das últimas investigações do usuário.
+- **Painel** (`/painel`): estatísticas do próprio usuário (investigações por veredito,
+  os 10 indicadores mais pesquisados e as ameaças encontradas, com quantos antivírus
+  detectaram), campo para investigar e a lista das últimas investigações do usuário.
 - **Investigação:** veredito com a nota num medidor, as evidências de cada fonte e
   a análise da IA, com links para as técnicas do MITRE ATT&CK.
 - **Usuários:** só para o papel `admin`, que cadastra, edita (papel e senha),
   desativa e reativa usuários por ali. O cadastro também existe no terminal, com
   `inoxio criar-usuario`. Ninguém desativa a própria conta, e o último admin
   ativo não perde o papel.
+- **Visão geral** (`/visao-geral`), só para o `admin`: porcentagem de contas ativas
+  e de quem usou nos últimos 30 dias, total de investigações e de sites pesquisados,
+  e os 10 usuários que mais pesquisam.
 - **Auditoria** (`/auditoria`), só para o `admin`: logins (certos, errados e
   bloqueados), logouts, cadastros, ativações, investigações e toda ação do admin,
   com usuário, IP e horário, filtro por tipo e por usuário. Guarda 90 dias.
