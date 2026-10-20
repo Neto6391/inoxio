@@ -12,7 +12,8 @@ services:
       - "127.0.0.1:3000:3000"
     mem_limit: 384m
     environment:
-      GF_PLUGINS_PREINSTALL_SYNC: frser-sqlite-datasource@4.0.6
+      # Sem isto o Grafana 13 tenta baixar apps padrão ao subir; a pasta de plugins é só leitura.
+      GF_PLUGINS_PREINSTALL_DISABLED: "true"
       GF_SECURITY_ADMIN_USER: admin
       GF_SECURITY_ADMIN_PASSWORD__FILE: /run/secrets/senha_admin
       GF_USERS_ALLOW_SIGN_UP: "false"
@@ -26,5 +27,8 @@ services:
       - /home/inoxio/dados:/dados:ro
       - ./dados-grafana:/var/lib/grafana
       - ./provisionamento:/etc/grafana/provisioning:ro
+      # Plugin de SQLite instalado à mão, conferido pelo SHA-256 (ver baixar-plugin.sh):
+      # o Grafana não baixa nada ao subir.
+      - ./plugins:/var/lib/grafana/plugins:ro
       - ./paineis:/var/lib/grafana-paineis:ro
       - ./senha-admin:/run/secrets/senha_admin:ro
