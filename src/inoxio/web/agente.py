@@ -12,10 +12,12 @@ from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from inoxio import auditoria
 from inoxio.agente.classificar import LIMITE_ENTRADA
 from inoxio.agente.decidir import ROTULOS
 from inoxio.db import Investigacao
 from inoxio.seguranca import limites
+from inoxio.web.autenticacao import ip_do_cliente
 from inoxio.web.dependencias import Contexto, banco, conferir_csrf, sessao_atual, token_csrf
 
 rotas = APIRouter(prefix="/api")
@@ -94,16 +96,38 @@ def _investigar(request: Request, pedido: PedidoInvestigacao, ctx: Contexto, db:
         reaproveitada=estado["reaproveitada"],
     )
     db.add(investigacao)
+    auditoria.registrar(
+        db,
+        "investigacao",
+        ip_do_cliente(request),
+        ctx.usuario.nome,
+        f"{estado['tipo']} {estado['valor'][:200]} → {estado['veredito']}",
+    )
     db.commit()
     return {"id": investigacao.id}
 
 
 @rotas.get("/investigacoes/{id_}")
-def ver(id_: str, ctx: Contexto = Depends(sessao_atual), db: Session = Depends(banco)):
+def ver(
+    id_: str,
+    request: Request,
+    ctx: Contexto = Depends(sessao_atual),
+    db: Session = Depends(banco),
+):
     investigacao = db.get(Investigacao, id_)
     alheia = investigacao is not None and investigacao.usuario_id != ctx.usuario.id
     if investigacao is None or (alheia and ctx.usuario.papel != "admin"):
         raise HTTPException(status_code=404)
+    # O admin abrindo a investigação de outra pessoa fica registrado.
+    if alheia:
+        auditoria.registrar(
+            db,
+            "investigacao_alheia",
+            ip_do_cliente(request),
+            ctx.usuario.nome,
+            investigacao.valor[:200],
+        )
+        db.commit()
     return _resumo(investigacao) | {
         "nota": investigacao.nota,
         "rotulo": ROTULOS[investigacao.veredito],

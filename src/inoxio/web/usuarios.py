@@ -5,12 +5,13 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from inoxio import usuarios
-from inoxio.db import Usuario
+from inoxio import auditoria, usuarios
+from inoxio.db import Evento, Usuario
+from inoxio.web.autenticacao import ip_do_cliente
 from inoxio.web.dependencias import Contexto, banco, conferir_csrf, exigir_admin, token_csrf
 
 rotas = APIRouter(prefix="/api")
@@ -56,6 +57,13 @@ def cadastrar(
     conferir_csrf(ctx, token_csrf(request))
     try:
         usuario = usuarios.criar(db, pedido.nome, pedido.papel, pedido.senha)
+        auditoria.registrar(
+            db,
+            "admin_cadastrou",
+            ip_do_cliente(request),
+            ctx.usuario.nome,
+            f"{pedido.nome} ({pedido.papel})",
+        )
         db.commit()
     except ValueError as erro:
         return JSONResponse({"erro": str(erro)}, status_code=400)
@@ -91,5 +99,76 @@ def alterar(
         return JSONResponse({"erro": str(erro)}, status_code=400)
     except usuarios.Conflito as erro:
         return JSONResponse({"erro": str(erro)}, status_code=409)
+    auditoria.registrar(
+        db, "admin_alterou", ip_do_cliente(request), ctx.usuario.nome, _o_que_mudou(nome, pedido)
+    )
     db.commit()
     return _publico(alvo)
+
+
+def _o_que_mudou(nome: str, pedido: Alteracao) -> str:
+    """Resumo da alteração para a auditoria. A senha nova nunca entra, só o fato."""
+    partes = []
+    if pedido.papel is not None:
+        partes.append(f"papel {pedido.papel}")
+    if pedido.senha is not None:
+        partes.append("senha trocada")
+    if pedido.ativo is not None:
+        partes.append("ativada" if pedido.ativo else "desativada")
+    if pedido.cota_diaria is not None:
+        partes.append(f"cota {pedido.cota_diaria}/dia")
+    return f"{nome}: {', '.join(partes) or 'nada'}"
+
+
+TIPOS_EVENTO = (
+    "login",
+    "login_falhou",
+    "login_bloqueado",
+    "logout",
+    "cadastro",
+    "ativacao",
+    "investigacao",
+    "investigacao_alheia",
+    "admin_cadastrou",
+    "admin_alterou",
+)
+POR_PAGINA = 50
+
+
+@rotas.get("/auditoria")
+def listar_eventos(
+    tipo: str | None = None,
+    usuario: str | None = None,
+    pagina: int = 1,
+    ctx: Contexto = Depends(exigir_admin),
+    db: Session = Depends(banco),
+):
+    filtro = []
+    if tipo:
+        filtro.append(Evento.tipo == tipo)
+    if usuario:
+        filtro.append(Evento.usuario == usuario)
+    total = db.scalar(select(func.count()).select_from(Evento).where(*filtro))
+    pagina = max(1, pagina)
+    eventos = db.scalars(
+        select(Evento)
+        .where(*filtro)
+        .order_by(Evento.quando.desc(), Evento.id.desc())
+        .offset((pagina - 1) * POR_PAGINA)
+        .limit(POR_PAGINA)
+    )
+    return {
+        "total": total,
+        "por_pagina": POR_PAGINA,
+        "tipos": TIPOS_EVENTO,
+        "itens": [
+            {
+                "quando": evento.quando.isoformat(),
+                "tipo": evento.tipo,
+                "usuario": evento.usuario,
+                "ip": evento.ip,
+                "detalhe": evento.detalhe,
+            }
+            for evento in eventos
+        ],
+    }

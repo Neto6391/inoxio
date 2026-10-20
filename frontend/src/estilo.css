@@ -233,3 +233,17 @@ a {
   color: #6b7785;
   text-decoration: line-through;
 }
+.filtro-usuario {
+  max-width: 320px;
+}
+.linha-evento {
+  min-width: 0;
+}
+.evento-ip {
+  color: #8b98a5;
+  font-size: 12px;
+}
+.evento-detalhe {
+  color: #c9d1d9;
+  font-size: 13px;
+}

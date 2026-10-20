@@ -2,6 +2,7 @@ import { Button, Flex, Layout, Result, Spin } from "antd";
 import { useEffect, useState } from "react";
 import { chamar, ErroApi, guardarCsrf, SESSAO_EXPIRADA, SESSAO_TROCADA } from "./api";
 import { Ativar } from "./Ativar";
+import { Auditoria } from "./Auditoria";
 import { Investigacao } from "./Investigacao";
 import { Landing } from "./Landing";
 import { Login } from "./Login";
@@ -18,6 +19,7 @@ function Tela({ caminho, sessao }: { caminho: string; sessao: Sessao }) {
   if (caminho === "/usuarios" && sessao.usuario.papel === "admin") {
     return <Usuarios eu={sessao.usuario.nome} />;
   }
+  if (caminho === "/auditoria" && sessao.usuario.papel === "admin") return <Auditoria />;
   return (
     <Result
       status="404"
@@ -112,6 +114,11 @@ export function App() {
           {admin && (
             <ItemMenu para="/usuarios" ativo={caminho === "/usuarios"}>
               Usuários
+            </ItemMenu>
+          )}
+          {admin && (
+            <ItemMenu para="/auditoria" ativo={caminho === "/auditoria"}>
+              Auditoria
             </ItemMenu>
           )}
         </nav>
