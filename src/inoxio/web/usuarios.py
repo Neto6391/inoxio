@@ -9,7 +9,7 @@ from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from inoxio import auditoria, usuarios
+from inoxio import auditoria, estatisticas, usuarios
 from inoxio.db import Evento, Usuario
 from inoxio.web.autenticacao import ip_do_cliente
 from inoxio.web.dependencias import Contexto, banco, conferir_csrf, exigir_admin, token_csrf
@@ -172,3 +172,8 @@ def listar_eventos(
             for evento in eventos
         ],
     }
+
+
+@rotas.get("/estatisticas/geral")
+def estatisticas_gerais(ctx: Contexto = Depends(exigir_admin), db: Session = Depends(banco)):
+    return estatisticas.geral(db)

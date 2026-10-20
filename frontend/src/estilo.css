@@ -247,3 +247,21 @@ a {
   color: #c9d1d9;
   font-size: 13px;
 }
+.item-barra {
+  flex: 1;
+  min-width: 0;
+}
+.texto-cortado {
+  display: block;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+.cartao-estatistica {
+  height: 100%;
+}
+.sem-quebra {
+  flex-shrink: 0;
+  white-space: nowrap;
+}

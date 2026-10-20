@@ -12,7 +12,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from inoxio import auditoria
+from inoxio import auditoria, estatisticas
 from inoxio.agente.classificar import LIMITE_ENTRADA
 from inoxio.agente.decidir import ROTULOS
 from inoxio.db import Investigacao
@@ -135,3 +135,8 @@ def ver(
         "analise": investigacao.analise,
         "reaproveitada": investigacao.reaproveitada,
     }
+
+
+@rotas.get("/estatisticas")
+def minhas_estatisticas(ctx: Contexto = Depends(sessao_atual), db: Session = Depends(banco)):
+    return estatisticas.do_usuario(db, ctx.usuario.id)

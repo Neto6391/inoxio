@@ -1,6 +1,7 @@
 import { Alert, Button, Card, Empty, Flex, Form, Input, List, Skeleton, Typography } from "antd";
 import { useEffect, useState } from "react";
 import { chamar, ErroApi, mensagemDeErro, SESSAO_TROCADA } from "./api";
+import { MinhasEstatisticas } from "./Estatisticas";
 import { NOMES_TIPO, quando, TagVeredito } from "./formato";
 import { navegar } from "./rotas";
 import type { ResumoInvestigacao } from "./tipos";
@@ -93,6 +94,7 @@ export function Painel() {
           últimas 24 h volta na hora.
         </Typography.Paragraph>
       </Card>
+      <MinhasEstatisticas />
       <Card title="Suas investigações recentes">{listaDeRecentes()}</Card>
     </Flex>
   );

@@ -43,7 +43,7 @@ test("Sair com token velho, porque outra aba entrou de novo, encerra a sessão q
     "fetch",
     vi.fn(async (caminho: string, pedido: RequestInit = {}) => {
       if (caminho === "/api/sessao") return json({ usuario: { nome: "ana", papel: "analista" }, csrf: csrfAtual });
-      if (caminho === "/api/investigacoes") return json([]);
+      if (caminho !== "/api/logout") return json([]);
       const token = (pedido.headers as Record<string, string>)["X-CSRF-Token"];
       tokensDoLogout.push(token);
       return token === "novo" ? new Response(null, { status: 204 }) : json({ erro: "Acesso negado." }, 403);
@@ -64,7 +64,9 @@ test("falha ao listar as investigações aparece como erro, não como lista vazi
     vi.fn(async (caminho: string) =>
       caminho === "/api/sessao"
         ? json({ usuario: { nome: "ana", papel: "analista" }, csrf: "token" })
-        : json({ erro: "Erro interno. O detalhe ficou registrado no servidor." }, 500),
+        : caminho === "/api/investigacoes"
+          ? json({ erro: "Erro interno. O detalhe ficou registrado no servidor." }, 500)
+          : json({}),
     ),
   );
   render(<App />);
