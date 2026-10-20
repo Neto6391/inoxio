@@ -11,8 +11,11 @@ on:
 permissions:
   contents: read
 
+# Os testes têm uma fila por branch. Antes, tudo dividia a fila "producao", e o
+# GitHub guarda só uma execução pendente por fila: PRs abertos juntos cancelavam
+# os testes uns dos outros.
 concurrency:
-  group: producao
+  group: testes-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
@@ -44,6 +47,10 @@ jobs:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-24.04
     environment: producao
+    # Só o deploy fica numa fila única: dois deploys nunca rodam ao mesmo tempo.
+    concurrency:
+      group: producao
+      cancel-in-progress: false
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
