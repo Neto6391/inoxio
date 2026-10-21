@@ -23,7 +23,12 @@ def test_login_certo_devolve_usuario_e_token_csrf(cliente, usuarios):
     resposta = entrar(cliente, "ana")
     assert resposta.status_code == 200
     corpo = resposta.json()
-    assert corpo["usuario"] == {"nome": "ana", "papel": "analista", "onboarding_visto": False}
+    assert corpo["usuario"] == {
+        "nome": "ana",
+        "papel": "analista",
+        "onboarding_visto": False,
+        "termos_pendentes": True,
+    }
     assert len(corpo["csrf"]) >= 32
     assert cliente.get("/api/sessao").json()["usuario"]["nome"] == "ana"
 

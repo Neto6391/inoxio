@@ -288,3 +288,42 @@ a {
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
   outline: none;
 }
+/* Rodapé, documentos legais e Minha conta */
+.rodape {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px 20px;
+  margin: 40px auto 24px;
+  padding-top: 16px;
+  border-top: 1px solid #1e2935;
+  color: #6b7785;
+  font-size: 13px;
+}
+.rodape a {
+  color: #8b98a5;
+}
+.documento {
+  max-width: 820px;
+  margin: 16px auto 0;
+}
+.documento section {
+  margin-top: 24px;
+}
+.lista-documento {
+  padding-left: 20px;
+  line-height: 1.8;
+}
+.quem a {
+  color: #9aa7b4;
+}
+.quem a.ativo,
+.quem a:hover {
+  color: #e6edf3;
+}
+.cartao-perigo {
+  border-color: #5c1d1d !important;
+}
+.campo-senha {
+  max-width: 280px;
+}

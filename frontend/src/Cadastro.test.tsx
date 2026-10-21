@@ -43,11 +43,15 @@ test("o cadastro fica ao lado do login e não manda a confirmação da senha", a
   fireEvent.change(screen.getByLabelText("E-mail"), { target: { value: "dani@exemplo.com" } });
   fireEvent.change(screen.getByLabelText("Crie uma senha"), { target: { value: "senha-bem-longa-1" } });
   fireEvent.change(screen.getByLabelText("Repita a senha"), { target: { value: "senha-bem-longa-1" } });
+  fireEvent.click(screen.getByRole("checkbox"));
   fireEvent.click(screen.getByRole("button", { name: "Criar conta" }));
   await waitFor(() => expect(pedidos).toHaveLength(1), { timeout: 3000 });
   expect(await screen.findByText(/Enviamos um link de ativação/)).toBeInTheDocument();
   expect(pedidos).toEqual([
-    { caminho: "/api/cadastro", corpo: { nome: "dani", email: "dani@exemplo.com", senha: "senha-bem-longa-1" } },
+    {
+      caminho: "/api/cadastro",
+      corpo: { nome: "dani", email: "dani@exemplo.com", senha: "senha-bem-longa-1", aceite_termos: true },
+    },
   ]);
 });
 
@@ -105,4 +109,19 @@ test("admin vê quem espera o e-mail, ativa e muda a cota", async () => {
   fireEvent.click(screen.getByRole("button", { name: "Salvar" }));
   await waitFor(() => expect(pedidos).toHaveLength(2));
   expect(pedidos[1].corpo).toEqual({ cota_diaria: 50 });
+});
+
+test("sem marcar o aceite, o cadastro não sai", async () => {
+  const pedidos: Pedido[] = [];
+  servidor(pedidos);
+  navegar("/entrar");
+  render(<App />);
+  await screen.findByRole("button", { name: "Entrar" });
+  fireEvent.change(screen.getByLabelText("Nome de usuário"), { target: { value: "dani" } });
+  fireEvent.change(screen.getByLabelText("E-mail"), { target: { value: "dani@exemplo.com" } });
+  fireEvent.change(screen.getByLabelText("Crie uma senha"), { target: { value: "senha-bem-longa-1" } });
+  fireEvent.change(screen.getByLabelText("Repita a senha"), { target: { value: "senha-bem-longa-1" } });
+  fireEvent.click(screen.getByRole("button", { name: "Criar conta" }));
+  expect(await screen.findByText("Aceite para criar a conta")).toBeInTheDocument();
+  expect(pedidos).toEqual([]);
 });

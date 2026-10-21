@@ -7,10 +7,10 @@ import re
 import secrets
 from datetime import timedelta
 
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select, update
 from sqlalchemy.orm import Session
 
-from inoxio.db import Ativacao, Usuario, agora
+from inoxio.db import Ativacao, Evento, Investigacao, Sessao, TentativaLogin, Usuario, agora
 from inoxio.seguranca import sessoes
 from inoxio.seguranca.senhas import gerar_hash
 
@@ -23,6 +23,9 @@ EMAIL_INVALIDO = "Informe um e-mail válido."
 # Quem se cadastra sozinho começa com esta cota; o admin pode mudar.
 COTA_CADASTRO = 10
 VALIDADE_ATIVACAO = timedelta(hours=24)
+# Muda quando o texto dos Termos ou da Política mudar: quem aceitou outra versão
+# precisa aceitar de novo.
+VERSAO_TERMOS = "2026-10-20"
 
 
 class Conflito(Exception):
@@ -50,6 +53,7 @@ def criar(
     email: str | None = None,
     ativo: bool = True,
     cota_diaria: int | None = None,
+    aceitou_termos: bool = False,
 ) -> Usuario:
     """Levanta ValueError com a mensagem para o usuário; nome ou e-mail repetido vira
     IntegrityError no commit. O admin e o cadastro público passam por aqui."""
@@ -64,8 +68,19 @@ def criar(
         ativo=ativo,
         cota_diaria=cota_diaria,
     )
+    if aceitou_termos:
+        aceitar_termos(usuario)
     db.add(usuario)
     return usuario
+
+
+def aceitar_termos(usuario: Usuario) -> None:
+    usuario.termos_versao = VERSAO_TERMOS
+    usuario.termos_aceitos_em = agora()
+
+
+def termos_pendentes(usuario: Usuario) -> bool:
+    return usuario.termos_versao != VERSAO_TERMOS
 
 
 def _hash(token: str) -> str:
@@ -151,3 +166,24 @@ def _admins_ativos(db: Session) -> int:
         .select_from(Usuario)
         .where(Usuario.papel == "admin", Usuario.ativo.is_(True))
     )
+
+
+def excluir(db: Session, usuario: Usuario) -> None:
+    """Exclusão a pedido do titular (LGPD, art. 18): apaga a conta, as investigações,
+    as sessões e as ativações. Os eventos de segurança ficam, sem o nome."""
+    if usuario.papel == "admin" and usuario.ativo and _admins_ativos(db) <= 1:
+        raise Conflito("O último admin ativo não pode excluir a própria conta.")
+    db.execute(delete(Investigacao).where(Investigacao.usuario_id == usuario.id))
+    db.execute(delete(Sessao).where(Sessao.usuario_id == usuario.id))
+    db.execute(delete(Ativacao).where(Ativacao.usuario_id == usuario.id))
+    db.execute(delete(TentativaLogin).where(TentativaLogin.nome == usuario.nome))
+    db.execute(update(Evento).where(Evento.usuario == usuario.nome).values(usuario=None))
+    # O admin que cadastrou ou alterou a conta deixou o nome dela no detalhe:
+    # "nome (papel)" e "nome: o que mudou".
+    prefixos = (f"{usuario.nome} (", f"{usuario.nome}:")
+    for evento in db.scalars(
+        select(Evento).where(Evento.tipo.in_(("admin_cadastrou", "admin_alterou")))
+    ):
+        if (evento.detalhe or "").startswith(prefixos):
+            evento.detalhe = "conta excluída" + evento.detalhe[len(usuario.nome) :]
+    db.delete(usuario)

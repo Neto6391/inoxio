@@ -10,7 +10,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from inoxio import auditoria
+from inoxio import auditoria, usuarios
 from inoxio.db import Sessao, Usuario
 from inoxio.seguranca import limites, senhas, sessoes
 from inoxio.web.dependencias import (
@@ -47,6 +47,7 @@ def _sessao_json(usuario: Usuario, sessao: Sessao) -> dict:
             "nome": usuario.nome,
             "papel": usuario.papel,
             "onboarding_visto": usuario.onboarding_visto,
+            "termos_pendentes": usuarios.termos_pendentes(usuario),
         },
         "csrf": sessao.csrf,
     }
@@ -115,3 +116,27 @@ def onboarding_visto(
     ctx.usuario.onboarding_visto = True
     db.commit()
     return Response(status_code=204)
+
+
+@rotas.post("/sessao/termos", status_code=204)
+def aceitar_termos(
+    request: Request, ctx: Contexto = Depends(sessao_atual), db: Session = Depends(banco)
+):
+    """Quem já tinha conta aceita a versão atual dos Termos e da Política."""
+    conferir_csrf(ctx, token_csrf(request))
+    usuarios.aceitar_termos(ctx.usuario)
+    auditoria.registrar(
+        db, "termos_aceitos", ip_do_cliente(request), ctx.usuario.nome, usuarios.VERSAO_TERMOS
+    )
+    db.commit()
+    return Response(status_code=204)
+
+
+@rotas.get("/publico")
+def informacoes_publicas(request: Request):
+    """O que as páginas públicas (Política de Privacidade) precisam saber do servidor."""
+    config = request.app.state.config
+    return {
+        "contato_privacidade": config.contato_privacidade,
+        "versao_termos": usuarios.VERSAO_TERMOS,
+    }

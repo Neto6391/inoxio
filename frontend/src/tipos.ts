@@ -1,5 +1,10 @@
 export type Papel = "admin" | "analista";
-export type Usuario = { nome: string; papel: Papel; onboarding_visto?: boolean };
+export type Usuario = {
+  nome: string;
+  papel: Papel;
+  onboarding_visto?: boolean;
+  termos_pendentes?: boolean;
+};
 export type UsuarioListado = Usuario & {
   criado_em: string;
   ativo: boolean;

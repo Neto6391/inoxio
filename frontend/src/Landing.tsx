@@ -1,4 +1,5 @@
 import { Button, Card, Col, Flex, Row, Tag, Typography } from "antd";
+import { Rodape } from "./Rodape";
 import { navegar } from "./rotas";
 import type { Sessao } from "./tipos";
 
@@ -189,12 +190,7 @@ export function Landing({ sessao }: { sessao: Sessao | null }) {
         </Row>
       </section>
 
-      <footer className="landing-rodape">
-        Inóxio · projeto da disciplina Projeto Aplicado: Práticas de Mercado ·{" "}
-        <a href="https://github.com/Neto6391/inoxio" target="_blank" rel="noopener noreferrer">
-          código no GitHub
-        </a>
-      </footer>
+      <Rodape />
     </div>
   );
 }

@@ -52,6 +52,9 @@ class Usuario(Base):
     # Investigações por dia; nulo é sem cota além do limite por hora.
     cota_diaria: Mapped[int | None] = mapped_column(Integer, nullable=True)
     onboarding_visto: Mapped[bool] = mapped_column(Boolean, default=False, server_default="0")
+    # Versão dos Termos e da Política de Privacidade que o usuário aceitou, e quando.
+    termos_versao: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    termos_aceitos_em: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
 
 class Ativacao(Base):
@@ -127,6 +130,8 @@ _COLUNAS_NOVAS = {
     "email_confirmado_em": "DATETIME",
     "cota_diaria": "INTEGER",
     "onboarding_visto": "BOOLEAN NOT NULL DEFAULT 0",
+    "termos_versao": "VARCHAR(16)",
+    "termos_aceitos_em": "DATETIME",
 }
 
 

@@ -43,6 +43,12 @@ export function quando(iso: string): string {
   return `${iso.slice(0, 16).replace("T", " ")} UTC`;
 }
 
+// A versão dos termos é uma data AAAA-MM-DD; lida em português ela vira "20 de outubro de 2026".
+export function dataPorExtenso(versao: string): string {
+  const [ano, mes, dia] = versao.split("-").map(Number);
+  return new Date(ano, mes - 1, dia).toLocaleDateString("pt-BR", { dateStyle: "long" });
+}
+
 // Texto de terceiros vira texto: o React escapa tudo o que passa por aqui.
 export function comoTexto(valor: unknown): string {
   if (Array.isArray(valor)) return valor.length ? valor.join(", ") : "—";

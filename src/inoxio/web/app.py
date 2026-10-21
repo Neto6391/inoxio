@@ -27,7 +27,7 @@ from inoxio.correio import Enviar, criar_envio
 from inoxio.db import criar_fabrica
 from inoxio.historico import buscador
 from inoxio.web import agente as rotas_agente
-from inoxio.web import autenticacao, cadastro, spa, usuarios
+from inoxio.web import autenticacao, cadastro, conta, spa, usuarios
 
 log = logging.getLogger("inoxio")
 
@@ -80,6 +80,7 @@ def criar_app(
     app.include_router(rotas_agente.rotas)
     app.include_router(usuarios.rotas)
     app.include_router(cadastro.rotas)
+    app.include_router(conta.rotas)
     app.mount("/assets", StaticFiles(directory=frontend / "assets", check_dir=False), "assets")
     # Só a borda declara o IP real; por isso o uvicorn roda com --no-proxy-headers.
     app.add_middleware(ProxyHeadersMiddleware, trusted_hosts=config.proxies_confiaveis)
