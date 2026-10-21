@@ -132,6 +132,8 @@ TIPOS_EVENTO = (
     "admin_cadastrou",
     "admin_alterou",
     "backup",
+    "termos_aceitos",
+    "conta_excluida",
 )
 POR_PAGINA = 50
 

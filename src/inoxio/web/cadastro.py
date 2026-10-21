@@ -24,12 +24,14 @@ CADASTROS_POR_IP = 5
 JANELA_CADASTRO = timedelta(hours=1)
 NOME_EM_USO = "Esse nome de usuário já existe. Escolha outro."
 LINK_INVALIDO = "Link de ativação inválido ou vencido. Faça o cadastro de novo."
+TERMOS_OBRIGATORIOS = "Para criar a conta, aceite os Termos de Uso e a Política de Privacidade."
 
 
 class NovoCadastro(BaseModel):
     nome: str = Field(max_length=64)
     email: str = Field(max_length=254)
     senha: str = Field(max_length=256)
+    aceite_termos: bool = False
 
 
 class PedidoAtivacao(BaseModel):
@@ -50,6 +52,8 @@ def cadastrar(
     request: Request, pedido: NovoCadastro, tarefas: BackgroundTasks, db: Session = Depends(banco)
 ):
     ip = ip_do_cliente(request)
+    if not pedido.aceite_termos:
+        return JSONResponse({"erro": TERMOS_OBRIGATORIOS}, status_code=400)
     if auditoria.contar(db, "cadastro", ip, JANELA_CADASTRO) >= CADASTROS_POR_IP:
         return JSONResponse({"erro": "Muitos cadastros deste endereço. Tente mais tarde."}, 429)
     try:
@@ -77,6 +81,7 @@ def cadastrar(
             email=email,
             ativo=False,
             cota_diaria=usuarios.COTA_CADASTRO,
+            aceitou_termos=True,
         )
         db.flush()
     except ValueError as erro:
@@ -85,7 +90,9 @@ def cadastrar(
         db.rollback()
         return JSONResponse({"erro": NOME_EM_USO}, status_code=409)
     token = usuarios.abrir_ativacao(db, usuario)
-    auditoria.registrar(db, "cadastro", ip, usuario.nome)
+    auditoria.registrar(
+        db, "cadastro", ip, usuario.nome, f"aceitou os termos {usuarios.VERSAO_TERMOS}"
+    )
     db.commit()
     if enviar:
         link = f"{request.app.state.config.url_publica}/ativar#{token}"

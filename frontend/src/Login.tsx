@@ -1,11 +1,12 @@
-import { Alert, Button, Card, Col, Form, Input, Result, Row, Typography } from "antd";
+import { Alert, Button, Card, Checkbox, Col, Form, Input, Result, Row, Typography } from "antd";
 import { useState } from "react";
 import { chamar, mensagemDeErro } from "./api";
+import { Rodape } from "./Rodape";
 import { Link } from "./rotas";
 import type { Sessao } from "./tipos";
 
 type Credenciais = { nome: string; senha: string };
-type Cadastro = { nome: string; email: string; senha: string; confirmacao: string };
+type Cadastro = { nome: string; email: string; senha: string; confirmacao: string; aceite: boolean };
 
 function Entrar({ aoEntrar }: { aoEntrar: (sessao: Sessao) => void }) {
   const [erro, setErro] = useState<string | null>(null);
@@ -55,7 +56,7 @@ function CriarConta() {
     try {
       const { mensagem } = await chamar<{ mensagem: string }>("/api/cadastro", {
         metodo: "POST",
-        corpo: { nome, email, senha },
+        corpo: { nome, email, senha, aceite_termos: true },
       });
       setAviso(mensagem);
     } catch (falha) {
@@ -125,6 +126,27 @@ function CriarConta() {
         >
           <Input.Password autoComplete="new-password" />
         </Form.Item>
+        <Form.Item
+          name="aceite"
+          valuePropName="checked"
+          rules={[
+            {
+              validator: (_, marcado) =>
+                marcado ? Promise.resolve() : Promise.reject(new Error("Aceite para criar a conta")),
+            },
+          ]}
+        >
+          <Checkbox>
+            Li e aceito os{" "}
+            <a href="/termos" target="_blank" rel="noopener noreferrer">
+              Termos de Uso
+            </a>{" "}
+            e a{" "}
+            <a href="/privacidade" target="_blank" rel="noopener noreferrer">
+              Política de Privacidade
+            </a>
+          </Checkbox>
+        </Form.Item>
         <Button htmlType="submit" block loading={enviando}>
           Criar conta
         </Button>
@@ -155,6 +177,7 @@ export function Login({ aoEntrar }: { aoEntrar: (sessao: Sessao) => void }) {
         <div className="espaco-topo">
           <Link para="/">← Conhecer o Inóxio</Link>
         </div>
+        <Rodape />
       </div>
     </div>
   );

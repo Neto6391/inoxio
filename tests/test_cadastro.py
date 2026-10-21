@@ -32,8 +32,9 @@ def app(fabrica, config, caixa):
     return criar_app(config, fabrica=fabrica, enviar_email=caixa)
 
 
-def cadastrar(cliente, nome="dani", email="Dani@Exemplo.com", senha=NOVA):
-    return cliente.post("/api/cadastro", json={"nome": nome, "email": email, "senha": senha})
+def cadastrar(cliente, nome="dani", email="Dani@Exemplo.com", senha=NOVA, aceite=True):
+    corpo = {"nome": nome, "email": email, "senha": senha, "aceite_termos": aceite}
+    return cliente.post("/api/cadastro", json=corpo)
 
 
 def usuario(fabrica, nome):
@@ -174,3 +175,20 @@ def test_cota_diaria_vale_para_quem_se_cadastrou(fabrica, config, usuarios):
         "/api/investigacoes", json={"entrada": "8.8.8.8"}, headers=csrf(cliente)
     )
     assert resposta.status_code == 429
+
+
+def test_cadastro_sem_aceite_dos_termos_e_recusado(cliente, usuarios, caixa, fabrica):
+    resposta = cadastrar(cliente, aceite=False)
+    assert resposta.status_code == 400
+    assert "Termos de Uso" in resposta.json()["erro"]
+    assert usuario(fabrica, "dani") is None
+    assert caixa.mensagens == []
+
+
+def test_cadastro_guarda_a_versao_aceita(cliente, usuarios, fabrica):
+    from inoxio.usuarios import VERSAO_TERMOS
+
+    cadastrar(cliente)
+    novo = usuario(fabrica, "dani")
+    assert novo.termos_versao == VERSAO_TERMOS
+    assert novo.termos_aceitos_em is not None

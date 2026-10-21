@@ -24,6 +24,8 @@ class Config:
     smtp_porta: int = 587
     smtp_usuario: str = ""
     smtp_senha: str = ""
+    # E-mail para pedidos sobre dados pessoais, mostrado na Política de Privacidade.
+    contato_privacidade: str = ""
 
     @classmethod
     def do_ambiente(cls) -> Config:
@@ -44,4 +46,5 @@ class Config:
             smtp_porta=int(ler("INOXIO_SMTP_PORTA", str(padrao.smtp_porta))),
             smtp_usuario=ler("INOXIO_SMTP_USUARIO", ""),
             smtp_senha=ler("INOXIO_SMTP_SENHA", ""),
+            contato_privacidade=ler("INOXIO_CONTATO_PRIVACIDADE", ""),
         )

@@ -78,10 +78,18 @@ graph TD;
   planos. Os planos são ilustrativos: nada é vendido, porque as APIs gratuitas
   do VirusTotal e do AbuseIPDB não permitem uso comercial.
 - **Entrar ou criar conta** (`/entrar`): login e, ao lado, o cadastro com nome, e-mail
-  e senha. A conta só entra depois de confirmar o e-mail pelo link (válido por 24 h)
-  e começa com 10 investigações por dia.
+  e senha. Criar a conta exige aceitar os Termos de Uso e a Política de Privacidade.
+  A conta só entra depois de confirmar o e-mail pelo link (válido por 24 h) e começa
+  com 10 investigações por dia.
+- **Termos de Uso** (`/termos`) e **Política de Privacidade** (`/privacidade`),
+  públicas, com links no rodapé de todas as telas.
 - **Primeiro acesso:** uma apresentação em quatro passos explica o que o sistema faz,
   como investigar, como ler o resultado e o papel da IA. Aparece uma vez por conta.
+  Quem ainda não aceitou a versão atual dos termos aceita antes, numa janela que não
+  deixa seguir sem o aceite.
+- **Minha conta** (`/conta`), pelo nome no topo: os dados da conta, o download de
+  tudo o que o sistema guarda sobre a pessoa e a exclusão da conta, confirmada pela
+  senha.
 - **Painel** (`/painel`): estatísticas do próprio usuário (investigações por veredito,
   os 10 indicadores mais pesquisados e as ameaças encontradas, com quantos antivírus
   detectaram), campo para investigar e a lista das últimas investigações do usuário.
@@ -95,8 +103,30 @@ graph TD;
   e de quem usou nos últimos 30 dias, total de investigações e de sites pesquisados,
   e os 10 usuários que mais pesquisam.
 - **Auditoria** (`/auditoria`), só para o `admin`: logins (certos, errados e
-  bloqueados), logouts, cadastros, ativações, investigações e toda ação do admin,
+  bloqueados), logouts, cadastros, ativações, aceites dos termos, contas excluídas,
+  investigações e toda ação do admin,
   com usuário, IP e horário, filtro por tipo e por usuário. Guarda 90 dias.
+
+## LGPD
+
+A Política de Privacidade diz o que é tratado, a base legal de cada uso, com quem
+os dados são compartilhados (VirusTotal, AbuseIPDB, Groq, Gmail e a hospedagem) e
+por quanto tempo ficam. Os direitos do titular (art. 18) estão na própria conta:
+
+- **Acesso:** a página Minha conta mostra os dados guardados.
+- **Portabilidade:** `GET /api/conta/dados` devolve um JSON com a conta, as
+  investigações e os eventos de segurança da pessoa, e nada de outra conta nem o
+  hash da senha.
+- **Exclusão:** `POST /api/conta/excluir`, com a senha e o token CSRF, apaga a conta,
+  as investigações, as sessões, as ativações e as tentativas de login. Os eventos de
+  auditoria ficam pelos 90 dias, sem o nome, inclusive no texto dos eventos do admin
+  que cadastrou ou alterou a conta. Fica um evento `conta_excluida`, também sem nome.
+  O último admin ativo não se exclui.
+
+O aceite guarda a versão e a data (`termos_versao`, `termos_aceitos_em`). A versão
+tem uma fonte só, `VERSAO_TERMOS` em `src/inoxio/usuarios.py`, e o frontend a lê
+de `/api/publico`. Mudar a versão faz todo mundo aceitar de novo no próximo acesso.
+O e-mail de contato para pedidos sobre dados vem de `INOXIO_CONTATO_PRIVACIDADE`.
 
 ## Stack
 
@@ -126,6 +156,7 @@ falha se ele for removido.
 | Cada usuário só lista as próprias investigações; abrir a de outro responde 404, sem revelar que ela existe. Só o papel `admin` abre qualquer uma | `listar` e `ver` em `src/inoxio/web/agente.py` | `test_web_agente.py::test_lista_so_as_investigacoes_do_proprio_usuario`, `::test_investigacao_de_outro_usuario_e_404`, `::test_admin_ve_investigacao_de_qualquer_um` |
 | Cadastro e lista de usuários só para o papel `admin`, que nunca vê o hash das senhas | `exigir_admin` em `src/inoxio/web/dependencias.py`; `src/inoxio/web/usuarios.py` | `test_usuarios.py::test_analista_nao_lista_nem_cadastra`, `::test_admin_lista_sem_expor_hash` |
 | Trilha de auditoria lida só pelo `admin`; a alteração de senha entra como "senha trocada", nunca o valor; o admin abrindo investigação de outra pessoa fica registrado | `src/inoxio/auditoria.py`, `listar_eventos` em `src/inoxio/web/usuarios.py` | `test_auditoria.py` |
+| Minha conta só mostra, exporta e exclui a conta da própria sessão; a exclusão pede a senha de novo, para uma sessão esquecida aberta não bastar | `src/inoxio/web/conta.py`, `excluir` em `src/inoxio/usuarios.py` | `test_conta.py::test_baixar_meus_dados_traz_so_o_que_e_meu`, `::test_excluir_exige_a_senha_e_o_csrf`, `::test_excluir_tira_o_nome_do_detalhe_dos_eventos_do_admin` |
 | Escrita exige o token CSRF da sessão no cabeçalho `X-CSRF-Token`, comparado em tempo constante | `conferir_csrf` em `src/inoxio/web/dependencias.py`; o frontend envia em `frontend/src/api.ts` | `test_web_agente.py::test_post_sem_csrf_e_recusado`, `test_autenticacao.py::test_logout_sem_csrf_e_recusado` |
 | A API só aceita corpo JSON, o que barra formulário vindo de outro site | modelos Pydantic em `src/inoxio/web/autenticacao.py` | `test_autenticacao.py::test_login_por_formulario_e_recusado` |
 
