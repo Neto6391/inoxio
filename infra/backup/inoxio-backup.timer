@@ -1,0 +1,12 @@
+# Uma vez por dia, de madrugada (UTC), com atraso aleatório; se a VPS estava
+# desligada na hora, roda ao voltar.
+[Unit]
+Description=Backup diário do banco do Inóxio
+
+[Timer]
+OnCalendar=*-*-* 06:30:00
+RandomizedDelaySec=15m
+Persistent=true
+
+[Install]
+WantedBy=timers.target

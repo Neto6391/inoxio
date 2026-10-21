@@ -206,6 +206,23 @@ ssh -L 3000:127.0.0.1:3000 <usuario>@179.199.133.136
 Depois, abra http://localhost:3000. As consultas do painel são testadas contra o
 esquema real do banco (`tests/test_observabilidade.py`).
 
+## Backup
+
+Todo dia, um timer do systemd do usuário `inoxio` roda
+`infra/backup/backup-banco.py`. Ele copia o banco pela API de backup do SQLite
+(cópia consistente mesmo com o app gravando), confere a cópia com
+`PRAGMA integrity_check`, guarda comprimida em `~/backups` com modo 600, mantém as
+14 mais recentes e registra um evento `backup` na auditoria. O Grafana mostra as
+horas desde o último backup (laranja a partir de 26 h, vermelho a partir de 48 h).
+As cópias ficam no disco da própria VPS: protegem contra corrupção e erro humano,
+não contra a perda da máquina.
+
+Para restaurar, com o serviço parado:
+
+```bash
+gunzip -c ~/backups/inoxio-AAAAMMDD-HHMMSS.db.gz > ~/dados/inoxio.db
+```
+
 ## Deploy
 
 Cada `git push origin main` dispara `.github/workflows/implantar.yml`:

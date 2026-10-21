@@ -17,6 +17,7 @@ export const NOMES_EVENTO: Record<string, { texto: string; cor: string }> = {
   investigacao_alheia: { texto: "abriu investigação de outro", cor: "gold" },
   admin_cadastrou: { texto: "admin cadastrou", cor: "gold" },
   admin_alterou: { texto: "admin alterou", cor: "gold" },
+  backup: { texto: "backup", cor: "cyan" },
 };
 
 export function Auditoria() {

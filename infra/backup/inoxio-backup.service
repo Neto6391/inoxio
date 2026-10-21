@@ -1,0 +1,9 @@
+# Backup diário do banco. Unidade de usuário (systemctl --user) do inoxio,
+# instalada em ~/.config/systemd/user/. Sem sudo e sem arquivo de ambiente.
+[Unit]
+Description=Backup do banco do Inóxio
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/python3 %h/inoxio/infra/backup/backup-banco.py
+NoNewPrivileges=true

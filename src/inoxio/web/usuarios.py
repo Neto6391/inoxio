@@ -131,6 +131,7 @@ TIPOS_EVENTO = (
     "investigacao_alheia",
     "admin_cadastrou",
     "admin_alterou",
+    "backup",
 )
 POR_PAGINA = 50
 
