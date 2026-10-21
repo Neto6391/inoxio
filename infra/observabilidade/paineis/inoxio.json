@@ -309,6 +309,64 @@
           "queryType": "table"
         }
       ]
+    },
+    {
+      "id": 10,
+      "title": "Horas desde o último backup",
+      "type": "stat",
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "inoxio-sqlite"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 31,
+        "w": 8,
+        "h": 5
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": "inoxio-sqlite"
+          },
+          "queryText": "SELECT round((julianday('now') - julianday(max(quando))) * 24, 1) AS horas FROM eventos WHERE tipo = 'backup'",
+          "rawQueryText": "SELECT round((julianday('now') - julianday(max(quando))) * 24, 1) AS horas FROM eventos WHERE tipo = 'backup'",
+          "queryType": "table"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "h",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 26
+              },
+              {
+                "color": "red",
+                "value": 48
+              }
+            ]
+          }
+        }
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "colorMode": "background",
+        "graphMode": "none"
+      }
     }
   ]
 }
