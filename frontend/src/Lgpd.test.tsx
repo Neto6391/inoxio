@@ -44,7 +44,7 @@ test("as páginas legais são públicas e mostram a versão e o contato do servi
 test("quem tem termos pendentes não segue sem aceitar", async () => {
   const pedidos: Pedido[] = [];
   servidor({ ...ANA, termos_pendentes: true }, pedidos);
-  navegar("/painel");
+  navegar("/inicio");
   render(<App />);
   const janela = await screen.findByRole("dialog");
   const botao = within(janela).getByRole("button", { name: "Aceitar e continuar" });
@@ -115,8 +115,19 @@ test("reaceitar os termos na Minha conta atualiza a versão mostrada", async () 
 
 test("o rodapé com os termos aparece no app", async () => {
   servidor(ANA);
-  navegar("/painel");
+  navegar("/inicio");
   render(<App />);
   await screen.findByRole("heading", { name: /^(Bom dia|Boa tarde|Boa noite), / });
   expect(screen.getByRole("link", { name: "Política de Privacidade" })).toHaveAttribute("href", "/privacidade");
+});
+
+test("o X da janela dos termos é sair sem aceitar", async () => {
+  const pedidos: Pedido[] = [];
+  servidor({ ...ANA, termos_pendentes: true }, pedidos);
+  navegar("/inicio");
+  render(<App />);
+  const janela = await screen.findByRole("dialog");
+  fireEvent.click(within(janela).getByRole("button", { name: "Sair sem aceitar" }));
+  await waitFor(() => expect(pedidos.map((p) => p.caminho)).toEqual(["/api/logout"]));
+  expect(pedidos.map((p) => p.caminho)).not.toContain("/api/sessao/termos");
 });

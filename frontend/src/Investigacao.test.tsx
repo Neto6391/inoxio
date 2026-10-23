@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, expect, test, vi } from "vitest";
 import { Investigacao } from "./Investigacao";
 
@@ -123,4 +123,24 @@ test("evidência antiga, sem votos guardados, mostra a reputação como veio", a
   render(<Investigacao id="1" />);
   expect(await screen.findByText("Reputação na comunidade")).toBeInTheDocument();
   expect(screen.queryByText("Motores que analisaram")).toBeNull();
+});
+
+test("os IPs do site vêm em páginas de 5", async () => {
+  const ips = Array.from({ length: 7 }, (_, n) => ({ ip: `104.18.0.${n}`, abuseipdb: "ok", score: 0, relatos: 0, isp: "Cloudflare, Inc.", pais: "US" }));
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async () =>
+      new Response(
+        JSON.stringify({ ...DETALHE, evidencias: [{ fonte: "dns", status: "ok", contexto: true, dados: { ips } }] }),
+        { status: 200 },
+      ),
+    ),
+  );
+  render(<Investigacao id="1" />);
+  expect(await screen.findByText("104.18.0.4")).toBeInTheDocument();
+  expect(screen.queryByText("104.18.0.5")).toBeNull();
+  expect(screen.getByText("7 IPs")).toBeInTheDocument();
+  fireEvent.click(screen.getByTitle("2"));
+  expect(screen.getByText("104.18.0.6")).toBeInTheDocument();
+  expect(screen.queryByText("104.18.0.0")).toBeNull();
 });

@@ -1,6 +1,7 @@
 import { Alert, Button, Checkbox, Flex, Typography } from "antd";
 import { useEffect, useRef, useState } from "react";
 import { chamar, mensagemDeErro } from "./api";
+import { BotaoFechar } from "./Janela";
 import { Link } from "./rotas";
 
 type Props = { aberto: boolean; aoAceitar: () => void; aoSair: () => void };
@@ -38,9 +39,13 @@ export function AceiteTermos({ aberto, aoAceitar, aoSair }: Props) {
   return (
     <div className="janela-fundo">
       <div ref={janela} className="janela" role="dialog" aria-modal="true" aria-labelledby="termos-titulo" tabIndex={-1}>
-        <Typography.Title level={4} id="termos-titulo">
-          Termos de Uso e Política de Privacidade
-        </Typography.Title>
+        <Flex justify="space-between" align="start" gap="small">
+          <Typography.Title level={4} id="termos-titulo">
+            Termos de Uso e Política de Privacidade
+          </Typography.Title>
+          {/* Sem aceitar não dá para seguir: aqui o X é o mesmo que Sair. */}
+          <BotaoFechar aoFechar={aoSair} rotulo="Sair sem aceitar" />
+        </Flex>
         <Typography.Paragraph>
           Para continuar usando o Inóxio, leia e aceite os{" "}
           <Link para="/termos">Termos de Uso</Link> e a{" "}

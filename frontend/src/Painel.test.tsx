@@ -57,7 +57,7 @@ function servidor(papel = "analista", extras: Record<string, unknown> = {}) {
 
 test("os créditos aparecem no topo, com a explicação na dica, e no painel", async () => {
   servidor();
-  navegar("/painel");
+  navegar("/inicio");
   render(<App />);
   const pilula = await screen.findByText("7 de 10 créditos");
   // O cartão da lateral saiu: a explicação mora na dica da pílula.
@@ -72,14 +72,14 @@ test("os créditos aparecem no topo, com a explicação na dica, e no painel", a
 
 test("sem cota, os créditos aparecem como sem limite", async () => {
   servidor("admin", { "/api/creditos": { cota: null, usados: 2, restantes: null, renova_em: "x", por_hora: 20 } });
-  navegar("/painel");
+  navegar("/inicio");
   render(<App />);
   expect(await screen.findByText("Sem cota diária · até 20 por hora")).toBeInTheDocument();
 });
 
 test("créditos esgotados avisam e travam o botão de investigar", async () => {
   servidor("analista", { "/api/creditos": { cota: 10, usados: 10, restantes: 0, renova_em: "x" } });
-  navegar("/painel");
+  navegar("/inicio");
   render(<App />);
   expect(await screen.findByText(/Seus créditos de hoje acabaram/)).toBeInTheDocument();
   expect(screen.getByRole("button", { name: "Investigar" })).toBeDisabled();
@@ -87,7 +87,7 @@ test("créditos esgotados avisam e travam o botão de investigar", async () => {
 
 test("os gráficos mostram os 14 dias por veredito, a rosca e os tipos", async () => {
   servidor();
-  navegar("/painel");
+  navegar("/inicio");
   const { container } = render(<App />);
   expect(await screen.findByRole("img", { name: /4 no total, no máximo 3 num dia/ })).toBeInTheDocument();
   const barras = container.querySelectorAll(".barra-dia");
@@ -110,7 +110,7 @@ test("os gráficos mostram os 14 dias por veredito, a rosca e os tipos", async (
 
 test("o botão do tema troca entre escuro e claro e lembra a escolha", async () => {
   servidor();
-  navegar("/painel");
+  navegar("/inicio");
   render(<App />);
   const botao = await screen.findByRole("button", { name: "Mudar para o modo claro" });
   expect(document.documentElement.dataset.tema).toBe("escuro");
@@ -124,10 +124,10 @@ test("o botão do tema troca entre escuro e claro e lembra a escolha", async () 
 
 test("o menu lateral leva às investigações, com a data de Brasília", async () => {
   servidor();
-  navegar("/painel");
+  navegar("/inicio");
   render(<App />);
   const menu = await screen.findByRole("navigation", { name: "Menu principal" });
-  expect(within(menu).getByRole("link", { name: "Início" })).toHaveAttribute("href", "/painel");
+  expect(within(menu).getByRole("link", { name: "Início" })).toHaveAttribute("href", "/inicio");
   expect(within(menu).getByRole("link", { name: "Minha conta" })).toHaveAttribute("href", "/conta");
   expect(within(menu).queryByText("Administração")).toBeNull();
   fireEvent.click(within(menu).getByRole("link", { name: "Investigações" }));
@@ -171,7 +171,7 @@ test("o painel mostra as 5 investigações mais recentes e o caminho para todas"
     criada_em: "2026-10-23T12:00:00",
   }));
   servidor("analista", { "/api/investigacoes": lista });
-  navegar("/painel");
+  navegar("/inicio");
   render(<App />);
   const cartao = (await screen.findByText("Investigações recentes")).closest(".ant-card") as HTMLElement;
   await within(cartao).findByText("10.0.0.0");
@@ -195,7 +195,7 @@ test("com a tela aberta, os créditos voltam sozinhos na hora da renovação", a
       caminho === "/api/creditos" ? json(respostas.length > 1 ? respostas.shift() : respostas[0]) : fetchBase(caminho, pedido),
     ),
   );
-  navegar("/painel");
+  navegar("/inicio");
   render(<App />);
   expect(await screen.findByText(/Seus créditos de hoje acabaram/)).toBeInTheDocument();
   expect(screen.getByRole("button", { name: "Investigar" })).toBeDisabled();

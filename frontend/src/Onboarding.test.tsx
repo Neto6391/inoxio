@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, expect, test, vi } from "vitest";
 import { App } from "./App";
 import { navegar } from "./rotas";
@@ -29,7 +29,7 @@ function servidor(visto: boolean, pedidos: string[]) {
 test("primeiro acesso mostra a apresentação, e Começar a marca como vista", async () => {
   const pedidos: string[] = [];
   servidor(false, pedidos);
-  navegar("/painel");
+  navegar("/inicio");
   render(<App />);
   expect(await screen.findByText("Bem-vindo ao Inóxio")).toBeInTheDocument();
   for (let i = 0; i < 3; i += 1) fireEvent.click(screen.getByRole("button", { name: "Próximo" }));
@@ -42,7 +42,7 @@ test("primeiro acesso mostra a apresentação, e Começar a marca como vista", a
 test("Pular também marca como vista", async () => {
   const pedidos: string[] = [];
   servidor(false, pedidos);
-  navegar("/painel");
+  navegar("/inicio");
   render(<App />);
   fireEvent.click(await screen.findByRole("button", { name: "Pular" }));
   await waitFor(() => expect(pedidos).toEqual(["/api/sessao/onboarding"]));
@@ -51,7 +51,7 @@ test("Pular também marca como vista", async () => {
 test("quem já viu não vê de novo", async () => {
   const pedidos: string[] = [];
   servidor(true, pedidos);
-  navegar("/painel");
+  navegar("/inicio");
   render(<App />);
   expect(await screen.findByRole("heading", { name: /^(Bom dia|Boa tarde|Boa noite), / })).toBeInTheDocument();
   expect(screen.queryByText("Bem-vindo ao Inóxio")).toBeNull();
@@ -60,7 +60,7 @@ test("quem já viu não vê de novo", async () => {
 test("Esc fecha e marca como vista; a rolagem da página volta", async () => {
   const pedidos: string[] = [];
   servidor(false, pedidos);
-  navegar("/painel");
+  navegar("/inicio");
   render(<App />);
   const janela = await screen.findByRole("dialog");
   expect(document.body.classList.contains("sem-rolagem")).toBe(true);
@@ -68,4 +68,15 @@ test("Esc fecha e marca como vista; a rolagem da página volta", async () => {
   await waitFor(() => expect(pedidos).toEqual(["/api/sessao/onboarding"]));
   expect(screen.queryByRole("dialog")).toBeNull();
   expect(document.body.classList.contains("sem-rolagem")).toBe(false);
+});
+
+test("o X do canto também marca como vista e fecha", async () => {
+  const pedidos: string[] = [];
+  servidor(false, pedidos);
+  navegar("/inicio");
+  render(<App />);
+  const janela = await screen.findByRole("dialog");
+  fireEvent.click(within(janela).getByRole("button", { name: "Fechar" }));
+  await waitFor(() => expect(pedidos).toEqual(["/api/sessao/onboarding"]));
+  expect(screen.queryByRole("dialog")).toBeNull();
 });

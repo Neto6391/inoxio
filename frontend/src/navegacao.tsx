@@ -23,7 +23,7 @@ export type Pagina = {
   icone?: ReactNode;
 };
 
-export const INICIO = "/painel";
+export const INICIO = "/inicio";
 
 export const PAGINAS: Pagina[] = [
   { caminho: INICIO, titulo: "Início", icone: <IconePainel /> },

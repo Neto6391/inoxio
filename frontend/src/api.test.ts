@@ -49,7 +49,7 @@ test("depois de um deploy, a próxima troca de tela carrega a página inteira", 
   meta.content = "aaaaaaaaaaaa";
   document.head.append(meta);
   const assign = vi.fn();
-  vi.stubGlobal("location", { ...window.location, assign, pathname: "/painel" });
+  vi.stubGlobal("location", { ...window.location, assign, pathname: "/inicio" });
   const { navegar } = await import("./rotas");
   try {
     vi.stubGlobal(
@@ -64,8 +64,8 @@ test("depois de um deploy, a próxima troca de tela carrega a página inteira", 
       vi.fn(async () => new Response("{}", { status: 200, headers: { "X-Inoxio-Versao": "bbbbbbbbbbbb" } })),
     );
     await chamar("/api/sessao");
-    navegar("/painel");
-    expect(assign).toHaveBeenCalledWith("/painel");
+    navegar("/inicio");
+    expect(assign).toHaveBeenCalledWith("/inicio");
   } finally {
     meta.remove();
   }

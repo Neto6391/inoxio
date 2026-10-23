@@ -124,7 +124,7 @@ function abrir(caminho: string, pedidos: string[]) {
 }
 
 test("o Início dá boas-vindas pelo nome de exibição", async () => {
-  abrir("/painel", []);
+  abrir("/inicio", []);
   expect(await screen.findByRole("heading", { name: /^(Bom dia|Boa tarde|Boa noite), Chefe da Silva!$/ })).toBeInTheDocument();
 });
 

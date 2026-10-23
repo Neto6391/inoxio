@@ -1,5 +1,6 @@
 import { Button, Card, Col, Flex, Row, Tag, Typography } from "antd";
 import { Rodape } from "./Rodape";
+import { INICIO } from "./navegacao";
 import { navegar } from "./rotas";
 import type { Sessao } from "./tipos";
 
@@ -82,7 +83,7 @@ const PLANOS: Plano[] = [
 
 export function Landing({ sessao }: { sessao: Sessao | null }) {
   const acao = sessao ? "Abrir painel" : "Entrar";
-  const irParaApp = () => navegar(sessao ? "/painel" : "/entrar");
+  const irParaApp = () => navegar(sessao ? INICIO : "/entrar");
 
   return (
     <div className="landing">

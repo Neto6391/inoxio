@@ -102,7 +102,7 @@ test("todo pai do mapa das telas é uma tela do mapa", () => {
   for (const pagina of PAGINAS) if (pagina.pai) expect(caminhos).toContain(pagina.pai);
   // A tela de uma investigação aparece pelo id dela.
   expect(trilha("/investigacoes/abc-1").map((p) => p.titulo)).toEqual(["Início", "Investigações", "abc-1"]);
-  expect(trilha("/investigacoes/abc-1").map((p) => p.caminho)).toEqual(["/painel", "/investigacoes", "/investigacoes/abc-1"]);
+  expect(trilha("/investigacoes/abc-1").map((p) => p.caminho)).toEqual(["/inicio", "/investigacoes", "/investigacoes/abc-1"]);
   expect(trilha("/usuarios").map((p) => p.titulo)).toEqual(["Visão geral", "Usuários"]);
 });
 
@@ -126,12 +126,12 @@ test("Voltar volta para a tela anterior desta aba", async () => {
 });
 
 test("Voltar volta para a tela de onde se veio, mesmo fora da hierarquia", async () => {
-  abrir("/painel");
+  abrir("/inicio");
   await screen.findByRole("heading", { name: /^(Bom dia|Boa tarde|Boa noite), / });
   navegar("/usuarios");
   await screen.findByRole("button", { name: "Novo usuário" });
   fireEvent.click(screen.getByRole("button", { name: "Voltar" }));
-  await waitFor(() => expect(window.location.pathname).toBe("/painel"));
+  await waitFor(() => expect(window.location.pathname).toBe("/inicio"));
 });
 
 test("sem tela anterior, Voltar sobe um nível", async () => {
@@ -148,7 +148,7 @@ test("sem tela anterior, Voltar sobe um nível", async () => {
 });
 
 test("a Administração abre na Visão geral e só então mostra as telas dela", async () => {
-  abrir("/painel");
+  abrir("/inicio");
   const menu = await screen.findByRole("navigation", { name: "Menu principal" });
   expect(within(menu).queryByRole("link", { name: "Usuários" })).toBeNull();
   fireEvent.click(within(menu).getByRole("link", { name: /Administração/ }));
@@ -161,7 +161,7 @@ test("a Administração abre na Visão geral e só então mostra as telas dela",
 });
 
 test("analista não vê a Administração", async () => {
-  abrir("/painel", ANA);
+  abrir("/inicio", ANA);
   const menu = await screen.findByRole("navigation", { name: "Menu principal" });
   expect(within(menu).queryByText("Administração")).toBeNull();
 });
@@ -175,7 +175,7 @@ test("logado, o logo e os documentos ficam dentro do app", async () => {
   expect(document.querySelector(".conteudo .landing")).toBeNull();
   expect(document.querySelectorAll(".marca")).toHaveLength(1);
   const logo = document.querySelector(".lateral > a") as HTMLAnchorElement;
-  expect(logo.getAttribute("href")).toBe("/painel");
+  expect(logo.getAttribute("href")).toBe("/inicio");
 });
 
 test("sem sessão, os documentos têm o botão Voltar", async () => {
@@ -244,4 +244,21 @@ test("a tela de uma investigação tem um Voltar só e o id no breadcrumb", asyn
   await screen.findByText("exemplo.com");
   expect(trilhaNaTela()).toEqual(["Início", "Investigações", "abc-1"]);
   expect(screen.getAllByText(/Voltar|← Investigações/)).toHaveLength(1);
+});
+
+test("o endereço antigo do Início leva ao novo", async () => {
+  abrir("/painel", ANA);
+  expect(await screen.findByRole("heading", { name: /^(Bom dia|Boa tarde|Boa noite), / })).toBeInTheDocument();
+  expect(window.location.pathname).toBe("/inicio");
+});
+
+test("toda janela fecha pelo X do canto", async () => {
+  abrir("/usuarios");
+  fireEvent.click(await screen.findByRole("button", { name: "Novo usuário" }));
+  const janela = await screen.findByRole("dialog", { name: "Novo usuário" });
+  const fechar = within(janela).getByRole("button", { name: "Fechar" });
+  expect(fechar.querySelector("svg")).not.toBeNull();
+  expect(fechar.textContent).toBe("");
+  fireEvent.click(fechar);
+  expect(screen.queryByRole("dialog")).toBeNull();
 });

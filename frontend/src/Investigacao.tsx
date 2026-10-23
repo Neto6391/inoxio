@@ -4,7 +4,9 @@ import { AnaliseIA } from "./AnaliseIA";
 import { Carregando } from "./Carregando";
 import { chamar, mensagemDeErro } from "./api";
 import { CORES_VEREDITO, comoTexto, corDaNota, NOMES_TIPO, quando } from "./formato";
+import { Paginacao } from "./Paginacao";
 import { provedoresDe } from "./provedores";
+import { INICIO } from "./navegacao";
 import { Link } from "./rotas";
 import type { DetalheInvestigacao, Evidencia, IpDoDominio } from "./tipos";
 
@@ -98,9 +100,18 @@ const SEM_NOTA: Record<string, string> = {
   desconhecido: "Nenhuma fonte conhece o indicador, então não há nota.",
 };
 
+const IPS_POR_PAGINA = 5;
+
 function IpsDoDominio({ evidencia }: { evidencia: Evidencia }) {
   const status = STATUS[evidencia.status] ?? { texto: evidencia.status, cor: "default" };
   const ips = (evidencia.dados.ips as IpDoDominio[] | undefined) ?? [];
+  const [numero, setNumero] = useState(1);
+  const pagina = {
+    total: ips.length,
+    pagina: numero,
+    por_pagina: IPS_POR_PAGINA,
+    itens: ips.slice((numero - 1) * IPS_POR_PAGINA, numero * IPS_POR_PAGINA),
+  };
   return (
     <Card size="small" title="IPs do site (DNS)" extra={<Tag color={status.cor}>{status.texto}</Tag>}>
       {ips.length === 0 ? (
@@ -118,7 +129,7 @@ function IpsDoDominio({ evidencia }: { evidencia: Evidencia }) {
               <span>Relatos</span>
               <span>Quem opera</span>
             </div>
-            {ips.map((item) => (
+            {pagina.itens.map((item) => (
               <div key={item.ip} className="linha-ip">
                 <span className="indicador">{item.ip}</span>
                 {item.abuseipdb === "ok" ? (
@@ -137,6 +148,7 @@ function IpsDoDominio({ evidencia }: { evidencia: Evidencia }) {
               </div>
             ))}
           </div>
+          <Paginacao pagina={pagina} aoMudar={setNumero} rotulo={["IP", "IPs"]} />
         </div>
       )}
     </Card>
@@ -219,7 +231,7 @@ export function Investigacao({ id, intervalo = INTERVALO_MS, consultas = CONSULT
   }, [esperando, feitas, id, intervalo]);
 
   if (erro) {
-    return <Result status="warning" title={erro} extra={<Link para="/painel">Voltar ao início</Link>} />;
+    return <Result status="warning" title={erro} extra={<Link para={INICIO}>Voltar ao início</Link>} />;
   }
   if (!detalhe) return <Skeleton active paragraph={{ rows: 6 }} />;
 

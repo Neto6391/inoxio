@@ -49,7 +49,7 @@ function servidor(papel: string, pedidos: string[] = []) {
 
 test("o painel mostra os mais pesquisados e as ameaças encontradas", async () => {
   servidor("analista");
-  navegar("/painel");
+  navegar("/inicio");
   render(<App />);
   expect(await screen.findByText("Seus 10 mais pesquisados")).toBeInTheDocument();
   expect(screen.getByText("3× · Domínio")).toBeInTheDocument();
