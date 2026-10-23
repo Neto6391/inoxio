@@ -53,7 +53,7 @@ test("quem já viu não vê de novo", async () => {
   servidor(true, pedidos);
   navegar("/painel");
   render(<App />);
-  expect(await screen.findByText("Painel")).toBeInTheDocument();
+  expect(await screen.findByRole("heading", { name: "Painel" })).toBeInTheDocument();
   expect(screen.queryByText("Bem-vindo ao Inóxio")).toBeNull();
 });
 

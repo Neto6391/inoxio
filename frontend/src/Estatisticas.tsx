@@ -1,8 +1,12 @@
 import { Alert, Card, Col, Empty, Flex, List, Progress, Row, Skeleton, Statistic, Typography } from "antd";
-import { useEffect, useState } from "react";
+import { type ReactNode, useEffect, useState } from "react";
 import { chamar, mensagemDeErro } from "./api";
+import { NumeroCreditos } from "./Creditos";
 import { NOMES_TIPO, TagVeredito } from "./formato";
+import { type Dia, GraficoDias, PorTipo, Rosca } from "./Graficos";
+import { IconeAlerta, IconeBusca, IconeEscudo, IconeRelogio } from "./icones";
 import { Link } from "./rotas";
+import type { Creditos } from "./tipos";
 
 type MaisPesquisado = { tipo: string; valor: string; vezes: number; veredito: string };
 type Ameaca = { id: string; tipo: string; valor: string; veredito: string; nota: number | null; deteccoes: number };
@@ -11,6 +15,8 @@ type Minhas = {
   por_veredito: Record<string, number>;
   mais_pesquisados: MaisPesquisado[];
   ameacas: Ameaca[];
+  por_tipo?: Record<string, number>;
+  por_dia?: Dia[];
 };
 type Geral = {
   contas: number;
@@ -43,87 +49,142 @@ function Barra({ valor, maximo }: { valor: number; maximo: number }) {
   );
 }
 
-export function MinhasEstatisticas() {
+function Numero({ titulo, icone, children }: { titulo: string; icone: ReactNode; children: ReactNode }) {
+  return (
+    <Card className="cartao-numero">
+      <div className="numero-titulo">
+        {titulo}
+        {icone}
+      </div>
+      {children}
+    </Card>
+  );
+}
+
+function porcentagem(parte: number, todo: number): number {
+  return todo ? Math.round((100 * parte) / todo) : 0;
+}
+
+export function MinhasEstatisticas({ creditos }: { creditos: Creditos | null }) {
   const { dados, erro } = useDados<Minhas>("/api/estatisticas");
   if (erro) return <Alert type="error" showIcon title={erro} />;
   if (!dados) return <Skeleton active />;
-  // Sem investigações (ou resposta fora do formato), o painel segue sem esta parte.
-  if (!dados.total || !dados.por_veredito) return null;
+  // Resposta fora do formato: o painel segue sem esta parte.
+  if (!dados.por_veredito) return null;
 
-  const ameacas = (dados.por_veredito.malicioso ?? 0) + (dados.por_veredito.suspeito ?? 0);
-  const maximo = Math.max(...dados.mais_pesquisados.map((item) => item.vezes));
+  const total = dados.total ?? 0;
+  const maliciosos = dados.por_veredito.malicioso ?? 0;
+  const suspeitos = dados.por_veredito.suspeito ?? 0;
+  const semEvidencia = dados.por_veredito.sem_evidencia ?? 0;
+  const dias = dados.por_dia ?? [];
+  const ultimaSemana = dias.slice(-7).reduce((soma, dia) => soma + Object.values(dia.vereditos).reduce((a, b) => a + b, 0), 0);
+  const maximo = Math.max(1, ...dados.mais_pesquisados.map((item) => item.vezes));
   return (
     <Flex vertical gap="large">
       <Row gutter={[16, 16]}>
-        <Col xs={12} md={6}>
-          <Card>
-            <Statistic title="Investigações" value={dados.total} />
-          </Card>
+        <Col xs={12} lg={6}>
+          <Numero titulo="Investigações" icone={<IconeBusca />}>
+            <div className="numero-valor">{total}</div>
+            <div className="numero-nota">{ultimaSemana} nos últimos 7 dias</div>
+          </Numero>
         </Col>
-        <Col xs={12} md={6}>
-          <Card>
-            <Statistic title="Ameaças encontradas" value={ameacas} />
-          </Card>
+        <Col xs={12} lg={6}>
+          <Numero titulo="Ameaças encontradas" icone={<IconeAlerta />}>
+            <div className="numero-valor">{maliciosos + suspeitos}</div>
+            <div className="numero-nota">
+              {maliciosos} {maliciosos === 1 ? "maliciosa" : "maliciosas"}, {suspeitos}{" "}
+              {suspeitos === 1 ? "suspeita" : "suspeitas"}
+            </div>
+          </Numero>
         </Col>
-        <Col xs={12} md={6}>
-          <Card>
-            <Statistic title="Maliciosos" value={dados.por_veredito.malicioso ?? 0} />
-          </Card>
+        <Col xs={12} lg={6}>
+          <Numero titulo="Sem evidência" icone={<IconeEscudo />}>
+            <div className="numero-valor">{semEvidencia}</div>
+            <div className="numero-nota">{porcentagem(semEvidencia, total)}% das investigações</div>
+          </Numero>
         </Col>
-        <Col xs={12} md={6}>
-          <Card>
-            <Statistic title="Sem evidência" value={dados.por_veredito.sem_evidencia ?? 0} />
-          </Card>
+        <Col xs={12} lg={6}>
+          <Numero titulo="Créditos restantes" icone={<IconeRelogio />}>
+            {creditos ? <NumeroCreditos creditos={creditos} /> : <div className="numero-valor">—</div>}
+          </Numero>
         </Col>
       </Row>
-      <Row gutter={[16, 16]}>
-        <Col xs={24} lg={12}>
-          <Card title="Seus 10 mais pesquisados" className="cartao-estatistica">
-            <List<MaisPesquisado>
-              dataSource={dados.mais_pesquisados}
-              renderItem={(item) => (
-                <List.Item>
-                  <Flex vertical className="item-barra">
-                    <Flex justify="space-between" align="center" gap="small">
-                      <span className="indicador texto-cortado">{item.valor}</span>
-                      <Flex gap="small" align="center" className="sem-quebra">
-                        <Typography.Text type="secondary">
-                          {item.vezes}× · {NOMES_TIPO[item.tipo] ?? item.tipo}
-                        </Typography.Text>
-                        <TagVeredito veredito={item.veredito} />
-                      </Flex>
-                    </Flex>
-                    <Barra valor={item.vezes} maximo={maximo} />
-                  </Flex>
-                </List.Item>
-              )}
-            />
-          </Card>
-        </Col>
-        <Col xs={24} lg={12}>
-          <Card title="Ameaças que você encontrou" className="cartao-estatistica">
-            {dados.ameacas.length === 0 ? (
-              <Empty description="Nenhuma ameaça até agora." image={Empty.PRESENTED_IMAGE_SIMPLE} />
-            ) : (
-              <List<Ameaca>
-                dataSource={dados.ameacas}
-                renderItem={(item) => (
-                  <List.Item extra={<TagVeredito veredito={item.veredito} />}>
-                    <List.Item.Meta
-                      title={
-                        <Link para={`/investigacoes/${item.id}`}>
-                          <span className="indicador texto-cortado">{item.valor}</span>
-                        </Link>
-                      }
-                      description={`${item.deteccoes} antivírus detectaram · nota ${item.nota ?? "—"}`}
-                    />
-                  </List.Item>
+      {total === 0 ? (
+        <Card>
+          <Empty
+            description="Nenhuma investigação ainda. Os gráficos aparecem depois da primeira."
+            image={Empty.PRESENTED_IMAGE_SIMPLE}
+          />
+        </Card>
+      ) : (
+        <>
+          <Row gutter={[16, 16]}>
+            <Col xs={24} lg={12}>
+              <Card title="Investigações nos últimos 14 dias" className="cartao-estatistica">
+                <GraficoDias dias={dias} />
+              </Card>
+            </Col>
+            <Col xs={24} md={12} lg={6}>
+              <Card title="Por veredito" className="cartao-estatistica">
+                <Rosca porVeredito={dados.por_veredito} />
+              </Card>
+            </Col>
+            <Col xs={24} md={12} lg={6}>
+              <Card title="Por tipo de indicador" className="cartao-estatistica">
+                <PorTipo porTipo={dados.por_tipo ?? {}} />
+              </Card>
+            </Col>
+          </Row>
+          <Row gutter={[16, 16]}>
+            <Col xs={24} lg={12}>
+              <Card title="Ameaças que você encontrou" className="cartao-estatistica">
+                {dados.ameacas.length === 0 ? (
+                  <Empty description="Nenhuma ameaça até agora." image={Empty.PRESENTED_IMAGE_SIMPLE} />
+                ) : (
+                  <List<Ameaca>
+                    dataSource={dados.ameacas}
+                    renderItem={(item) => (
+                      <List.Item extra={<TagVeredito veredito={item.veredito} />}>
+                        <List.Item.Meta
+                          title={
+                            <Link para={`/investigacoes/${item.id}`}>
+                              <span className="indicador texto-cortado">{item.valor}</span>
+                            </Link>
+                          }
+                          description={`${item.deteccoes} antivírus detectaram · nota ${item.nota ?? "—"}`}
+                        />
+                      </List.Item>
+                    )}
+                  />
                 )}
-              />
-            )}
-          </Card>
-        </Col>
-      </Row>
+              </Card>
+            </Col>
+            <Col xs={24} lg={12}>
+              <Card title="Seus 10 mais pesquisados" className="cartao-estatistica">
+                <List<MaisPesquisado>
+                  dataSource={dados.mais_pesquisados}
+                  renderItem={(item) => (
+                    <List.Item>
+                      <Flex vertical className="item-barra">
+                        <Flex justify="space-between" align="center" gap="small">
+                          <span className="indicador texto-cortado">{item.valor}</span>
+                          <Flex gap="small" align="center" className="sem-quebra">
+                            <Typography.Text type="secondary">
+                              {item.vezes}× · {NOMES_TIPO[item.tipo] ?? item.tipo}
+                            </Typography.Text>
+                            <TagVeredito veredito={item.veredito} />
+                          </Flex>
+                        </Flex>
+                        <Barra valor={item.vezes} maximo={maximo} />
+                      </Flex>
+                    </List.Item>
+                  )}
+                />
+              </Card>
+            </Col>
+          </Row>
+        </>
+      )}
     </Flex>
   );
 }

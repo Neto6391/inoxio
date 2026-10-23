@@ -1,6 +1,7 @@
 import { Card, Col, Descriptions, Flex, Progress, Result, Row, Skeleton, Tag, Typography } from "antd";
 import { type CSSProperties, useEffect, useState } from "react";
 import { AnaliseIA } from "./AnaliseIA";
+import { Carregando } from "./Carregando";
 import { chamar, mensagemDeErro } from "./api";
 import { CORES_VEREDITO, comoTexto, corDaNota, NOMES_TIPO, quando } from "./formato";
 import { Link } from "./rotas";
@@ -70,7 +71,7 @@ function IpsDoDominio({ evidencia }: { evidencia: Evidencia }) {
   const status = STATUS[evidencia.status] ?? { texto: evidencia.status, cor: "default" };
   const ips = (evidencia.dados.ips as IpDoDominio[] | undefined) ?? [];
   return (
-    <Card size="small" title="IPs do domínio (DNS)" extra={<Tag color={status.cor}>{status.texto}</Tag>}>
+    <Card size="small" title="IPs do site (DNS)" extra={<Tag color={status.cor}>{status.texto}</Tag>}>
       {ips.length === 0 ? (
         <Typography.Text type="secondary">
           {evidencia.status === "falha"
@@ -78,37 +79,68 @@ function IpsDoDominio({ evidencia }: { evidencia: Evidencia }) {
             : "O domínio não aponta para nenhum IP público."}
         </Typography.Text>
       ) : (
-        <Flex vertical gap="small">
-          {ips.map((item) => (
-            <Flex key={item.ip} gap="small" align="center" wrap>
-              <span className="indicador">{item.ip}</span>
-              {item.abuseipdb === "ok" ? (
-                <>
-                  <Tag color={corDaNota(item.score ?? 0)}>AbuseIPDB {item.score}</Tag>
-                  <Typography.Text type="secondary">
-                    {comoTexto(item.relatos)} relatos · {comoTexto(item.pais)} · {comoTexto(item.isp)}
-                  </Typography.Text>
-                </>
-              ) : (
-                <Typography.Text type="secondary">AbuseIPDB indisponível</Typography.Text>
-              )}
-            </Flex>
-          ))}
-        </Flex>
+        <div className="tabela-rolagem">
+          <div className="tabela-ips">
+            <div className="linha-ip cabecalho">
+              <span>IP</span>
+              <span>Nota no AbuseIPDB</span>
+              <span>Relatos</span>
+              <span>Quem opera</span>
+            </div>
+            {ips.map((item) => (
+              <div key={item.ip} className="linha-ip">
+                <span className="indicador">{item.ip}</span>
+                {item.abuseipdb === "ok" ? (
+                  <>
+                    <span>
+                      <Tag color={corDaNota(item.score ?? 0)}>{item.score} de 100</Tag>
+                    </span>
+                    <span>{comoTexto(item.relatos)}</span>
+                    <span>
+                      {comoTexto(item.isp)} · {comoTexto(item.pais)}
+                    </span>
+                  </>
+                ) : (
+                  <Typography.Text type="secondary">AbuseIPDB indisponível</Typography.Text>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
       )}
     </Card>
   );
 }
 
-export function Investigacao({ id }: { id: string }) {
+// O servidor desiste da explicação em 90 s mais 30 de folga; a tela pergunta por 2 min.
+const INTERVALO_MS = 3000;
+const CONSULTAS = 40;
+
+type PropsInvestigacao = { id: string; intervalo?: number; consultas?: number };
+
+export function Investigacao({ id, intervalo = INTERVALO_MS, consultas = CONSULTAS }: PropsInvestigacao) {
   const [detalhe, setDetalhe] = useState<DetalheInvestigacao | null>(null);
   const [erro, setErro] = useState<string | null>(null);
+  const [feitas, setFeitas] = useState(0);
 
   useEffect(() => {
     chamar<DetalheInvestigacao>(`/api/investigacoes/${id}`)
       .then(setDetalhe)
       .catch((falha) => setErro(mensagemDeErro(falha)));
   }, [id]);
+
+  // Enquanto a IA escreve, pergunta de novo de tempos em tempos.
+  const esperando = detalhe?.analise_estado === "pendente" && feitas < consultas;
+  useEffect(() => {
+    if (!esperando) return;
+    const espera = window.setTimeout(() => {
+      chamar<DetalheInvestigacao>(`/api/investigacoes/${id}`)
+        .then(setDetalhe)
+        .catch(() => undefined)
+        .finally(() => setFeitas((n) => n + 1));
+    }, intervalo);
+    return () => window.clearTimeout(espera);
+  }, [esperando, feitas, id, intervalo]);
 
   if (erro) {
     return <Result status="warning" title={erro} extra={<Link para="/painel">Voltar ao painel</Link>} />;
@@ -120,14 +152,16 @@ export function Investigacao({ id }: { id: string }) {
   const contexto = detalhe.evidencias.filter((evidencia) => evidencia.contexto);
   return (
     <Flex vertical gap="large">
-      <Link para="/painel">← Investigações</Link>
+      <Link para="/investigacoes">← Investigações</Link>
       <Flex vertical gap={4}>
         <Typography.Title level={2} className="titulo-indicador indicador">
           {detalhe.valor}
         </Typography.Title>
         <Flex gap="small" align="center" wrap>
           <Tag>{NOMES_TIPO[detalhe.tipo] ?? detalhe.tipo}</Tag>
-          <Typography.Text type="secondary">{quando(detalhe.criada_em)}</Typography.Text>
+          <Typography.Text type="secondary">
+            Investigada em {quando(detalhe.criada_em)} · horário de Brasília
+          </Typography.Text>
           {detalhe.reaproveitada && <Tag color="blue">reaproveitado de consulta com menos de 24 h</Tag>}
         </Flex>
       </Flex>
@@ -153,6 +187,15 @@ export function Investigacao({ id }: { id: string }) {
           </Flex>
         </Flex>
       </Card>
+
+      {esperando ? (
+        <Carregando
+          titulo="Escrevendo a explicação em linguagem simples"
+          descricao="A IA está lendo as evidências. O veredito acima já está pronto; a explicação aparece aqui em instantes."
+        />
+      ) : (
+        <AnaliseIA analise={detalhe.analise} />
+      )}
 
       <div>
         <Flex justify="space-between" align="baseline" className="espaco">
@@ -188,7 +231,6 @@ export function Investigacao({ id }: { id: string }) {
         </div>
       )}
 
-      <AnaliseIA analise={detalhe.analise} />
     </Flex>
   );
 }

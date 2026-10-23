@@ -3,15 +3,17 @@
 from __future__ import annotations
 
 from collections import Counter
-from datetime import timedelta
+from datetime import UTC, timedelta
 from typing import Any
 
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
 from inoxio.db import Evento, Investigacao, Usuario, agora
+from inoxio.seguranca.limites import FUSO_BRASILIA, inicio_do_dia
 
 TOP = 10
+DIAS_DO_GRAFICO = 14
 JANELA_USO = timedelta(days=30)
 AMEACAS = ("malicioso", "suspeito")
 SITES = ("dominio", "url")
@@ -25,6 +27,28 @@ def _deteccoes(evidencias: list[dict[str, Any]]) -> int:
         if item.get("fonte") in ("virustotal", "virustotal_url") and item.get("status") == "ok"
     ]
     return max(contagens, default=0)
+
+
+def _por_dia(investigacoes: list[Investigacao]) -> list[dict[str, Any]]:
+    """Vereditos de cada um dos últimos 14 dias, de meia-noite a meia-noite de Brasília."""
+    primeiro = inicio_do_dia() - timedelta(days=DIAS_DO_GRAFICO - 1)
+    dias = [
+        {
+            "dia": (primeiro + timedelta(days=n))
+            .replace(tzinfo=UTC)
+            .astimezone(FUSO_BRASILIA)
+            .date()
+            .isoformat(),
+            "vereditos": Counter(),
+        }
+        for n in range(DIAS_DO_GRAFICO)
+    ]
+    for investigacao in investigacoes:
+        if investigacao.criada_em >= primeiro:
+            indice = (investigacao.criada_em - primeiro) // timedelta(days=1)
+            if indice < DIAS_DO_GRAFICO:
+                dias[indice]["vereditos"][investigacao.veredito] += 1
+    return [{"dia": dia["dia"], "vereditos": dict(dia["vereditos"])} for dia in dias]
 
 
 def do_usuario(db: Session, usuario_id: str) -> dict[str, Any]:
@@ -51,6 +75,8 @@ def do_usuario(db: Session, usuario_id: str) -> dict[str, Any]:
     return {
         "total": len(investigacoes),
         "por_veredito": dict(por_veredito),
+        "por_tipo": dict(Counter(investigacao.tipo for investigacao in investigacoes)),
+        "por_dia": _por_dia(investigacoes),
         "mais_pesquisados": mais_pesquisados,
         "ameacas": [
             {

@@ -1,4 +1,5 @@
 import { Alert, Card, Flex, Tag, Typography } from "antd";
+import { IconeCheck, IconeLampada } from "./icones";
 import type { Analise } from "./tipos";
 
 const CONFIANCA: Record<string, string> = { baixa: "baixa", media: "média", alta: "alta" };
@@ -15,39 +16,64 @@ export function AnaliseIA({ analise }: { analise: Analise | null }) {
       <Alert
         type="info"
         showIcon
-        title="Análise da IA indisponível. O resultado acima vem só das regras fixas."
+        title="Explicação indisponível. O resultado acima vem só das regras fixas."
       />
     );
   }
+  const termos = analise.termos ?? [];
   return (
     <Card
-      title="Análise da IA"
-      extra={<Tag>confiança {CONFIANCA[analise.confianca] ?? analise.confianca}</Tag>}
-    >
-      <Typography.Paragraph>{analise.resumo}</Typography.Paragraph>
-      {analise.tecnicas_mitre.length > 0 && (
-        <Flex gap="small" align="center" wrap className="espaco">
-          <Typography.Text type="secondary">MITRE ATT&amp;CK</Typography.Text>
-          {analise.tecnicas_mitre.map((tecnica) => (
-            <a key={tecnica} href={linkMitre(tecnica)} target="_blank" rel="noopener noreferrer">
-              <Tag>{tecnica}</Tag>
-            </a>
-          ))}
+      title={
+        <Flex gap="small" align="center">
+          <IconeLampada />
+          Em linguagem simples
         </Flex>
-      )}
-      {analise.recomendacoes.length > 0 && (
-        <>
-          <Typography.Text strong>Recomendações</Typography.Text>
-          <ul>
-            {analise.recomendacoes.map((recomendacao, posicao) => (
-              <li key={`${posicao}-${recomendacao}`}>{recomendacao}</li>
-            ))}
-          </ul>
-        </>
-      )}
-      <Typography.Text type="secondary">
-        A IA explica o resultado; o veredito e a nota vêm das regras fixas.
-      </Typography.Text>
+      }
+    >
+      <Flex vertical gap="large">
+        <Typography.Paragraph className="espaco-topo">{analise.resumo}</Typography.Paragraph>
+        {termos.length > 0 && (
+          <div>
+            <Typography.Text strong>Termos que aparecem aqui</Typography.Text>
+            <div className="glossario espaco-topo">
+              {termos.map((item) => (
+                <div key={item.termo} className="termo">
+                  <strong>{item.termo}</strong>
+                  <span>{item.significado}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+        {analise.recomendacoes.length > 0 && (
+          <div>
+            <Typography.Text strong>O que fazer</Typography.Text>
+            <ul className="o-que-fazer espaco-topo">
+              {analise.recomendacoes.map((recomendacao, posicao) => (
+                <li key={`${posicao}-${recomendacao}`}>
+                  <IconeCheck />
+                  <span>{recomendacao}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+        <details className="para-analistas">
+          <summary>Para analistas: técnicas MITRE ATT&amp;CK e confiança</summary>
+          <Flex gap="small" align="center" wrap className="espaco-topo">
+            {analise.tecnicas_mitre.length === 0 ? (
+              <span>Nenhuma técnica indicada.</span>
+            ) : (
+              analise.tecnicas_mitre.map((tecnica) => (
+                <a key={tecnica} href={linkMitre(tecnica)} target="_blank" rel="noopener noreferrer">
+                  <Tag>{tecnica}</Tag>
+                </a>
+              ))
+            )}
+            <span>Confiança da análise: {CONFIANCA[analise.confianca] ?? analise.confianca}.</span>
+          </Flex>
+        </details>
+      </Flex>
     </Card>
   );
 }

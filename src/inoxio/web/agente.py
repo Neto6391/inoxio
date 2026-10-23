@@ -5,6 +5,7 @@ from __future__ import annotations
 import threading
 from collections.abc import Iterator
 from contextlib import contextmanager
+from datetime import timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import JSONResponse
@@ -15,10 +16,16 @@ from sqlalchemy.orm import Session
 from inoxio import auditoria, estatisticas
 from inoxio.agente.classificar import LIMITE_ENTRADA
 from inoxio.agente.decidir import ROTULOS
-from inoxio.db import Investigacao
+from inoxio.agente.grafo import dados_da_mente
+from inoxio.db import Investigacao, agora
+from inoxio.explicador import PRAZO
 from inoxio.seguranca import limites
 from inoxio.web.autenticacao import ip_do_cliente
 from inoxio.web.dependencias import Contexto, banco, conferir_csrf, sessao_atual, token_csrf
+
+# A página de investigações mostra as mais recentes; o painel, as primeiras delas.
+LISTA = 50
+FOLGA_PENDENTE = timedelta(seconds=30)
 
 rotas = APIRouter(prefix="/api")
 
@@ -43,7 +50,7 @@ def listar(ctx: Contexto = Depends(sessao_atual), db: Session = Depends(banco)):
         select(Investigacao)
         .where(Investigacao.usuario_id == ctx.usuario.id)
         .order_by(Investigacao.criada_em.desc())
-        .limit(10)
+        .limit(LISTA)
     ).all()
     return [_resumo(investigacao) for investigacao in recentes]
 
@@ -85,6 +92,9 @@ def _investigar(request: Request, pedido: PedidoInvestigacao, ctx: Contexto, db:
     estado = request.app.state.grafo.invoke({"entrada": pedido.entrada})
     if estado["tipo"] == "rejeitado":
         return JSONResponse({"erro": estado["motivo"]}, status_code=400)
+    analise = estado.get("analise")
+    explicador = request.app.state.explicador
+    explicar = analise is None and explicador.ativo
     investigacao = Investigacao(
         usuario_id=ctx.usuario.id,
         tipo=estado["tipo"],
@@ -92,7 +102,8 @@ def _investigar(request: Request, pedido: PedidoInvestigacao, ctx: Contexto, db:
         veredito=estado["veredito"],
         nota=estado.get("nota"),
         evidencias=estado["evidencias"],
-        analise=estado.get("analise"),
+        analise=analise,
+        analise_estado="pronta" if analise else ("pendente" if explicar else "indisponivel"),
         reaproveitada=estado["reaproveitada"],
     )
     db.add(investigacao)
@@ -104,7 +115,20 @@ def _investigar(request: Request, pedido: PedidoInvestigacao, ctx: Contexto, db:
         f"{estado['tipo']} {estado['valor'][:200]} → {estado['veredito']}",
     )
     db.commit()
+    # Depois do commit: o explicador grava a análise numa linha que já existe.
+    if explicar:
+        explicador.pedir(investigacao.id, dados_da_mente(estado))
     return {"id": investigacao.id}
+
+
+def _estado_da_analise(investigacao: Investigacao) -> str:
+    estado = investigacao.analise_estado
+    if estado is None:
+        # Investigação de antes da explicação em segundo plano.
+        return "pronta" if investigacao.analise else "indisponivel"
+    # Uma pendente além do prazo não chega mais (o processo reiniciou, por exemplo).
+    vencida = investigacao.criada_em < agora() - PRAZO - FOLGA_PENDENTE
+    return "indisponivel" if estado == "pendente" and vencida else estado
 
 
 @rotas.get("/investigacoes/{id_}")
@@ -133,6 +157,7 @@ def ver(
         "rotulo": ROTULOS[investigacao.veredito],
         "evidencias": investigacao.evidencias,
         "analise": investigacao.analise,
+        "analise_estado": _estado_da_analise(investigacao),
         "reaproveitada": investigacao.reaproveitada,
     }
 
@@ -140,3 +165,8 @@ def ver(
 @rotas.get("/estatisticas")
 def minhas_estatisticas(ctx: Contexto = Depends(sessao_atual), db: Session = Depends(banco)):
     return estatisticas.do_usuario(db, ctx.usuario.id)
+
+
+@rotas.get("/creditos")
+def meus_creditos(ctx: Contexto = Depends(sessao_atual), db: Session = Depends(banco)):
+    return limites.creditos(db, ctx.usuario.id, ctx.usuario.cota_diaria)

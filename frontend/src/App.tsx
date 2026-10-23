@@ -1,30 +1,50 @@
-import { Button, Flex, Layout, Result, Spin } from "antd";
-import { useEffect, useState } from "react";
+import { Button, Flex, Result, Spin } from "antd";
+import { type ReactNode, useEffect, useState } from "react";
 import { chamar, ErroApi, guardarCsrf, SESSAO_EXPIRADA, SESSAO_TROCADA } from "./api";
 import { AceiteTermos } from "./AceiteTermos";
 import { Ativar } from "./Ativar";
 import { EsqueciSenha, RedefinirSenha } from "./Senha";
 import { Conta } from "./Conta";
+import { CreditosLateral, ehCreditos, textoCreditos } from "./Creditos";
 import { Privacidade, Termos } from "./Documentos";
 import { Auditoria } from "./Auditoria";
 import { VisaoGeral } from "./Estatisticas";
+import {
+  IconeBusca,
+  IconeConta,
+  IconeEscudo,
+  IconeGrafico,
+  IconeLua,
+  IconePainel,
+  IconeRelogio,
+  IconeSol,
+  IconeUsuarios,
+} from "./icones";
 import { Investigacao } from "./Investigacao";
+import { Investigacoes } from "./Investigacoes";
 import { Landing } from "./Landing";
 import { Login } from "./Login";
 import { Onboarding } from "./Onboarding";
 import { Rodape } from "./Rodape";
 import { Painel } from "./Painel";
 import { Link, navegar, useCaminho } from "./rotas";
-import type { RespostaSessao, Sessao } from "./tipos";
+import { definirTema, useTema } from "./tema";
+import type { Creditos, RespostaSessao, Sessao } from "./tipos";
 import { Usuarios } from "./Usuarios";
 
-type PropsTela = { caminho: string; sessao: Sessao; aoExcluirConta: () => void };
+type PropsTela = {
+  caminho: string;
+  sessao: Sessao;
+  creditos: Creditos | null;
+  aoExcluirConta: () => void;
+};
 
-function Tela({ caminho, sessao, aoExcluirConta }: PropsTela) {
+function Tela({ caminho, sessao, creditos, aoExcluirConta }: PropsTela) {
   const investigacao = caminho.match(/^\/investigacoes\/([\w-]+)$/);
   if (investigacao) return <Investigacao id={investigacao[1]} />;
+  if (caminho === "/investigacoes") return <Investigacoes />;
   // "/entrar" depois do login também leva ao painel.
-  if (caminho === "/painel" || caminho === "/entrar") return <Painel />;
+  if (caminho === "/painel" || caminho === "/entrar") return <Painel creditos={creditos} />;
   if (caminho === "/conta") {
     // A chave muda com o aceite: reaceitar os termos nesta tela recarrega o perfil.
     const chave = sessao.usuario.termos_pendentes ? "termos-pendentes" : "termos-aceitos";
@@ -44,18 +64,39 @@ function Tela({ caminho, sessao, aoExcluirConta }: PropsTela) {
   );
 }
 
-function ItemMenu({ para, ativo, children }: { para: string; ativo: boolean; children: string }) {
+type PropsItem = { para: string; ativo: boolean; icone: ReactNode; children: string };
+
+function ItemMenu({ para, ativo, icone, children }: PropsItem) {
   return (
     <Link para={para} className={ativo ? "ativo" : undefined}>
+      {icone}
       {children}
     </Link>
+  );
+}
+
+function BotaoTema() {
+  const tema = useTema();
+  const rotulo = tema === "escuro" ? "Mudar para o modo claro" : "Mudar para o modo escuro";
+  return (
+    <button
+      type="button"
+      className="botao-tema"
+      aria-label={rotulo}
+      title={rotulo}
+      onClick={() => definirTema(tema === "escuro" ? "claro" : "escuro")}
+    >
+      {tema === "escuro" ? <IconeSol /> : <IconeLua />}
+    </button>
   );
 }
 
 export function App() {
   // undefined: ainda perguntando ao servidor; null: sem sessão.
   const [sessao, setSessao] = useState<Sessao | null | undefined>(undefined);
+  const [creditos, setCreditos] = useState<Creditos | null>(null);
   const caminho = useCaminho();
+  const nome = sessao?.usuario.nome;
 
   function entrarCom(nova: Sessao) {
     guardarCsrf(nova.csrf);
@@ -79,6 +120,14 @@ export function App() {
       window.removeEventListener(SESSAO_TROCADA, perguntarAoServidor);
     };
   }, []);
+
+  // A cada tela, os créditos são lidos de novo: depois de investigar, o número já mudou.
+  useEffect(() => {
+    if (!nome) return;
+    chamar<unknown>("/api/creditos")
+      .then((dados) => setCreditos(ehCreditos(dados) ? dados : null))
+      .catch(() => setCreditos(null));
+  }, [nome, caminho]);
 
   async function sair() {
     try {
@@ -115,55 +164,71 @@ export function App() {
 
   const admin = sessao.usuario.papel === "admin";
   return (
-    <Layout className="casca">
-      <Layout.Header className="topo">
+    <div className="casca">
+      <aside className="lateral">
         <Link para="/painel">
           <span className="marca">
             <span className="marca-simbolo">I</span>
             Inóxio
           </span>
         </Link>
-        <nav className="navegacao">
-          <ItemMenu
-            para="/painel"
-            ativo={caminho === "/painel" || caminho === "/entrar" || caminho.startsWith("/investigacoes")}
-          >
+        <nav className="menu" aria-label="Menu principal">
+          <ItemMenu para="/painel" icone={<IconePainel />} ativo={caminho === "/painel" || caminho === "/entrar"}>
+            Painel
+          </ItemMenu>
+          <ItemMenu para="/investigacoes" icone={<IconeBusca />} ativo={caminho.startsWith("/investigacoes")}>
             Investigações
           </ItemMenu>
+          <ItemMenu para="/conta" icone={<IconeConta />} ativo={caminho === "/conta"}>
+            Minha conta
+          </ItemMenu>
+          {admin && <div className="menu-secao">Administração</div>}
           {admin && (
-            <ItemMenu para="/visao-geral" ativo={caminho === "/visao-geral"}>
+            <ItemMenu para="/visao-geral" icone={<IconeGrafico />} ativo={caminho === "/visao-geral"}>
               Visão geral
             </ItemMenu>
           )}
           {admin && (
-            <ItemMenu para="/usuarios" ativo={caminho === "/usuarios"}>
+            <ItemMenu para="/usuarios" icone={<IconeUsuarios />} ativo={caminho === "/usuarios"}>
               Usuários
             </ItemMenu>
           )}
           {admin && (
-            <ItemMenu para="/auditoria" ativo={caminho === "/auditoria"}>
+            <ItemMenu para="/auditoria" icone={<IconeEscudo />} ativo={caminho === "/auditoria"}>
               Auditoria
             </ItemMenu>
           )}
         </nav>
-        <span className="quem">
-          <Link para="/conta" className={caminho === "/conta" ? "quem-texto ativo" : "quem-texto"}>
+        {creditos && <CreditosLateral creditos={creditos} />}
+      </aside>
+      <div className="coluna">
+        <header className="topo">
+          <span className="topo-espaco" />
+          {creditos && (
+            <span className="pilula">
+              <IconeRelogio />
+              {textoCreditos(creditos)}
+            </span>
+          )}
+          <BotaoTema />
+          <Link para="/conta" className={caminho === "/conta" ? "quem ativo" : "quem"}>
             {sessao.usuario.nome} · {sessao.usuario.papel}
           </Link>
-        </span>
-        <Button onClick={sair}>Sair</Button>
-      </Layout.Header>
-      <Layout.Content className="conteudo">
-        <Tela
-          caminho={caminho}
-          sessao={sessao}
-          aoExcluirConta={() => {
-            setSessao(null);
-            navegar("/");
-          }}
-        />
-      </Layout.Content>
-      <Rodape />
+          <Button onClick={sair}>Sair</Button>
+        </header>
+        <main className="conteudo">
+          <Tela
+            caminho={caminho}
+            sessao={sessao}
+            creditos={creditos}
+            aoExcluirConta={() => {
+              setSessao(null);
+              navegar("/");
+            }}
+          />
+        </main>
+        <Rodape />
+      </div>
       <AceiteTermos
         aberto={sessao.usuario.termos_pendentes === true}
         aoAceitar={() =>
@@ -177,6 +242,6 @@ export function App() {
           setSessao({ ...sessao, usuario: { ...sessao.usuario, onboarding_visto: true } })
         }
       />
-    </Layout>
+    </div>
   );
 }

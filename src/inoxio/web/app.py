@@ -25,6 +25,7 @@ from inoxio.agente.mente import criar_invocar
 from inoxio.config import Config
 from inoxio.correio import Enviar, criar_envio
 from inoxio.db import criar_fabrica
+from inoxio.explicador import Explicador
 from inoxio.historico import buscador
 from inoxio.web import agente as rotas_agente
 from inoxio.web import autenticacao, cadastro, conta, senha, spa, usuarios
@@ -51,7 +52,8 @@ def grafo_de_producao(
 ) -> CompiledStateGraph:
     abuseipdb = AbuseIPDB(config.abuseipdb_chave, cliente)
     fontes = [abuseipdb, VirusTotal(config.virustotal_chave, cliente), ResolucaoDNS(abuseipdb)]
-    return construir_grafo(fontes, criar_invocar(config), buscador(fabrica))
+    # Sem a IA no grafo: o veredito sai logo, e o Explicador escreve a explicação depois.
+    return construir_grafo(fontes, None, buscador(fabrica))
 
 
 def criar_app(
@@ -59,6 +61,7 @@ def criar_app(
     fabrica: sessionmaker | None = None,
     grafo: CompiledStateGraph | None = None,
     enviar_email: Enviar | None = None,
+    explicador: Explicador | None = None,
 ) -> FastAPI:
     config = config or Config.do_ambiente()
     frontend = Path(config.frontend_dir)
@@ -68,6 +71,7 @@ def criar_app(
     @asynccontextmanager
     async def ciclo_de_vida(app: FastAPI) -> AsyncIterator[None]:
         yield
+        app.state.explicador.fechar()
         cliente_http.close()
 
     app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None, lifespan=ciclo_de_vida)
@@ -76,6 +80,7 @@ def criar_app(
     app.state.cliente_http = cliente_http
     app.state.enviar_email = enviar_email or criar_envio(config)
     app.state.grafo = grafo or grafo_de_producao(config, app.state.fabrica, cliente_http)
+    app.state.explicador = explicador or Explicador(app.state.fabrica, criar_invocar(config))
     app.include_router(autenticacao.rotas)
     app.include_router(rotas_agente.rotas)
     app.include_router(usuarios.rotas)

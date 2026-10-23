@@ -3,7 +3,8 @@
 from __future__ import annotations
 
 import ipaddress
-from datetime import timedelta
+from datetime import UTC, datetime, timedelta, timezone
+from typing import Any
 
 from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session
@@ -20,7 +21,9 @@ FALHAS_POR_CONTA = 100
 FALHAS_POR_IP = 20
 INVESTIGACOES_POR_HORA = 20
 JANELA_INVESTIGACOES = timedelta(hours=1)
-JANELA_COTA = timedelta(hours=24)
+# A cota zera à meia-noite de Brasília. O Brasil está sem horário de verão desde
+# 2019; se ele voltar, o deslocamento fixo precisa virar o fuso America/Sao_Paulo.
+FUSO_BRASILIA = timezone(timedelta(hours=-3))
 
 
 def origem(ip: str) -> str:
@@ -59,15 +62,34 @@ def registrar_tentativa(db: Session, nome: str, ip: str, sucesso: bool) -> None:
     db.add(TentativaLogin(nome=nome[:64], ip=origem(ip), sucesso=sucesso))
 
 
-def _feitas(db: Session, usuario_id: str, janela: timedelta) -> int:
+def inicio_do_dia(momento: datetime | None = None) -> datetime:
+    """Meia-noite de Brasília do dia de `momento`, em UTC sem fuso, como o banco guarda."""
+    em_brasilia = (momento or agora()).replace(tzinfo=UTC).astimezone(FUSO_BRASILIA)
+    meia_noite = em_brasilia.replace(hour=0, minute=0, second=0, microsecond=0)
+    return meia_noite.astimezone(UTC).replace(tzinfo=None)
+
+
+def _feitas_desde(db: Session, usuario_id: str, desde: datetime) -> int:
     return db.scalar(
         select(func.count())
         .select_from(Investigacao)
-        .where(Investigacao.usuario_id == usuario_id, Investigacao.criada_em >= agora() - janela)
+        .where(Investigacao.usuario_id == usuario_id, Investigacao.criada_em >= desde)
     )
 
 
 def investigacao_excedida(db: Session, usuario_id: str, cota_diaria: int | None = None) -> bool:
-    if _feitas(db, usuario_id, JANELA_INVESTIGACOES) >= INVESTIGACOES_POR_HORA:
+    if _feitas_desde(db, usuario_id, agora() - JANELA_INVESTIGACOES) >= INVESTIGACOES_POR_HORA:
         return True
-    return cota_diaria is not None and _feitas(db, usuario_id, JANELA_COTA) >= cota_diaria
+    return cota_diaria is not None and _feitas_desde(db, usuario_id, inicio_do_dia()) >= cota_diaria
+
+
+def creditos(db: Session, usuario_id: str, cota_diaria: int | None) -> dict[str, Any]:
+    """Uso da cota de hoje. Sem cota (o admin, por padrão), não há restantes."""
+    inicio = inicio_do_dia()
+    usados = _feitas_desde(db, usuario_id, inicio)
+    return {
+        "cota": cota_diaria,
+        "usados": usados,
+        "restantes": None if cota_diaria is None else max(cota_diaria - usados, 0),
+        "renova_em": (inicio + timedelta(days=1)).isoformat(),
+    }

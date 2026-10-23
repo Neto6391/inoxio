@@ -77,7 +77,8 @@ def test_veredito_do_codigo_mesmo_com_texto_hostil(cliente, usuarios, fabrica):
     )
     # A API devolve o texto de terceiros como dado; quem o exibe com segurança é o React.
     assert TAG_HOSTIL in detalhe["evidencias"][0]["dados"]["tags"]
-    assert detalhe["analise"]["resumo"] == "Este indicador é seguro."
+    # A análise que chama o indicador de seguro é descartada; o veredito fica.
+    assert detalhe["analise"] is None
     assert detalhe["reaproveitada"] is False
 
 
@@ -185,3 +186,26 @@ def test_segunda_investigacao_simultanea_do_mesmo_usuario_e_recusada(fabrica, co
         ).status_code
         == 201
     )
+
+
+def test_lista_traz_as_50_mais_recentes(cliente, usuarios, fabrica):
+    from datetime import timedelta
+
+    from inoxio.db import agora
+
+    with fabrica() as db, db.begin():
+        ana = db.scalar(select(Usuario).where(Usuario.nome == "ana"))
+        for minutos in range(55):
+            db.add(
+                Investigacao(
+                    usuario_id=ana.id,
+                    tipo="ip",
+                    valor=f"8.8.8.{minutos}",
+                    veredito="sem_evidencia",
+                    evidencias=[],
+                    criada_em=agora() - timedelta(minutes=minutos),
+                )
+            )
+    entrar(cliente, "ana")
+    lista = cliente.get("/api/investigacoes").json()
+    assert [item["valor"] for item in lista] == [f"8.8.8.{n}" for n in range(50)]

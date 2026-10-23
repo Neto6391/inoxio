@@ -13,6 +13,9 @@ VALIDA = {
     "tecnicas_mitre": ["T1110", "T1071.001"],
     "recomendacoes": ["Bloqueie na borda."],
     "confianca": "media",
+    "termos": [
+        {"termo": "Cloudflare", "significado": "Empresa que fica na frente de muitos sites."},
+    ],
 }
 
 
@@ -41,6 +44,19 @@ def test_limites_sao_conferidos_aqui_e_nao_no_provedor():
     assert analisar({}, lambda s, c: VALIDA | {"resumo": "x" * 1201}) is None
     assert analisar({}, lambda s, c: VALIDA | {"recomendacoes": ["r"] * 9}) is None
     assert analisar({}, lambda s, c: VALIDA | {"confianca": "total"}) is None
+    termo = {"termo": "IP", "significado": "Número de um computador na internet."}
+    assert analisar({}, lambda s, c: VALIDA | {"termos": [termo] * 7}) is None
+    assert analisar({}, lambda s, c: VALIDA | {"termos": [termo | {"termo": "x" * 61}]}) is None
+    assert (
+        analisar({}, lambda s, c: VALIDA | {"termos": [termo | {"significado": "x" * 301}]}) is None
+    )
+
+
+def test_o_pedido_e_para_quem_nao_e_da_area():
+    from inoxio.agente.mente import PROMPT
+
+    for trecho in ("não é da área de tecnologia", "termos", "não altere nem conteste o veredito"):
+        assert trecho in PROMPT.lower()
 
 
 def test_carga_grande_demais_vira_none_sem_chamar_o_modelo():
@@ -106,3 +122,40 @@ def test_padrao_e_a_configuracao_aprovada_na_escolha_do_modelo():
         "json_schema",
         "low",
     )
+
+
+def test_frase_que_chama_algo_de_seguro_sai_e_o_resto_fica():
+    # Sem evidência não é garantia: a tela nunca diz seguro, limpo, legítimo ou confiável.
+    resumo = (
+        "O site www.crunchyroll.com usa a Cloudflare. Ele parece seguro; "
+        "não há motivo para suspeitar. O IP 104.18.34.202 tem 1 relato."
+    )
+    recomendacoes = [
+        "Confira o endereço.",
+        "Use DNS confiáveis.",
+        "Avise a equipe de segurança da empresa. O tráfego é legítimo.",
+    ]
+    analise = analisar({}, lambda s, c: VALIDA | {"resumo": resumo, "recomendacoes": recomendacoes})
+    assert analise["resumo"] == (
+        "O site www.crunchyroll.com usa a Cloudflare. O IP 104.18.34.202 tem 1 relato."
+    )
+    # A recomendação que fica vazia sai; "segurança" como assunto continua.
+    assert analise["recomendacoes"] == [
+        "Confira o endereço.",
+        "Avise a equipe de segurança da empresa.",
+    ]
+
+
+def test_resumo_que_so_diz_que_e_seguro_vira_sem_analise():
+    for frase in ("A página parece segura.", "O IP está limpo.", "Tráfego legítimo do Google."):
+        assert analisar({}, lambda s, c, f=frase: VALIDA | {"resumo": f}) is None
+
+
+def test_as_instrucoes_sao_as_aprovadas_na_medicao():
+    # Texto aprovado pelo dono depois da medição pré-registrada de 23/10.
+    import hashlib
+
+    from inoxio.agente.mente import PROMPT
+
+    esperado = "95dbe848a077ea91eb6eb0d455ab698d258af99507b841b572f9c7a13df12733"
+    assert hashlib.sha256(PROMPT.encode()).hexdigest() == esperado

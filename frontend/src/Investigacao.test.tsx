@@ -54,7 +54,7 @@ test("inconclusivo não mostra nota, mesmo que as fontes que responderam deem 0"
   expect(screen.queryByText("0")).toBeNull();
 });
 
-test("IPs do domínio aparecem como contexto, fora das fontes do veredito", async () => {
+test("IPs do site aparecem como contexto, fora das fontes do veredito", async () => {
   const dominio = {
     ...DETALHE,
     tipo: "dominio",
@@ -71,9 +71,11 @@ test("IPs do domínio aparecem como contexto, fora das fontes do veredito", asyn
   };
   vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify(dominio), { status: 200 })));
   const { container } = render(<Investigacao id="1" />);
-  expect(await screen.findByText("IPs do domínio (DNS)")).toBeInTheDocument();
+  expect(await screen.findByText("IPs do site (DNS)")).toBeInTheDocument();
   expect(screen.getByText("não entra no veredito")).toBeInTheDocument();
-  expect(screen.getByText("AbuseIPDB 90")).toBeInTheDocument();
+  expect(screen.getByText("90 de 100")).toBeInTheDocument();
+  // O provedor aparece como texto, com as marcas de HTML à vista.
+  expect(screen.getByText("<b>CDN</b> · NL")).toBeInTheDocument();
   expect(container.querySelector("b")).toBeNull();
   // O cartão de contexto não aparece entre as fontes do veredito.
   expect(screen.queryByText("dns")).toBeNull();

@@ -1,22 +1,17 @@
-import { Alert, Button, Card, Empty, Flex, Form, Input, List, Skeleton, Typography } from "antd";
-import { useEffect, useState } from "react";
+import { Alert, Button, Card, Flex, Form, Input, Typography } from "antd";
+import { useState } from "react";
 import { chamar, ErroApi, mensagemDeErro, SESSAO_TROCADA } from "./api";
+import { Carregando } from "./Carregando";
+import { acabaram } from "./Creditos";
 import { MinhasEstatisticas } from "./Estatisticas";
-import { NOMES_TIPO, quando, TagVeredito } from "./formato";
-import { navegar } from "./rotas";
-import type { ResumoInvestigacao } from "./tipos";
+import { ListaInvestigacoes } from "./Investigacoes";
+import { Link, navegar } from "./rotas";
+import type { Creditos } from "./tipos";
 
-export function Painel() {
-  const [recentes, setRecentes] = useState<ResumoInvestigacao[] | null>(null);
-  const [erroLista, setErroLista] = useState<string | null>(null);
+export function Painel({ creditos }: { creditos: Creditos | null }) {
   const [erro, setErro] = useState<string | null>(null);
   const [ocupado, setOcupado] = useState(false);
-
-  useEffect(() => {
-    chamar<ResumoInvestigacao[]>("/api/investigacoes")
-      .then(setRecentes)
-      .catch((falha) => setErroLista(mensagemDeErro(falha)));
-  }, []);
+  const semCreditos = acabaram(creditos);
 
   async function investigar({ entrada }: { entrada: string }) {
     setOcupado(true);
@@ -35,41 +30,25 @@ export function Painel() {
     }
   }
 
-  function listaDeRecentes() {
-    if (erroLista) return <Alert type="error" showIcon title={erroLista} />;
-    if (recentes === null) return <Skeleton active paragraph={{ rows: 3 }} />;
-    if (recentes.length === 0) {
-      return <Empty description="Nenhuma investigação ainda." image={Empty.PRESENTED_IMAGE_SIMPLE} />;
-    }
-    return (
-      <List<ResumoInvestigacao>
-        dataSource={recentes}
-        renderItem={(item) => (
-          <List.Item
-            className="item-recente"
-            onClick={() => navegar(`/investigacoes/${item.id}`)}
-            extra={<TagVeredito veredito={item.veredito} />}
-          >
-            <List.Item.Meta
-              title={<span className="indicador">{item.valor}</span>}
-              description={`${NOMES_TIPO[item.tipo] ?? item.tipo} · ${quando(item.criada_em)}`}
-            />
-          </List.Item>
-        )}
-      />
-    );
-  }
-
   return (
     <Flex vertical gap="large">
       <div>
         <Typography.Title level={2}>Painel</Typography.Title>
         <Typography.Text type="secondary">
-          O veredito sai de regras fixas sobre o VirusTotal e o AbuseIPDB. A IA só explica.
+          Suas investigações e o que elas encontraram. O veredito sai de regras fixas sobre o
+          VirusTotal e o AbuseIPDB.
         </Typography.Text>
       </div>
       <Card title="Investigar indicador">
         {erro && <Alert type="error" showIcon title={erro} className="espaco" />}
+        {semCreditos && (
+          <Alert
+            type="warning"
+            showIcon
+            className="espaco"
+            title="Seus créditos de hoje acabaram. Eles voltam à meia-noite, horário de Brasília."
+          />
+        )}
         <Form layout="inline" onFinish={investigar}>
           <Form.Item
             name="entrada"
@@ -83,19 +62,28 @@ export function Painel() {
               placeholder="https://site.com/pagina, exemplo.com, 8.8.8.8 ou um hash"
             />
           </Form.Item>
-          <Button type="primary" size="large" htmlType="submit" loading={ocupado}>
+          <Button type="primary" size="large" htmlType="submit" loading={ocupado} disabled={semCreditos}>
             Investigar
           </Button>
         </Form>
         <Typography.Paragraph type="secondary" className="espaco-topo">
           Cole o endereço de um site, um domínio, um IP ou o hash (MD5, SHA-1 ou SHA-256) de um
           arquivo. De um endereço, o VirusTotal avalia a página e o domínio dela; o formato
-          desarmado (hxxps://site[.]com) também funciona. O mesmo indicador investigado nas
-          últimas 24 h volta na hora.
+          desarmado (hxxps://site[.]com) também funciona. Cada investigação usa 1 crédito, e o
+          mesmo indicador investigado nas últimas 24 h volta na hora, com o resultado já consultado.
         </Typography.Paragraph>
       </Card>
-      <MinhasEstatisticas />
-      <Card title="Suas investigações recentes">{listaDeRecentes()}</Card>
+      {ocupado && (
+        <Carregando
+          titulo="Consultando as fontes"
+          descricao="VirusTotal e AbuseIPDB costumam responder em poucos segundos. A explicação da IA vem logo depois, na página do resultado."
+          linhas={2}
+        />
+      )}
+      <MinhasEstatisticas creditos={creditos} />
+      <Card title="Investigações recentes" extra={<Link para="/investigacoes">Ver todas</Link>}>
+        <ListaInvestigacoes limite={5} />
+      </Card>
     </Flex>
   );
 }
