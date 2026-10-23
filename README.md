@@ -127,7 +127,8 @@ graph TD;
   mais antiga, 5 por página, com busca pelo indicador.
 - **Investigação:** veredito com a nota num medidor, a explicação em linguagem
   simples com o que cada fonte mostrou, o glossário e o que fazer, as evidências de cada fonte e os IPs do
-  site com quem opera cada um. As técnicas MITRE ATT&CK ficam em "Para analistas".
+  site com quem opera cada um (todos os IPs do DNS, até 50, em páginas de 5; só os 2
+  primeiros são consultados no AbuseIPDB, para poupar a cota). As técnicas MITRE ATT&CK ficam em "Para analistas".
   Quando os IPs são de uma empresa conhecida (Cloudflare, Akamai, Fastly, Google,
   Amazon, Microsoft), o cartão "Quem opera estes IPs" explica em linguagem simples
   por que o IP é dela, com texto fixo do app, sem depender da IA.

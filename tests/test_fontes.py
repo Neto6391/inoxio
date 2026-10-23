@@ -130,6 +130,30 @@ def test_dns_consulta_so_ips_publicos_e_no_maximo_dois():
     assert abuse.consultados == [("ip", "104.16.1.1"), ("ip", "104.16.2.2")]
 
 
+def test_dns_lista_todos_os_ips_e_consulta_so_os_dois_primeiros():
+    abuse = AbuseFalso()
+    enderecos = [f"104.16.0.{n}" for n in range(1, 8)] + ["10.0.0.1"]
+    resultado = ResolucaoDNS(abuse, resolver=lambda dominio: enderecos).consultar(
+        "dominio", "exemplo.com"
+    )
+    assert [item["ip"] for item in resultado["dados"]["ips"]] == ["104.16.0.1", "104.16.0.2"]
+    assert resultado["dados"]["outros_ips"] == [f"104.16.0.{n}" for n in range(3, 8)]
+    assert len(abuse.consultados) == 2
+
+
+def test_dns_com_ate_dois_ips_nao_tem_outros_e_a_lista_tem_teto():
+    abuse = AbuseFalso()
+    dois = ResolucaoDNS(abuse, resolver=lambda d: ["104.16.0.1", "104.16.0.2"]).consultar(
+        "dominio", "exemplo.com"
+    )
+    assert "outros_ips" not in dois["dados"]
+    muitos = [f"104.16.{n // 250}.{n % 250 + 1}" for n in range(80)]
+    resultado = ResolucaoDNS(AbuseFalso(), resolver=lambda d: muitos).consultar(
+        "dominio", "exemplo.com"
+    )
+    assert len(resultado["dados"]["ips"]) + len(resultado["dados"]["outros_ips"]) == 50
+
+
 def test_dns_so_para_dominio():
     assert (
         ResolucaoDNS(AbuseFalso(), resolver=lambda d: ["8.8.8.8"]).consultar("ip", "8.8.8.8")

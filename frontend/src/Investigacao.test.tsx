@@ -144,3 +144,27 @@ test("os IPs do site vêm em páginas de 5", async () => {
   expect(screen.getByText("104.18.0.6")).toBeInTheDocument();
   expect(screen.queryByText("104.18.0.0")).toBeNull();
 });
+
+test("os IPs além dos consultados aparecem como não consultados, com a explicação", async () => {
+  const ips = [
+    { ip: "104.18.0.1", abuseipdb: "ok", score: 0, relatos: 1, isp: "Cloudflare, Inc.", pais: "US" },
+    { ip: "104.18.0.2", abuseipdb: "ok", score: 0, relatos: 1, isp: "Cloudflare, Inc.", pais: "US" },
+  ];
+  const outros = ["104.18.0.3", "104.18.0.4", "104.18.0.5", "104.18.0.6"];
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async () =>
+      new Response(
+        JSON.stringify({ ...DETALHE, evidencias: [{ fonte: "dns", status: "ok", contexto: true, dados: { ips, outros_ips: outros } }] }),
+        { status: 200 },
+      ),
+    ),
+  );
+  render(<Investigacao id="1" />);
+  expect(await screen.findByText("6 IPs")).toBeInTheDocument();
+  expect(screen.getAllByText("não consultado no AbuseIPDB")).toHaveLength(3);
+  expect(screen.getByText(/só para os 2 primeiros IPs/)).toBeInTheDocument();
+  fireEvent.click(screen.getByTitle("2"));
+  expect(screen.getByText("104.18.0.6")).toBeInTheDocument();
+  expect(screen.getAllByText("não consultado no AbuseIPDB")).toHaveLength(1);
+});

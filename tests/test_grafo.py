@@ -192,3 +192,26 @@ def test_campos_so_da_tela_nao_vao_para_a_ia():
         "reputacao": 0,
         "tags": [],
     }
+
+
+def test_ips_alem_dos_consultados_nao_vao_para_a_ia():
+    from inoxio.agente.grafo import dados_da_mente
+
+    dns = evidencia(
+        "dns",
+        "ok",
+        {"ips": [{"ip": "104.16.0.1", "abuseipdb": "ok"}], "outros_ips": ["104.16.0.2"]},
+        contexto=True,
+    )
+    dados = dados_da_mente(
+        {
+            "tipo": "dominio",
+            "valor": "exemplo.com",
+            "veredito": "sem_evidencia",
+            "nota": 0,
+            "evidencias": [dns],
+        }
+    )
+    assert dados["DADOS_NAO_CONFIAVEIS"][0]["dados"] == {
+        "ips": [{"ip": "104.16.0.1", "abuseipdb": "ok"}]
+    }
