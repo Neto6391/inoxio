@@ -9,7 +9,7 @@ from typing import Any
 from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session
 
-from inoxio.db import Investigacao, TentativaLogin, agora
+from inoxio.db import Investigacao, TentativaLogin, Usuario, agora
 
 JANELA_LOGIN = timedelta(minutes=15)
 # Por conta e origem juntas: senhas erradas vindas de outro lugar não trancam o
@@ -77,20 +77,33 @@ def _feitas_desde(db: Session, usuario_id: str, desde: datetime) -> int:
     )
 
 
-def investigacao_excedida(db: Session, usuario_id: str, cota_diaria: int | None = None) -> bool:
-    if _feitas_desde(db, usuario_id, agora() - JANELA_INVESTIGACOES) >= INVESTIGACOES_POR_HORA:
-        return True
-    return cota_diaria is not None and _feitas_desde(db, usuario_id, inicio_do_dia()) >= cota_diaria
+def cota_de(usuario: Usuario) -> int | None:
+    """O admin não tem cota diária, mesmo que a conta tenha uma guardada de antes."""
+    return None if usuario.papel == "admin" else usuario.cota_diaria
 
 
-def creditos(db: Session, usuario_id: str, cota_diaria: int | None) -> dict[str, Any]:
-    """Uso da cota de hoje. Sem cota (o admin, por padrão), não há restantes."""
+def _uso_conta_desde(usuario: Usuario) -> datetime:
+    """Meia-noite de Brasília, ou o momento em que o admin zerou o uso de hoje."""
     inicio = inicio_do_dia()
-    usados = _feitas_desde(db, usuario_id, inicio)
+    zerado = usuario.uso_zerado_em
+    return zerado if zerado is not None and zerado > inicio else inicio
+
+
+def investigacao_excedida(db: Session, usuario: Usuario) -> bool:
+    if _feitas_desde(db, usuario.id, agora() - JANELA_INVESTIGACOES) >= INVESTIGACOES_POR_HORA:
+        return True
+    cota = cota_de(usuario)
+    return cota is not None and _feitas_desde(db, usuario.id, _uso_conta_desde(usuario)) >= cota
+
+
+def creditos(db: Session, usuario: Usuario) -> dict[str, Any]:
+    """Uso da cota de hoje. Sem cota (o admin), não há restantes."""
+    cota = cota_de(usuario)
+    usados = _feitas_desde(db, usuario.id, _uso_conta_desde(usuario))
     return {
-        "cota": cota_diaria,
+        "cota": cota,
         "usados": usados,
-        "restantes": None if cota_diaria is None else max(cota_diaria - usados, 0),
-        "renova_em": (inicio + timedelta(days=1)).isoformat(),
+        "restantes": None if cota is None else max(cota - usados, 0),
+        "renova_em": (inicio_do_dia() + timedelta(days=1)).isoformat(),
         "por_hora": INVESTIGACOES_POR_HORA,
     }

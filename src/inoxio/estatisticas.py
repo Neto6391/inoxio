@@ -6,10 +6,11 @@ from collections import Counter
 from datetime import UTC, timedelta
 from typing import Any
 
-from sqlalchemy import func, or_, select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from inoxio.db import Evento, Investigacao, Usuario, agora
+from inoxio.linha_do_tempo import situacao
 from inoxio.seguranca.limites import FUSO_BRASILIA, inicio_do_dia
 
 TOP = 10
@@ -17,6 +18,7 @@ DIAS_DO_GRAFICO = 14
 JANELA_USO = timedelta(days=30)
 AMEACAS = ("malicioso", "suspeito")
 SITES = ("dominio", "url")
+SITUACOES = ("ativa", "desativada", "aguardando", "recusada")
 
 
 def _deteccoes(evidencias: list[dict[str, Any]]) -> int:
@@ -92,27 +94,27 @@ def do_usuario(db: Session, usuario_id: str) -> dict[str, Any]:
     }
 
 
-def _porcentagem(parte: int, todo: int) -> float:
-    return round(100 * parte / todo, 1) if todo else 0.0
-
-
 def geral(db: Session) -> dict[str, Any]:
-    contas = db.scalar(select(func.count()).select_from(Usuario))
-    ativas = db.scalar(select(func.count()).select_from(Usuario).where(Usuario.ativo.is_(True)))
+    contas = db.scalars(select(Usuario).order_by(Usuario.nome)).all()
+    situacoes = Counter(situacao(usuario) for usuario in contas)
     desde = agora() - JANELA_USO
     # Usou no período: entrou ou investigou pelo menos uma vez.
-    nomes_que_usaram = select(Evento.usuario).where(
-        Evento.quando >= desde, Evento.tipo.in_(("login", "investigacao"))
-    )
-    ids_que_investigaram = select(Investigacao.usuario_id).where(Investigacao.criada_em >= desde)
-    usaram = db.scalar(
-        select(func.count())
-        .select_from(Usuario)
-        .where(
-            Usuario.ativo.is_(True),
-            or_(Usuario.nome.in_(nomes_que_usaram), Usuario.id.in_(ids_que_investigaram)),
+    nomes_que_usaram = set(
+        db.scalars(
+            select(Evento.usuario).where(
+                Evento.quando >= desde, Evento.tipo.in_(("login", "investigacao"))
+            )
         )
     )
+    ids_que_investigaram = set(
+        db.scalars(select(Investigacao.usuario_id).where(Investigacao.criada_em >= desde))
+    )
+    ativas = [usuario for usuario in contas if usuario.ativo]
+    sem_uso = [
+        usuario.nome
+        for usuario in ativas
+        if usuario.nome not in nomes_que_usaram and usuario.id not in ids_que_investigaram
+    ]
     total = db.scalar(select(func.count()).select_from(Investigacao))
     sites = db.scalar(
         select(func.count(func.distinct(Investigacao.valor))).where(Investigacao.tipo.in_(SITES))
@@ -131,11 +133,11 @@ def geral(db: Session) -> dict[str, Any]:
         .limit(TOP)
     ).all()
     return {
-        "contas": contas,
-        "contas_ativas": ativas,
-        "porcentagem_ativas": _porcentagem(ativas, contas),
-        "usaram_30_dias": usaram,
-        "porcentagem_uso_30_dias": _porcentagem(usaram, ativas),
+        "contas": len(contas),
+        # Toda situação aparece, mesmo com zero: a tela não precisa adivinhar a lista.
+        "situacoes": {nome: situacoes.get(nome, 0) for nome in SITUACOES},
+        "usaram_30_dias": len(ativas) - len(sem_uso),
+        "sem_uso_30_dias": sem_uso,
         "investigacoes": total,
         "sites_distintos": sites,
         "indicadores_distintos": indicadores,

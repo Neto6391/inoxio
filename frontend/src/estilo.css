@@ -631,6 +631,7 @@ a {
   background: var(--vela);
 }
 .janela {
+  box-sizing: border-box;
   width: 100%;
   max-width: 560px;
   padding: 24px;
@@ -684,4 +685,81 @@ a {
 }
 .sem-margem {
   margin-bottom: 0 !important;
+}
+/* Auditoria por usuário: tabela própria e a janela das sessões */
+.seletor-visao {
+  align-self: flex-start;
+}
+.tabela {
+  width: 100%;
+  min-width: 760px;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.tabela th {
+  padding: 8px 12px;
+  color: var(--rotulo);
+  font-weight: 500;
+  font-size: 12px;
+  text-align: left;
+  white-space: nowrap;
+}
+.tabela td {
+  padding: 10px 12px;
+  border-top: 1px solid var(--borda);
+  vertical-align: middle;
+}
+.tabela .numero {
+  text-align: right;
+  white-space: nowrap;
+}
+.tabela tbody tr:hover {
+  background: var(--hover);
+}
+.janela-larga {
+  max-width: 820px;
+}
+.janela-corpo {
+  max-height: min(70vh, 720px);
+  overflow-y: auto;
+  padding-right: 4px;
+}
+.campo-data {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  color: var(--rotulo);
+  font-size: 12px;
+}
+.sessao {
+  border: 1px solid var(--borda);
+  border-radius: 8px;
+}
+.sessao-escolhida {
+  border-color: var(--link);
+}
+.sessao-cabecalho {
+  width: 100%;
+  padding: 10px 12px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.sessao-cabecalho:hover {
+  background: var(--hover);
+}
+.sessao-corpo {
+  padding: 4px 16px 0;
+}
+.linha-do-tempo {
+  margin-top: 8px;
+}
+.situacao-conta {
+  padding: 12px;
+  border: 1px solid var(--borda);
+  border-radius: 8px;
 }

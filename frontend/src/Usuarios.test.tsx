@@ -180,3 +180,48 @@ test("conta que espera o e-mail pode ser ativada ou recusada", async () => {
   expect((pedidos[0] as { caminho?: string }).caminho).toBe("/api/usuarios/eva");
   expect(JSON.parse(pedidos[0].body as string)).toEqual({ ativo: false });
 });
+
+test("zerar o uso de hoje e encerrar sessões pedem confirmação", async () => {
+  const pedidos: RequestInit[] = [];
+  abrirUsuarios(pedidos);
+  await screen.findByText("dani", { selector: "span" });
+  fireEvent.click(within(linhaDe("dani")).getByRole("button", { name: "Editar" }));
+  await screen.findByText("Editar dani");
+  fireEvent.click(screen.getByRole("button", { name: "Zerar uso de hoje" }));
+  const zerar = (await screen.findByText("Zerar o uso de hoje de dani?")).closest(".ant-popover") as HTMLElement;
+  fireEvent.click(within(zerar).getByRole("button", { name: "Zerar" }));
+  await waitFor(() => expect(pedidos).toHaveLength(1));
+  expect(JSON.parse(pedidos[0].body as string)).toEqual({ zerar_uso: true });
+  fireEvent.click(within(linhaDe("dani")).getByRole("button", { name: "Editar" }));
+  await screen.findByText("Editar dani");
+  fireEvent.click(screen.getByRole("button", { name: "Encerrar sessões" }));
+  const encerrar = (await screen.findByText("Encerrar as sessões de dani?")).closest(".ant-popover") as HTMLElement;
+  fireEvent.click(within(encerrar).getByRole("button", { name: "Encerrar" }));
+  await waitFor(() => expect(pedidos).toHaveLength(2));
+  expect(JSON.parse(pedidos[1].body as string)).toEqual({ encerrar_sessoes: true });
+});
+
+test("admin não tem campo de cota nem zerar uso", async () => {
+  const pedidos: RequestInit[] = [];
+  abrirUsuarios(pedidos);
+  await screen.findByText("dani", { selector: "span" });
+  fireEvent.click(within(linhaDe("chefe")).getByRole("button", { name: "Editar" }));
+  await screen.findByText("Editar chefe");
+  expect(screen.getByText("O admin não tem cota diária.")).toBeInTheDocument();
+  expect(screen.queryByLabelText("Cota diária")).toBeNull();
+  expect(screen.queryByRole("button", { name: "Zerar uso de hoje" })).toBeNull();
+  expect(screen.getByRole("button", { name: "Encerrar as outras sessões" })).toBeInTheDocument();
+});
+
+test("promover a admin não manda cota", async () => {
+  const pedidos: RequestInit[] = [];
+  abrirUsuarios(pedidos);
+  await screen.findByText("dani", { selector: "span" });
+  fireEvent.click(within(linhaDe("dani")).getByRole("button", { name: "Editar" }));
+  await screen.findByText("Editar dani");
+  fireEvent.click(screen.getAllByText("Admin").at(-1) as HTMLElement);
+  expect(await screen.findByText("O admin não tem cota diária.")).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Salvar" }));
+  await waitFor(() => expect(pedidos).toHaveLength(1));
+  expect(JSON.parse(pedidos[0].body as string)).toEqual({ papel: "admin" });
+});
