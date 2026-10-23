@@ -1,5 +1,6 @@
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { App as AntApp } from "antd";
+import { StrictMode } from "react";
 import { afterEach, expect, test, vi } from "vitest";
 import { App } from "./App";
 import { navegar } from "./rotas";
@@ -124,4 +125,40 @@ test("sem marcar o aceite, o cadastro não sai", async () => {
   fireEvent.click(screen.getByRole("button", { name: "Criar conta" }));
   expect(await screen.findByText("Aceite para criar a conta")).toBeInTheDocument();
   expect(pedidos).toEqual([]);
+});
+
+test("colar um link de ativação novo na mesma aba ativa com o token novo", async () => {
+  const pedidos: Pedido[] = [];
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (caminho: string, pedido: RequestInit = {}) => {
+      if (caminho === "/api/sessao") return json({ usuario: null, csrf: null });
+      const corpo = JSON.parse(pedido.body as string);
+      pedidos.push({ caminho, corpo });
+      return corpo.token === "novo"
+        ? json({ mensagem: "Conta ativada. Já pode entrar." })
+        : json({ erro: "Link de ativação inválido ou vencido." }, 400);
+    }),
+  );
+  window.history.pushState(null, "", "/ativar#velho");
+  render(<App />);
+  expect(await screen.findByText("Não foi possível ativar")).toBeInTheDocument();
+  // Só o "#" muda: o navegador não recarrega a página.
+  window.location.hash = "novo";
+  expect(await screen.findByText("Conta ativada")).toBeInTheDocument();
+  expect(pedidos.map((p) => p.corpo)).toEqual([{ token: "velho" }, { token: "novo" }]);
+  expect(window.location.hash).toBe("");
+});
+
+test("no StrictMode o link de ativação vai ao servidor uma vez só", async () => {
+  const pedidos: Pedido[] = [];
+  servidor(pedidos, { "/api/ativar": json({ mensagem: "Conta ativada. Já pode entrar." }) });
+  window.history.pushState(null, "", "/ativar#uma-vez");
+  render(
+    <StrictMode>
+      <App />
+    </StrictMode>,
+  );
+  expect(await screen.findByText("Conta ativada")).toBeInTheDocument();
+  expect(pedidos).toEqual([{ caminho: "/api/ativar", corpo: { token: "uma-vez" } }]);
 });
