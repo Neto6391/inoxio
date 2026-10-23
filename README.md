@@ -109,6 +109,9 @@ graph TD;
 - **Investigação:** veredito com a nota num medidor, a explicação em linguagem
   simples com o glossário e o que fazer, as evidências de cada fonte e os IPs do
   site com quem opera cada um. As técnicas MITRE ATT&CK ficam em "Para analistas".
+  Quando os IPs são de uma empresa conhecida (Cloudflare, Akamai, Fastly, Google,
+  Amazon, Microsoft), o cartão "Quem opera estes IPs" explica em linguagem simples
+  por que o IP é dela, com texto fixo do app, sem depender da IA.
 - **Usuários:** só para o papel `admin`, que cadastra, edita (papel e senha),
   desativa e reativa usuários por ali. O cadastro também existe no terminal, com
   `inoxio criar-usuario`. Ninguém desativa a própria conta, e o último admin
