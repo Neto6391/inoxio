@@ -49,13 +49,17 @@ function servidor(papel = "analista", extras: Record<string, unknown> = {}) {
   );
 }
 
-test("os créditos aparecem no topo, no menu e no painel", async () => {
+test("os créditos aparecem no topo, com a explicação na dica, e no painel", async () => {
   servidor();
   navegar("/painel");
   render(<App />);
-  expect(await screen.findByText("7 de 10 créditos")).toBeInTheDocument();
-  expect(screen.getByText("Créditos de hoje")).toBeInTheDocument();
-  expect(screen.getByText("Voltam à meia-noite, horário de Brasília.")).toBeInTheDocument();
+  const pilula = await screen.findByText("7 de 10 créditos");
+  // O cartão da lateral saiu: a explicação mora na dica da pílula.
+  expect(screen.queryByText("Créditos de hoje")).toBeNull();
+  fireEvent.mouseEnter(pilula);
+  expect(
+    await screen.findByText("3 de 10 créditos usados hoje. Voltam à meia-noite, horário de Brasília."),
+  ).toBeInTheDocument();
   const cartao = (await screen.findByText("Créditos restantes")).closest(".ant-card") as HTMLElement;
   expect(within(cartao).getByText("de 10")).toBeInTheDocument();
 });
@@ -117,7 +121,7 @@ test("o menu lateral leva às investigações, com a data de Brasília", async (
   navegar("/painel");
   render(<App />);
   const menu = await screen.findByRole("navigation", { name: "Menu principal" });
-  expect(within(menu).getByRole("link", { name: "Painel" })).toHaveAttribute("href", "/painel");
+  expect(within(menu).getByRole("link", { name: "Início" })).toHaveAttribute("href", "/painel");
   expect(within(menu).getByRole("link", { name: "Minha conta" })).toHaveAttribute("href", "/conta");
   expect(within(menu).queryByText("Administração")).toBeNull();
   fireEvent.click(within(menu).getByRole("link", { name: "Investigações" }));

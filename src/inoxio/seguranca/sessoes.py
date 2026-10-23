@@ -13,7 +13,7 @@ from inoxio import auditoria
 from inoxio.db import Sessao, Usuario, agora
 
 NOME_COOKIE = "__Host-inoxio_sessao"
-OCIOSIDADE = timedelta(minutes=30)
+OCIOSIDADE = timedelta(hours=1)
 DURACAO_MAXIMA = timedelta(hours=8)
 
 
@@ -38,8 +38,13 @@ def fim_por_validade(sessao: Sessao) -> tuple[datetime, str]:
     parada = sessao.ultimo_uso + OCIOSIDADE
     teto = sessao.criada_em + DURACAO_MAXIMA
     if parada <= teto:
-        return parada, "expirou: 30 min sem uso"
-    return teto, "expirou: 8 h de duração"
+        return parada, f"expirou: {_horas(OCIOSIDADE)} sem uso"
+    return teto, f"expirou: {_horas(DURACAO_MAXIMA)} de duração"
+
+
+def _horas(duracao: timedelta) -> str:
+    minutos = int(duracao.total_seconds() // 60)
+    return f"{minutos // 60} h" if minutos % 60 == 0 else f"{minutos} min"
 
 
 def _encerrar(db: Session, sessao: Sessao, motivo: str, quando: datetime | None = None) -> None:

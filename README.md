@@ -105,13 +105,20 @@ graph TD;
   como investigar, como ler o resultado e o papel da IA. Aparece uma vez por conta.
   Quem ainda não aceitou a versão atual dos termos aceita antes, numa janela que não
   deixa seguir sem o aceite.
-- **Minha conta** (`/conta`), pelo nome no topo: os dados da conta, o download de
-  tudo o que o sistema guarda sobre a pessoa e a exclusão da conta, confirmada pela
-  senha.
-- **Casca do app:** menu à esquerda (vira uma faixa no topo no celular), créditos
-  de hoje no topo e no menu, e o botão de modo escuro ou claro, que fica salvo no
-  navegador. As datas aparecem no horário de Brasília (DD/MM/AAAA hh:mm:ss).
-- **Painel** (`/painel`): créditos restantes e os números do usuário, gráficos das
+- **Minha conta** (`/conta`), pelo nome no topo: os dados da conta, o nome de
+  exibição (o login continua o mesmo), a troca de senha (pede a atual; as outras
+  sessões caem) e de e-mail (só vale depois do clique no link mandado ao e-mail novo;
+  o antigo recebe um aviso), o download de tudo o que o sistema guarda sobre a pessoa
+  e a exclusão da conta, confirmada pela senha. O papel só o admin muda.
+- **Casca do app:** menu à esquerda (vira uma faixa no topo no celular), com a
+  Administração abrindo na Visão geral e mostrando Usuários e Auditoria embaixo dela;
+  breadcrumb e botão Voltar em toda tela; créditos de hoje no topo, com a explicação
+  numa dica; e o botão de modo escuro ou claro, que fica salvo no navegador. Com a
+  sessão aberta, o logo e o endereço `/` levam ao Início: a página pública e o login
+  só voltam depois de sair ou de a sessão vencer (1 hora sem uso, ou 8 horas no
+  total). As datas aparecem no horário de Brasília (DD/MM/AAAA hh:mm:ss). As telas e
+  quem é filho de quem ficam numa lista só, em `frontend/src/navegacao.tsx`.
+- **Início** (`/painel`): créditos restantes e os números do usuário, gráficos das
   investigações dos últimos 14 dias por veredito, da divisão por veredito e por tipo
   de indicador, as ameaças encontradas, os 10 indicadores mais pesquisados, o campo
   para investigar e as 5 investigações mais recentes. Os gráficos são SVG e CSS
@@ -123,17 +130,22 @@ graph TD;
   Quando os IPs são de uma empresa conhecida (Cloudflare, Akamai, Fastly, Google,
   Amazon, Microsoft), o cartão "Quem opera estes IPs" explica em linguagem simples
   por que o IP é dela, com texto fixo do app, sem depender da IA.
-- **Usuários:** só para o papel `admin`, que cadastra, edita (papel e senha),
-  desativa e reativa usuários por ali. O cadastro também existe no terminal, com
+- **Usuários:** só para o papel `admin`, que cadastra, edita (papel, cota e senha),
+  zera o uso de hoje, encerra as sessões, desativa e reativa usuários por ali. O
+  admin não tem cota diária. O cadastro também existe no terminal, com
   `inoxio criar-usuario`. Ninguém desativa a própria conta, e o último admin
   ativo não perde o papel.
-- **Visão geral** (`/visao-geral`), só para o `admin`: porcentagem de contas ativas
-  e de quem usou nos últimos 30 dias, total de investigações e de sites pesquisados,
-  e os 10 usuários que mais pesquisam.
-- **Auditoria** (`/auditoria`), só para o `admin`: logins (certos, errados e
-  bloqueados), logouts, cadastros, ativações, aceites dos termos, contas excluídas,
-  investigações e toda ação do admin,
-  com usuário, IP e horário, filtro por tipo e por usuário. Guarda 90 dias.
+- **Visão geral** (`/visao-geral`), só para o `admin`, a casa da administração:
+  atalhos para Usuários e Auditoria, contas por situação (ativas, desativadas,
+  aguardando e-mail, recusadas), quem não usou nos últimos 30 dias, total de
+  investigações e de sites pesquisados, e os 10 usuários que mais pesquisam.
+- **Auditoria** (`/auditoria`), só para o `admin`: uma tabela por usuário; o botão
+  Visualizar abre as sessões da pessoa, com filtro por período e a linha do tempo de
+  cada uma, do login ao fim (saiu, venceu, encerrada pelo admin). A aba Todos os
+  eventos mostra logins (certos, errados e bloqueados), logouts, cadastros,
+  ativações, aceites dos termos, contas excluídas, investigações, mudanças na própria
+  conta e toda ação do admin, com usuário, IP e horário, filtro por tipo e por
+  usuário. Guarda 90 dias.
 
 ## LGPD
 
@@ -142,6 +154,7 @@ os dados são compartilhados (VirusTotal, AbuseIPDB, Groq, Gmail e a hospedagem)
 por quanto tempo ficam. Os direitos do titular (art. 18) estão na própria conta:
 
 - **Acesso:** a página Minha conta mostra os dados guardados.
+- **Correção:** o nome de exibição, o e-mail e a senha se corrigem em Minha conta.
 - **Portabilidade:** `GET /api/conta/dados` devolve um JSON com a conta, as
   investigações e os eventos de segurança da pessoa, e nada de outra conta nem o
   hash da senha.

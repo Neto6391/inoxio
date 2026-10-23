@@ -45,6 +45,7 @@ class NovoUsuario(BaseModel):
 def _publico(usuario: Usuario) -> dict:
     return {
         "nome": usuario.nome,
+        "nome_exibicao": usuario.nome_exibicao,
         "papel": usuario.papel,
         "criado_em": usuario.criado_em.isoformat(),
         "ativo": usuario.ativo,
@@ -166,6 +167,9 @@ TIPOS_EVENTO = (
     "senha_redefinida",
     "explicacao_pedida",
     "sessao_encerrada",
+    "conta_alterada",
+    "email_troca_pedida",
+    "email_trocado",
 )
 POR_PAGINA = 50
 # Além disso o deslocamento não cabe no inteiro do SQLite e a consulta dava erro 500.

@@ -26,6 +26,9 @@ export const NOMES_EVENTO: Record<string, { texto: string; cor: string }> = {
   senha_redefinida: { texto: "trocou a senha", cor: "default" },
   explicacao_pedida: { texto: "pediu a explicação de novo", cor: "purple" },
   sessao_encerrada: { texto: "sessão encerrada", cor: "default" },
+  conta_alterada: { texto: "mudou a própria conta", cor: "blue" },
+  email_troca_pedida: { texto: "pediu troca de e-mail", cor: "default" },
+  email_trocado: { texto: "trocou o e-mail", cor: "blue" },
 };
 
 export function nomeDoEvento(tipo: string) {

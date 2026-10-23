@@ -42,6 +42,8 @@ class Usuario(Base):
     __tablename__ = "usuarios"
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=novo_id)
     nome: Mapped[str] = mapped_column(String(64), unique=True)
+    # Como a pessoa quer ser chamada na tela. O login e a auditoria seguem pelo `nome`.
+    nome_exibicao: Mapped[str | None] = mapped_column(String(80), nullable=True)
     senha_hash: Mapped[str] = mapped_column(String(255))
     papel: Mapped[str] = mapped_column(String(16))
     criado_em: Mapped[datetime] = mapped_column(DateTime, default=agora)
@@ -76,6 +78,16 @@ class RedefinicaoSenha(Base):
     __tablename__ = "redefinicoes_senha"
     token_hash: Mapped[str] = mapped_column(String(64), primary_key=True)
     usuario_id: Mapped[str] = mapped_column(ForeignKey("usuarios.id"), index=True)
+    expira_em: Mapped[datetime] = mapped_column(DateTime)
+
+
+class TrocaEmail(Base):
+    """Pedido de troca de e-mail: só vale depois do clique no link mandado ao e-mail novo."""
+
+    __tablename__ = "trocas_email"
+    token_hash: Mapped[str] = mapped_column(String(64), primary_key=True)
+    usuario_id: Mapped[str] = mapped_column(ForeignKey("usuarios.id"), index=True)
+    email_novo: Mapped[str] = mapped_column(String(254))
     expira_em: Mapped[datetime] = mapped_column(DateTime)
 
 
@@ -154,6 +166,7 @@ _COLUNAS_NOVAS = {
         "recusada_em": "DATETIME",
         "cota_diaria": "INTEGER",
         "uso_zerado_em": "DATETIME",
+        "nome_exibicao": "VARCHAR(80)",
         "onboarding_visto": "BOOLEAN NOT NULL DEFAULT 0",
         "termos_versao": "VARCHAR(16)",
         "termos_aceitos_em": "DATETIME",

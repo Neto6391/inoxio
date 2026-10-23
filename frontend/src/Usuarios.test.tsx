@@ -50,7 +50,7 @@ test("o menu Usuários só aparece para o admin", async () => {
   servidor("analista");
   navegar("/painel");
   render(<App />);
-  await screen.findByRole("heading", { name: "Painel" });
+  await screen.findByRole("heading", { name: "Início" });
   expect(screen.queryByRole("link", { name: "Usuários" })).toBeNull();
 });
 

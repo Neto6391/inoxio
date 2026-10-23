@@ -25,30 +25,12 @@ function fracaoRestante(creditos: Creditos): number {
   return creditos.cota ? (creditos.restantes ?? 0) / creditos.cota : 0;
 }
 
-export function CreditosLateral({ creditos }: { creditos: Creditos }) {
-  return (
-    <div className="creditos-lateral">
-      <div className="numero-nota">Créditos de hoje</div>
-      {creditos.cota === null ? (
-        <>
-          <div className="numero-valor">Sem cota diária</div>
-          <div className="numero-nota">
-            {creditos.usados} usados hoje. Até {creditos.por_hora} por hora.
-          </div>
-        </>
-      ) : (
-        <>
-          <div className="numero-valor">
-            {creditos.restantes} <span className="numero-de">de {creditos.cota} restantes</span>
-          </div>
-          <div className="trilho">
-            <BarraCheia fracao={fracaoRestante(creditos)} />
-          </div>
-          <div className="numero-nota espaco-topo">Voltam à meia-noite, horário de Brasília.</div>
-        </>
-      )}
-    </div>
-  );
+// O que a pílula do topo resume, por extenso, na dica.
+export function dicaCreditos(creditos: Creditos): string {
+  if (creditos.cota === null) {
+    return `Sem cota diária: ${creditos.usados} usados hoje. Vale o limite de ${creditos.por_hora} investigações por hora.`;
+  }
+  return `${creditos.usados} de ${creditos.cota} créditos usados hoje. Voltam à meia-noite, horário de Brasília.`;
 }
 
 export function NumeroCreditos({ creditos }: { creditos: Creditos }) {

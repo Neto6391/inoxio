@@ -4,7 +4,7 @@ import { chamar, mensagemDeErro } from "./api";
 import { NumeroCreditos } from "./Creditos";
 import { NOMES_TIPO, TagVeredito } from "./formato";
 import { type Dia, GraficoDias, PorTipo, Rosca } from "./Graficos";
-import { IconeAlerta, IconeBusca, IconeEscudo, IconeRelogio } from "./icones";
+import { IconeAlerta, IconeBusca, IconeEscudo, IconeRelogio, IconeUsuarios } from "./icones";
 import { Link } from "./rotas";
 import { SITUACOES } from "./AuditoriaPorUsuario";
 import type { Creditos } from "./tipos";
@@ -207,8 +207,30 @@ export function VisaoGeral() {
     <Flex vertical gap="large">
       <div>
         <Typography.Title level={2}>Visão geral</Typography.Title>
-        <Typography.Text type="secondary">Uso do sistema por todos os usuários.</Typography.Text>
+        <Typography.Text type="secondary">
+          A casa da administração: o uso do sistema por todos e o caminho para as outras telas.
+        </Typography.Text>
       </div>
+      <Row gutter={[16, 16]}>
+        <Col xs={24} md={12}>
+          <Link para="/usuarios" className="atalho">
+            <IconeUsuarios />
+            <span>
+              <strong>Usuários</strong>
+              <span className="atalho-nota">Cadastrar, editar, zerar o uso, encerrar sessões, desativar.</span>
+            </span>
+          </Link>
+        </Col>
+        <Col xs={24} md={12}>
+          <Link para="/auditoria" className="atalho">
+            <IconeEscudo />
+            <span>
+              <strong>Auditoria</strong>
+              <span className="atalho-nota">Sessões de cada usuário, com a linha do tempo, e todos os eventos.</span>
+            </span>
+          </Link>
+        </Col>
+      </Row>
       <Row gutter={[16, 16]}>
         <Col xs={24} md={12}>
           <Card title={`Contas por situação (${dados.contas} no total)`}>

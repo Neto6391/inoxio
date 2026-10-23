@@ -54,23 +54,23 @@ def test_sessao_do_login_ao_logout(app, usuarios):
 def test_sessao_que_venceu_parada_termina_quando_venceu(app, usuarios, fabrica):
     ana = novo(app)
     entrar(ana, "ana")
-    ultimo_uso = agora() - timedelta(minutes=31)
-    # A sessão começou há 40 min e ficou parada nos últimos 31.
+    ultimo_uso = agora() - timedelta(minutes=61)
+    # A sessão começou há 70 min e ficou parada nos últimos 61.
     with fabrica() as db, db.begin():
         sessao = db.scalar(select(Sessao))
-        sessao.criada_em, sessao.ultimo_uso = agora() - timedelta(minutes=40), ultimo_uso
+        sessao.criada_em, sessao.ultimo_uso = agora() - timedelta(minutes=70), ultimo_uso
         db.scalar(select(Evento).where(Evento.tipo == "login")).quando = sessao.criada_em
     admin = novo(app)
     entrar(admin, "chefe")
     # O navegador não voltou: a sessão ainda está no banco, mas já venceu.
     [sessao] = sessoes(admin, "ana")["sessoes"]
-    assert (sessao["aberta"], sessao["motivo_fim"]) == (False, "expirou: 30 min sem uso")
-    assert sessao["fim"] == (ultimo_uso + timedelta(minutes=30)).isoformat()
+    assert (sessao["aberta"], sessao["motivo_fim"]) == (False, "expirou: 1 h sem uso")
+    assert sessao["fim"] == (ultimo_uso + timedelta(hours=1)).isoformat()
     # O navegador volta: a sessão sai do banco e o fim vira evento, com o mesmo momento.
     assert ana.get("/api/investigacoes").status_code == 401
     [sessao] = sessoes(admin, "ana")["sessoes"]
     assert tipos(sessao) == ["login", "sessao_encerrada"]
-    assert sessao["fim"] == (ultimo_uso + timedelta(minutes=30)).isoformat()
+    assert sessao["fim"] == (ultimo_uso + timedelta(hours=1)).isoformat()
 
 
 def test_sessao_aberta_diz_quando_vence(app, usuarios):

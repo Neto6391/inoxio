@@ -33,7 +33,7 @@ export function Painel({ creditos }: { creditos: Creditos | null }) {
   return (
     <Flex vertical gap="large">
       <div>
-        <Typography.Title level={2}>Painel</Typography.Title>
+        <Typography.Title level={2}>Início</Typography.Title>
         <Typography.Text type="secondary">
           Suas investigações e o que elas encontraram. O veredito sai de regras fixas sobre o
           VirusTotal e o AbuseIPDB.

@@ -49,16 +49,16 @@ test("Entrar leva ao login, e o login leva ao painel", async () => {
   fireEvent.change(screen.getByLabelText("Usuário"), { target: { value: "ana" } });
   fireEvent.change(screen.getByLabelText("Senha"), { target: { value: "senha-de-teste" } });
   fireEvent.click(screen.getByRole("button", { name: "Entrar" }));
-  expect(await screen.findByRole("heading", { name: "Painel" })).toBeInTheDocument();
+  expect(await screen.findByRole("heading", { name: "Início" })).toBeInTheDocument();
 });
 
-test("com sessão, a raiz oferece abrir o painel", async () => {
+test("com sessão, a raiz vai direto ao Início, sem a página pública", async () => {
   servidor(true);
   navegar("/");
   render(<App />);
-  fireEvent.click((await screen.findAllByRole("button", { name: "Abrir painel" }))[0]);
-  expect(await screen.findByRole("heading", { name: "Painel" })).toBeInTheDocument();
+  expect(await screen.findByRole("heading", { name: "Início" })).toBeInTheDocument();
   expect(window.location.pathname).toBe("/painel");
+  expect(screen.queryByRole("button", { name: "Abrir painel" })).toBeNull();
 });
 
 test("rota interna sem sessão pede login, não mostra o painel", async () => {
@@ -66,5 +66,5 @@ test("rota interna sem sessão pede login, não mostra o painel", async () => {
   navegar("/painel");
   render(<App />);
   expect(await screen.findByLabelText("Usuário")).toBeInTheDocument();
-  expect(screen.queryByRole("heading", { name: "Painel" })).toBeNull();
+  expect(screen.queryByRole("heading", { name: "Início" })).toBeNull();
 });

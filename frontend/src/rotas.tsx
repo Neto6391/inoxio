@@ -8,13 +8,24 @@ export function navegar(caminho: string): void {
     window.location.assign(caminho);
     return;
   }
-  window.history.pushState(null, "", caminho);
+  // O índice conta as telas abertas nesta aba: o Voltar só usa o histórico se houver
+  // uma tela do próprio app antes desta.
+  window.history.pushState({ indice: indiceAtual() + 1 }, "", caminho);
   window.dispatchEvent(new PopStateEvent("popstate"));
+}
+
+function indiceAtual(): number {
+  const estado = window.history.state as { indice?: number } | null;
+  return typeof estado?.indice === "number" ? estado.indice : 0;
+}
+
+export function temAnterior(): boolean {
+  return indiceAtual() > 0;
 }
 
 // Troca o endereço sem criar uma entrada nova no histórico.
 export function substituir(caminho: string): void {
-  window.history.replaceState(null, "", caminho);
+  window.history.replaceState({ indice: indiceAtual() }, "", caminho);
   window.dispatchEvent(new PopStateEvent("popstate"));
 }
 
