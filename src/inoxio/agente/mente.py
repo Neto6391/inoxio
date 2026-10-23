@@ -27,7 +27,7 @@ Tecnica = Annotated[str, StringConstraints(pattern=r"^T\d{4}(\.\d{3})?$")]
 Recomendacao = Annotated[str, StringConstraints(max_length=300)]
 # Sem evidência não é garantia: a frase que diz que algo é seguro sai da explicação.
 PROIBIDAS = re.compile(
-    r"\b(segur[oa]s?|limp[oa]s?|leg[ií]tim[oa]s?|confiáve(l|is))\b"
+    r"\b(segur[oa]s?|limp[oa]s?|leg[ií]tim[oa]s?|confiáve(l|is)|parecem? norma(l|is))\b"
     r"|não há motivo para suspeitar|não há motivo para preocupação|se o ip fosse de um provedor",
     re.IGNORECASE,
 )
@@ -128,13 +128,19 @@ def _sem_frases_proibidas(texto: str) -> str:
 
 
 def _sem_garantia(analise: dict[str, Any]) -> dict[str, Any] | None:
-    """Tira as frases que chamam o indicador de seguro. Sem resumo depois disso, sem análise."""
+    """Tira as frases que chamam o indicador de seguro, também do glossário. Sem resumo
+    depois disso, sem análise; termo que fica sem significado sai da lista."""
     resumo = _sem_frases_proibidas(analise["resumo"])
     if not resumo:
         log.warning("mente_so_disse_que_era_seguro")
         return None
     recomendacoes = [r for r in map(_sem_frases_proibidas, analise["recomendacoes"]) if r]
-    return analise | {"resumo": resumo, "recomendacoes": recomendacoes}
+    termos = [
+        termo | {"significado": significado}
+        for termo in analise.get("termos", [])
+        if (significado := _sem_frases_proibidas(termo["significado"]))
+    ]
+    return analise | {"resumo": resumo, "recomendacoes": recomendacoes, "termos": termos}
 
 
 def criar_invocar(config: Config) -> Invocar | None:
