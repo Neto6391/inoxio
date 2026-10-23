@@ -89,9 +89,12 @@ graph TD;
 
 ## Telas
 
-- **Página inicial** (`/`), pública: o que o produto faz, como funciona e os
-  planos. Os planos são ilustrativos: nada é vendido, porque as APIs gratuitas
-  do VirusTotal e do AbuseIPDB não permitem uso comercial.
+- **Página inicial** (`/`), pública: o que o produto faz, uma vitrine com um resultado
+  real (google.com, investigado em produção), como funciona, o que a pessoa recebe e
+  os planos. Os planos são ilustrativos: nada é vendido, porque as APIs gratuitas do
+  VirusTotal e do AbuseIPDB não permitem uso comercial. "Pedir demonstração" só abre
+  um e-mail para o contato da Política de Privacidade; sem contato configurado, os
+  planos pagos aparecem como "Em breve". As cores seguem o tema claro ou escuro.
 - **Entrar ou criar conta** (`/entrar`): login e, ao lado, o cadastro com nome, e-mail
   e senha. Criar a conta exige aceitar os Termos de Uso e a Política de Privacidade.
   A conta só entra depois de confirmar o e-mail pelo link (válido por 24 h) e começa
