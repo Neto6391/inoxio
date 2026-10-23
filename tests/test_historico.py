@@ -2,6 +2,7 @@ from datetime import timedelta
 
 from sqlalchemy import select
 
+from inoxio.agente.mente import VERSAO_ANALISE
 from inoxio.cli import criar_usuario
 from inoxio.db import Investigacao, Usuario, agora
 from inoxio.historico import buscador
@@ -69,9 +70,15 @@ def test_analise_obtida_numa_copia_e_reaproveitada(fabrica):
     # os próximos reaproveitamentos usam essa análise, sem chamar a IA de novo.
     buscar = preparar(fabrica)
     gravar(fabrica, analise=None)
-    gravar(fabrica, reaproveitada=True, analise={"resumo": "da cópia"})
-    gravar(fabrica, valor="1.1.1.1", reaproveitada=True, analise={"resumo": "de outro IP"})
-    assert buscar("ip", "8.8.8.8")["analise"] == {"resumo": "da cópia"}
+    da_copia = {"resumo": "da cópia", "versao": VERSAO_ANALISE}
+    gravar(fabrica, reaproveitada=True, analise=da_copia)
+    gravar(
+        fabrica,
+        valor="1.1.1.1",
+        reaproveitada=True,
+        analise={"resumo": "de outro IP", "versao": VERSAO_ANALISE},
+    )
+    assert buscar("ip", "8.8.8.8")["analise"] == da_copia
 
 
 def test_analise_de_copia_de_um_ciclo_anterior_nao_vale(fabrica):

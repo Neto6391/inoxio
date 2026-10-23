@@ -17,6 +17,7 @@ from inoxio import auditoria, estatisticas
 from inoxio.agente.classificar import LIMITE_ENTRADA
 from inoxio.agente.decidir import ROTULOS
 from inoxio.agente.grafo import dados_da_mente
+from inoxio.agente.mente import para_exibir
 from inoxio.db import Investigacao, agora
 from inoxio.explicador import PRAZO
 from inoxio.seguranca import limites
@@ -156,7 +157,7 @@ def ver(
         "nota": investigacao.nota,
         "rotulo": ROTULOS[investigacao.veredito],
         "evidencias": investigacao.evidencias,
-        "analise": investigacao.analise,
+        "analise": para_exibir(investigacao.analise),
         "analise_estado": _estado_da_analise(investigacao),
         "reaproveitada": investigacao.reaproveitada,
     }

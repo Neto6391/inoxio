@@ -52,7 +52,9 @@ graph TD;
   formato desarmado (`hxxps://exemplo[.]com`) também é aceito. O resto é recusado
   sem consultar nada.
 - **Reaproveitar:** o mesmo indicador investigado há menos de 24 h devolve o
-  resultado salvo, sem gastar a cota das fontes nem da IA. Resultado em que
+  resultado salvo, sem gastar a cota das fontes. A explicação da IA só é
+  reaproveitada se foi escrita pela versão atual das instruções; senão, é escrita
+  de novo. Resultado em que
   alguma fonte falhou nunca é reaproveitado.
 - **Consultar e decidir:** VirusTotal e AbuseIPDB em paralelo. Para o endereço de
   uma página, o VirusTotal é consultado pela URL e pelo domínio dela, e vale o mais

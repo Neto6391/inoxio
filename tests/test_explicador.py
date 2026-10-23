@@ -283,3 +283,54 @@ def test_segunda_recusa_de_esquema_desiste(fabrica, config, cliente_de):
     fila.pop(0)()
     assert (groq.chamadas, relogio.esperas) == (2, [ESPERA_ESQUEMA])
     assert detalhe(cliente, id_)["analise_estado"] == "indisponivel"
+
+
+def test_reaproveitada_com_explicacao_de_outra_versao_escreve_de_novo(fabrica, config, cliente_de):
+    # As instruções da IA mudaram: o resultado das fontes pode ser reaproveitado,
+    # a explicação escrita pelas instruções antigas não.
+    groq = Groq(BOA)
+    app, fila, _ = montar(fabrica, config, groq)
+    cliente = cliente_de(app)
+    primeira = investigar(cliente)
+    fila.pop(0)()
+    with fabrica() as db, db.begin():
+        antiga = db.get(Investigacao, primeira)
+        antiga.analise = antiga.analise | {"versao": "instrucoes-antigas"}
+    segunda = investigar(cliente)
+    reaproveitada = detalhe(cliente, segunda)
+    assert (reaproveitada["reaproveitada"], reaproveitada["analise_estado"]) == (True, "pendente")
+    fila.pop(0)()
+    assert groq.chamadas == 2
+    assert detalhe(cliente, segunda)["analise_estado"] == "pronta"
+
+
+def test_reaproveitada_da_versao_atual_nao_chama_o_groq(fabrica, config, cliente_de):
+    groq = Groq(BOA)
+    app, fila, _ = montar(fabrica, config, groq)
+    cliente = cliente_de(app)
+    investigar(cliente)
+    fila.pop(0)()
+    segunda = investigar(cliente)
+    assert detalhe(cliente, segunda)["analise_estado"] == "pronta"
+    assert (groq.chamadas, fila) == (1, [])
+
+
+def test_explicacao_antiga_aparece_pelo_filtro_atual(fabrica, config, cliente_de):
+    app, _, _ = montar(fabrica, config, Groq(BOA))
+    cliente = cliente_de(app)
+    legada = BOA | {"resumo": "Os IPs são da Cloudflare. Em resumo, o site parece normal."}
+    with fabrica() as db, db.begin():
+        ana = db.scalar(select(Usuario).where(Usuario.nome == "ana"))
+        velha = Investigacao(
+            usuario_id=ana.id,
+            tipo="ip",
+            valor="1.1.1.1",
+            veredito="sem_evidencia",
+            evidencias=[],
+            analise=legada,
+            analise_estado="pronta",
+        )
+        db.add(velha)
+        db.flush()
+        id_ = velha.id
+    assert detalhe(cliente, id_)["analise"]["resumo"] == "Os IPs são da Cloudflare."
