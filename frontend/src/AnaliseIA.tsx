@@ -21,6 +21,7 @@ export function AnaliseIA({ analise }: { analise: Analise | null }) {
     );
   }
   const termos = analise.termos ?? [];
+  const porFonte = analise.por_fonte ?? [];
   return (
     <Card
       title={
@@ -32,6 +33,16 @@ export function AnaliseIA({ analise }: { analise: Analise | null }) {
     >
       <Flex vertical gap="large">
         <Typography.Paragraph className="espaco-topo">{analise.resumo}</Typography.Paragraph>
+        {porFonte.length > 0 && (
+          <div>
+            <Typography.Text strong>O que cada fonte mostrou</Typography.Text>
+            <div className="espaco-topo">
+              {porFonte.map((paragrafo, posicao) => (
+                <Typography.Paragraph key={`${posicao}-${paragrafo.slice(0, 20)}`}>{paragrafo}</Typography.Paragraph>
+              ))}
+            </div>
+          </div>
+        )}
         {termos.length > 0 && (
           <div>
             <Typography.Text strong>Termos que aparecem aqui</Typography.Text>

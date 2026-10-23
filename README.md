@@ -68,15 +68,19 @@ graph TD;
   malicioso) saem de regras fixas em `src/inoxio/agente/decidir.py`. Se
   uma fonte falha, o resultado é `inconclusivo`, nunca "sem evidência".
 - **Mente:** um LLM no Groq lê os resultados e devolve, para quem não é da área,
-  um resumo em linguagem simples, um glossário dos termos que aparecem (o
-  provedor do IP, como a Cloudflare, por exemplo), recomendações práticas e as
-  técnicas MITRE ATT&CK, num esquema fixo. Ele não tem ferramentas e o esquema
+  um resumo em linguagem simples, um parágrafo sobre o que cada fonte mostrou, um
+  glossário dos termos que aparecem (o provedor do IP, como a Cloudflare, por
+  exemplo), recomendações práticas e as técnicas MITRE ATT&CK, num esquema fixo.
+  Item que passa de um limite (lista longa demais, texto grande demais, código
+  MITRE inválido) sai sozinho, e o resto da explicação continua. Ele não tem ferramentas e o esquema
   não tem campo de veredito. As recomendações são para uma pessoa comum, sem
   termos técnicos. Sem evidência não é garantia: toda frase que chama o indicador
-  de seguro, limpo, legítimo, confiável ou "normal", ou que diz não haver motivo
-  para suspeitar ou se preocupar, sai do resumo, das recomendações e do glossário
-  (termo que fica sem significado sai da lista), e se o resumo
-  inteiro sai, a tela segue sem a análise. A explicação é escrita em segundo
+  de seguro, limpo, legítimo, confiável ou "normal", que diz não haver motivo para
+  suspeitar, se preocupar ou bloquear, ou que afirma que algo não é malicioso, sai
+  do resumo, dos parágrafos por fonte, das recomendações e do glossário. Negar é
+  aviso e fica ("não é seguro", "não é um site confiável"), assim como conselho
+  ("senha segura"). Termo do glossário que fica sem significado sai da lista, e
+  se o resumo inteiro sai, a tela segue sem a análise. A explicação é escrita em segundo
   plano, uma chamada ao Groq por vez: se o provedor recusa por limite (429), ela
   espera e tenta de novo; se recusa o JSON por faltar campo, tenta mais uma vez. Se o Groq
   falhar ou demorar mais de 10 s, a tela também mostra o resultado sem a análise.
@@ -112,7 +116,7 @@ graph TD;
   desenhados no próprio app, sem biblioteca a mais.
 - **Investigações** (`/investigacoes`): as 50 mais recentes do usuário.
 - **Investigação:** veredito com a nota num medidor, a explicação em linguagem
-  simples com o glossário e o que fazer, as evidências de cada fonte e os IPs do
+  simples com o que cada fonte mostrou, o glossário e o que fazer, as evidências de cada fonte e os IPs do
   site com quem opera cada um. As técnicas MITRE ATT&CK ficam em "Para analistas".
   Quando os IPs são de uma empresa conhecida (Cloudflare, Akamai, Fastly, Google,
   Amazon, Microsoft), o cartão "Quem opera estes IPs" explica em linguagem simples
