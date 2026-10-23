@@ -90,7 +90,7 @@ def investigar(
 
 
 def _investigar(request: Request, pedido: PedidoInvestigacao, ctx: Contexto, db: Session):
-    if limites.investigacao_excedida(db, ctx.usuario.id, ctx.usuario.cota_diaria):
+    if limites.investigacao_excedida(db, ctx.usuario):
         raise HTTPException(status_code=429)
     estado = request.app.state.grafo.invoke({"entrada": pedido.entrada})
     if estado["tipo"] == "rejeitado":
@@ -116,6 +116,7 @@ def _investigar(request: Request, pedido: PedidoInvestigacao, ctx: Contexto, db:
         ip_do_cliente(request),
         ctx.usuario.nome,
         f"{estado['tipo']} {estado['valor'][:200]} → {estado['veredito']}",
+        sessao=ctx.sessao.ref,
     )
     db.commit()
     # Depois do commit: o explicador grava a análise numa linha que já existe.
@@ -181,7 +182,12 @@ def _registrar_abertura_alheia(
     if repetida:
         return
     auditoria.registrar(
-        db, "investigacao_alheia", ip_do_cliente(request), ctx.usuario.nome, detalhe
+        db,
+        "investigacao_alheia",
+        ip_do_cliente(request),
+        ctx.usuario.nome,
+        detalhe,
+        sessao=ctx.sessao.ref,
     )
     db.commit()
 
@@ -207,7 +213,12 @@ def explicar_de_novo(
     investigacao.analise_estado = "pendente"
     investigacao.analise_pedida_em = agora()
     auditoria.registrar(
-        db, "explicacao_pedida", ip_do_cliente(request), ctx.usuario.nome, investigacao.valor[:200]
+        db,
+        "explicacao_pedida",
+        ip_do_cliente(request),
+        ctx.usuario.nome,
+        investigacao.valor[:200],
+        sessao=ctx.sessao.ref,
     )
     db.commit()
     estado = {
@@ -240,4 +251,4 @@ def minhas_estatisticas(ctx: Contexto = Depends(sessao_atual), db: Session = Dep
 
 @rotas.get("/creditos")
 def meus_creditos(ctx: Contexto = Depends(sessao_atual), db: Session = Depends(banco)):
-    return limites.creditos(db, ctx.usuario.id, ctx.usuario.cota_diaria)
+    return limites.creditos(db, ctx.usuario)

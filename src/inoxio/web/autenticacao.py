@@ -75,9 +75,9 @@ def _entrar(request: Request, credenciais: Credenciais, db: Session):
         auditoria.registrar(db, "login_falhou", ip, credenciais.nome)
         db.commit()
         return JSONResponse({"erro": INVALIDO}, status_code=401)
-    sessoes.fechar(db, request.cookies.get(sessoes.NOME_COOKIE))
+    sessoes.fechar(db, request.cookies.get(sessoes.NOME_COOKIE), "outra entrada neste navegador")
     token, sessao = sessoes.abrir(db, usuario)
-    auditoria.registrar(db, "login", ip, usuario.nome)
+    auditoria.registrar(db, "login", ip, usuario.nome, sessao=sessao.ref)
     db.commit()
     resposta = JSONResponse(_sessao_json(usuario, sessao))
     resposta.set_cookie(
@@ -98,7 +98,9 @@ def sessao_ativa(ctx: Contexto | None = Depends(sessao_opcional)):
 def sair(request: Request, ctx: Contexto = Depends(sessao_atual), db: Session = Depends(banco)):
     conferir_csrf(ctx, token_csrf(request))
     sessoes.fechar(db, request.cookies.get(sessoes.NOME_COOKIE))
-    auditoria.registrar(db, "logout", ip_do_cliente(request), ctx.usuario.nome)
+    auditoria.registrar(
+        db, "logout", ip_do_cliente(request), ctx.usuario.nome, sessao=ctx.sessao.ref
+    )
     db.commit()
     resposta = Response(status_code=204)
     resposta.delete_cookie(
@@ -126,7 +128,12 @@ def aceitar_termos(
     conferir_csrf(ctx, token_csrf(request))
     usuarios.aceitar_termos(ctx.usuario)
     auditoria.registrar(
-        db, "termos_aceitos", ip_do_cliente(request), ctx.usuario.nome, usuarios.VERSAO_TERMOS
+        db,
+        "termos_aceitos",
+        ip_do_cliente(request),
+        ctx.usuario.nome,
+        usuarios.VERSAO_TERMOS,
+        sessao=ctx.sessao.ref,
     )
     db.commit()
     return Response(status_code=204)

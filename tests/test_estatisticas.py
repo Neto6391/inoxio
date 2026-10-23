@@ -87,9 +87,10 @@ def test_visao_geral_do_admin(cliente, usuarios, fabrica):
     entrar(cliente, "chefe")
     dados = cliente.get("/api/estatisticas/geral").json()
     # Contas: ana, beto, chefe, parado, fora. Ativas: 4 de 5.
-    assert (dados["contas"], dados["contas_ativas"], dados["porcentagem_ativas"]) == (5, 4, 80.0)
+    assert dados["contas"] == 5
+    assert dados["situacoes"] == {"ativa": 4, "desativada": 1, "aguardando": 0, "recusada": 0}
     # Usaram em 30 dias: ana (investigou) e chefe (acabou de entrar). Beto e parado não.
-    assert (dados["usaram_30_dias"], dados["porcentagem_uso_30_dias"]) == (2, 50.0)
+    assert (dados["usaram_30_dias"], dados["sem_uso_30_dias"]) == (2, ["beto", "parado"])
     assert (dados["investigacoes"], dados["sites_distintos"], dados["indicadores_distintos"]) == (
         4,
         2,

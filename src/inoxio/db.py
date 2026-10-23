@@ -51,8 +51,10 @@ class Usuario(Base):
     email_confirmado_em: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     # O admin barrou a conta antes da confirmação: o link do e-mail não a ativa mais.
     recusada_em: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
-    # Investigações por dia; nulo é sem cota além do limite por hora.
+    # Investigações por dia; nulo é sem cota além do limite por hora. O admin não tem cota.
     cota_diaria: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    # O admin zerou o uso de hoje: a cota conta só o que veio depois.
+    uso_zerado_em: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     onboarding_visto: Mapped[bool] = mapped_column(Boolean, default=False, server_default="0")
     # Versão dos Termos e da Política de Privacidade que o usuário aceitou, e quando.
     termos_versao: Mapped[str | None] = mapped_column(String(16), nullable=True)
@@ -87,11 +89,15 @@ class Evento(Base):
     usuario: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
     ip: Mapped[str] = mapped_column(String(64), index=True)
     detalhe: Mapped[str] = mapped_column(String(300), default="")
+    # A sessão em que aconteceu (Sessao.ref). Nulo fora de sessão e nos eventos antigos.
+    sessao: Mapped[str | None] = mapped_column(String(16), nullable=True, index=True)
 
 
 class Sessao(Base):
     __tablename__ = "sessoes"
     token_hash: Mapped[str] = mapped_column(String(64), primary_key=True)
+    # Identifica a sessão na auditoria sem expor nada do token.
+    ref: Mapped[str | None] = mapped_column(String(16), nullable=True)
     usuario_id: Mapped[str] = mapped_column(ForeignKey("usuarios.id"), index=True)
     csrf: Mapped[str] = mapped_column(String(64))
     criada_em: Mapped[datetime] = mapped_column(DateTime, default=agora)
@@ -147,6 +153,7 @@ _COLUNAS_NOVAS = {
         "email_confirmado_em": "DATETIME",
         "recusada_em": "DATETIME",
         "cota_diaria": "INTEGER",
+        "uso_zerado_em": "DATETIME",
         "onboarding_visto": "BOOLEAN NOT NULL DEFAULT 0",
         "termos_versao": "VARCHAR(16)",
         "termos_aceitos_em": "DATETIME",
@@ -155,6 +162,8 @@ _COLUNAS_NOVAS = {
         "analise_estado": "VARCHAR(16)",
         "analise_pedida_em": "DATETIME",
     },
+    "sessoes": {"ref": "VARCHAR(16)"},
+    "eventos": {"sessao": "VARCHAR(16)"},
 }
 
 

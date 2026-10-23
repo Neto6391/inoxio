@@ -21,10 +21,9 @@ const MINHAS = {
 
 const GERAL = {
   contas: 5,
-  contas_ativas: 4,
-  porcentagem_ativas: 80,
+  situacoes: { ativa: 4, desativada: 1, aguardando: 0, recusada: 0 },
   usaram_30_dias: 2,
-  porcentagem_uso_30_dias: 50,
+  sem_uso_30_dias: ["beto", "parado"],
   investigacoes: 4,
   sites_distintos: 2,
   indicadores_distintos: 3,
@@ -58,14 +57,17 @@ test("o painel mostra os mais pesquisados e as ameaças encontradas", async () =
   expect(screen.getByRole("link", { name: "https://mal.exemplo/x" })).toHaveAttribute("href", "/investigacoes/a1");
 });
 
-test("a visão geral do admin mostra as porcentagens e o ranking", async () => {
+test("a visão geral do admin mostra as contas por situação, quem não usou e o ranking", async () => {
   servidor("admin");
   navegar("/visao-geral");
   render(<App />);
   expect(await screen.findByText("Os 10 que mais pesquisam")).toBeInTheDocument();
-  expect(screen.getByText(/4 de 5 contas estão ativas/)).toBeInTheDocument();
-  expect(screen.getByText("80%")).toBeInTheDocument();
+  expect(screen.getByText("Contas por situação (5 no total)")).toBeInTheDocument();
+  expect(screen.getByText("desativadas").previousElementSibling).toHaveTextContent("1");
+  expect(screen.getByText(/de 4 contas ativas entraram/)).toBeInTheDocument();
+  expect(screen.getByText("parado")).toBeInTheDocument();
   expect(screen.getByText("3 investigações")).toBeInTheDocument();
+  expect(screen.getByText("1 investigação")).toBeInTheDocument();
 });
 
 test("analista não tem a visão geral nem pede os números de todos", async () => {

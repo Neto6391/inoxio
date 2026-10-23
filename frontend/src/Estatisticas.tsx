@@ -1,4 +1,4 @@
-import { Alert, Card, Col, Empty, Flex, List, Progress, Row, Skeleton, Statistic, Typography } from "antd";
+import { Alert, Card, Col, Empty, Flex, List, Progress, Row, Skeleton, Statistic, Tag, Typography } from "antd";
 import { type ReactNode, useEffect, useState } from "react";
 import { chamar, mensagemDeErro } from "./api";
 import { NumeroCreditos } from "./Creditos";
@@ -6,6 +6,7 @@ import { NOMES_TIPO, TagVeredito } from "./formato";
 import { type Dia, GraficoDias, PorTipo, Rosca } from "./Graficos";
 import { IconeAlerta, IconeBusca, IconeEscudo, IconeRelogio } from "./icones";
 import { Link } from "./rotas";
+import { SITUACOES } from "./AuditoriaPorUsuario";
 import type { Creditos } from "./tipos";
 
 type MaisPesquisado = { tipo: string; valor: string; vezes: number; veredito: string };
@@ -18,12 +19,19 @@ type Minhas = {
   por_tipo?: Record<string, number>;
   por_dia?: Dia[];
 };
+type Situacao = "ativa" | "desativada" | "aguardando" | "recusada";
+// No plural: aqui cada número conta várias contas.
+const PLURAL: Record<Situacao, string> = {
+  ativa: "ativas",
+  desativada: "desativadas",
+  aguardando: "aguardando e-mail",
+  recusada: "recusadas",
+};
 type Geral = {
   contas: number;
-  contas_ativas: number;
-  porcentagem_ativas: number;
+  situacoes: Record<Situacao, number>;
   usaram_30_dias: number;
-  porcentagem_uso_30_dias: number;
+  sem_uso_30_dias: string[];
   investigacoes: number;
   sites_distintos: number;
   indicadores_distintos: number;
@@ -203,24 +211,37 @@ export function VisaoGeral() {
       </div>
       <Row gutter={[16, 16]}>
         <Col xs={24} md={12}>
-          <Card title="Contas ativas">
-            <Flex gap="large" align="center">
-              <Progress type="circle" size={96} percent={dados.porcentagem_ativas} status="normal" />
-              <Typography.Text>
-                {dados.contas_ativas} de {dados.contas} contas estão ativas. O resto foi desativado ou
-                ainda espera a confirmação do e-mail.
-              </Typography.Text>
-            </Flex>
+          <Card title={`Contas por situação (${dados.contas} no total)`}>
+            <Row gutter={[12, 12]}>
+              {(Object.keys(SITUACOES) as Situacao[]).map((situacao) => (
+                <Col xs={12} key={situacao}>
+                  <div className="situacao-conta">
+                    <div className="numero-valor">{dados.situacoes[situacao] ?? 0}</div>
+                    <Tag color={SITUACOES[situacao].cor}>{PLURAL[situacao]}</Tag>
+                  </div>
+                </Col>
+              ))}
+            </Row>
           </Card>
         </Col>
         <Col xs={24} md={12}>
-          <Card title="Usaram nos últimos 30 dias">
-            <Flex gap="large" align="center">
-              <Progress type="circle" size={96} percent={dados.porcentagem_uso_30_dias} status="normal" />
-              <Typography.Text>
-                {dados.usaram_30_dias} das contas ativas entraram ou investigaram pelo menos uma vez.
-              </Typography.Text>
-            </Flex>
+          <Card title="Uso nos últimos 30 dias">
+            <Typography.Paragraph>
+              <Typography.Text strong>{dados.usaram_30_dias}</Typography.Text> de{" "}
+              {dados.situacoes.ativa ?? 0} contas ativas entraram ou investigaram pelo menos uma vez.
+            </Typography.Paragraph>
+            {dados.sem_uso_30_dias.length === 0 ? (
+              <Typography.Text type="secondary">Todas as contas ativas usaram.</Typography.Text>
+            ) : (
+              <>
+                <Typography.Text type="secondary">Ativas que não usaram:</Typography.Text>
+                <Flex gap={6} wrap className="espaco-topo">
+                  {dados.sem_uso_30_dias.map((nome) => (
+                    <Tag key={nome}>{nome}</Tag>
+                  ))}
+                </Flex>
+              </>
+            )}
           </Card>
         </Col>
       </Row>
@@ -257,7 +278,9 @@ export function VisaoGeral() {
                 <Flex vertical className="item-barra">
                   <Flex justify="space-between">
                     <Typography.Text strong>{item.nome}</Typography.Text>
-                    <Typography.Text type="secondary">{item.investigacoes} investigações</Typography.Text>
+                    <Typography.Text type="secondary">
+                      {item.investigacoes} {item.investigacoes === 1 ? "investigação" : "investigações"}
+                    </Typography.Text>
                   </Flex>
                   <Barra valor={item.investigacoes} maximo={maximo} />
                 </Flex>

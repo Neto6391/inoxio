@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from datetime import date
+
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
@@ -9,8 +11,9 @@ from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from inoxio import auditoria, estatisticas, usuarios
+from inoxio import auditoria, estatisticas, linha_do_tempo, usuarios
 from inoxio.db import Evento, Usuario
+from inoxio.seguranca import limites
 from inoxio.web.autenticacao import ip_do_cliente
 from inoxio.web.dependencias import Contexto, banco, conferir_csrf, exigir_admin, token_csrf
 
@@ -23,6 +26,10 @@ class Alteracao(BaseModel):
     ativo: bool | None = None
     # Ausente deixa como está; null tira a cota.
     cota_diaria: int | None = None
+    # Devolve os créditos de hoje sem mudar a cota.
+    zerar_uso: bool = False
+    # Derruba as sessões abertas sem desativar a conta.
+    encerrar_sessoes: bool = False
 
     @property
     def sem_cota(self) -> bool:
@@ -43,7 +50,7 @@ def _publico(usuario: Usuario) -> dict:
         "ativo": usuario.ativo,
         "email": usuario.email,
         "pendente": usuarios.pendente(usuario),
-        "cota_diaria": usuario.cota_diaria,
+        "cota_diaria": limites.cota_de(usuario),
     }
 
 
@@ -68,6 +75,7 @@ def cadastrar(
             ip_do_cliente(request),
             ctx.usuario.nome,
             f"{pedido.nome} ({pedido.papel})",
+            sessao=ctx.sessao.ref,
         )
         db.commit()
     except ValueError as erro:
@@ -100,6 +108,8 @@ def alterar(
             ativo=pedido.ativo,
             cota_diaria=pedido.cota_diaria,
             sem_cota=pedido.sem_cota,
+            zerar_uso=pedido.zerar_uso,
+            encerrar_sessoes=pedido.encerrar_sessoes,
             sessao_mantida=ctx.sessao.token_hash,
         )
     except ValueError as erro:
@@ -107,7 +117,12 @@ def alterar(
     except usuarios.Conflito as erro:
         return JSONResponse({"erro": str(erro)}, status_code=409)
     auditoria.registrar(
-        db, "admin_alterou", ip_do_cliente(request), ctx.usuario.nome, _o_que_mudou(nome, pedido)
+        db,
+        "admin_alterou",
+        ip_do_cliente(request),
+        ctx.usuario.nome,
+        _o_que_mudou(nome, pedido),
+        sessao=ctx.sessao.ref,
     )
     db.commit()
     return _publico(alvo)
@@ -126,6 +141,10 @@ def _o_que_mudou(nome: str, pedido: Alteracao) -> str:
         partes.append(f"cota {pedido.cota_diaria}/dia")
     if pedido.sem_cota:
         partes.append("sem cota")
+    if pedido.zerar_uso:
+        partes.append("uso de hoje zerado")
+    if pedido.encerrar_sessoes:
+        partes.append("sessões encerradas")
     return f"{nome}: {', '.join(partes) or 'nada'}"
 
 
@@ -146,6 +165,7 @@ TIPOS_EVENTO = (
     "senha_pedida",
     "senha_redefinida",
     "explicacao_pedida",
+    "sessao_encerrada",
 )
 POR_PAGINA = 50
 # Além disso o deslocamento não cabe no inteiro do SQLite e a consulta dava erro 500.
@@ -189,6 +209,24 @@ def listar_eventos(
             for evento in eventos
         ],
     }
+
+
+@rotas.get("/auditoria/usuarios")
+def auditoria_por_usuario(ctx: Contexto = Depends(exigir_admin), db: Session = Depends(banco)):
+    return linha_do_tempo.resumo_por_usuario(db)
+
+
+@rotas.get("/auditoria/usuarios/{nome}/sessoes")
+def sessoes_do_usuario(
+    nome: str,
+    de: date | None = None,
+    ate: date | None = None,
+    ctx: Contexto = Depends(exigir_admin),
+    db: Session = Depends(banco),
+):
+    if db.scalar(select(Usuario.id).where(Usuario.nome == nome)) is None:
+        raise HTTPException(status_code=404)
+    return linha_do_tempo.sessoes_de(db, nome, de, ate)
 
 
 @rotas.get("/estatisticas/geral")

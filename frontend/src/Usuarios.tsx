@@ -118,6 +118,9 @@ function FormEdicao({ alvo, eu, aoTerminar }: PropsEdicao) {
   const proprio = alvo.nome === eu;
   const [erro, setErro] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
+  const [formulario] = Form.useForm<Edicao>();
+  // O admin não tem cota: escolher Admin esconde o campo.
+  const papelEscolhido = Form.useWatch("papel", formulario) ?? alvo.papel;
   const { message } = App.useApp();
 
   async function salvar({ papel, senha, cota }: Edicao) {
@@ -127,7 +130,7 @@ function FormEdicao({ alvo, eu, aoTerminar }: PropsEdicao) {
     if (senha) corpo.senha = senha;
     // Campo apagado tira a cota: o servidor entende null como "sem cota".
     const novaCota = cota ?? null;
-    if (novaCota !== alvo.cota_diaria) corpo.cota_diaria = novaCota;
+    if (papel !== "admin" && novaCota !== alvo.cota_diaria) corpo.cota_diaria = novaCota;
     if (Object.keys(corpo).length === 0) {
       aoTerminar(false);
       return;
@@ -145,10 +148,50 @@ function FormEdicao({ alvo, eu, aoTerminar }: PropsEdicao) {
     }
   }
 
+  async function agir(corpo: { zerar_uso?: true; encerrar_sessoes?: true }, feito: string) {
+    setErro(null);
+    try {
+      await chamar(`/api/usuarios/${encodeURIComponent(alvo.nome)}`, { metodo: "PATCH", corpo });
+      message.success(feito);
+      aoTerminar(true);
+    } catch (falha) {
+      setErro(mensagemDeErro(falha));
+    }
+  }
+
   return (
     <Card title={`Editar ${alvo.nome}`}>
       {erro && <Alert type="error" showIcon title={erro} className="espaco" />}
+      <Flex gap="small" wrap className="espaco">
+        {alvo.cota_diaria !== null && (
+          <Popconfirm
+            title={`Zerar o uso de hoje de ${alvo.nome}?`}
+            description="Os créditos de hoje voltam inteiros; a cota continua a mesma."
+            okText="Zerar"
+            cancelText="Cancelar"
+            onConfirm={() => agir({ zerar_uso: true }, `Uso de hoje de ${alvo.nome} zerado.`)}
+          >
+            <Button size="small">Zerar uso de hoje</Button>
+          </Popconfirm>
+        )}
+        <Popconfirm
+          title={proprio ? "Encerrar as suas outras sessões?" : `Encerrar as sessões de ${alvo.nome}?`}
+          description={
+            proprio
+              ? "Os outros navegadores saem; este continua."
+              : "Ele sai de todos os navegadores na hora, mas a conta continua ativa."
+          }
+          okText="Encerrar"
+          cancelText="Cancelar"
+          onConfirm={() => agir({ encerrar_sessoes: true }, `Sessões de ${alvo.nome} encerradas.`)}
+        >
+          <Button size="small" danger>
+            {proprio ? "Encerrar as outras sessões" : "Encerrar sessões"}
+          </Button>
+        </Popconfirm>
+      </Flex>
       <Form<Edicao>
+        form={formulario}
         layout="vertical"
         requiredMark={false}
         initialValues={{ papel: alvo.papel, cota: alvo.cota_diaria }}
@@ -161,13 +204,17 @@ function FormEdicao({ alvo, eu, aoTerminar }: PropsEdicao) {
         >
           <Segmented<Papel> options={OPCOES_PAPEL} disabled={proprio} />
         </Form.Item>
-        <Form.Item
-          label="Cota diária"
-          name="cota"
-          extra="Apague o número para tirar a cota. Sem cota, vale só o limite por hora."
-        >
-          <InputNumber min={1} max={10000} placeholder="sem cota" />
-        </Form.Item>
+        {papelEscolhido === "admin" ? (
+          <Typography.Paragraph type="secondary">O admin não tem cota diária.</Typography.Paragraph>
+        ) : (
+          <Form.Item
+            label="Cota diária"
+            name="cota"
+            extra="Apague o número para tirar a cota. Sem cota, vale só o limite por hora."
+          >
+            <InputNumber min={1} max={10000} placeholder="sem cota" />
+          </Form.Item>
+        )}
         <Form.Item
           label="Nova senha"
           name="senha"

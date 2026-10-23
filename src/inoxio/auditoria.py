@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import timedelta
+from datetime import datetime, timedelta
 
 from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session
@@ -14,10 +14,28 @@ RETENCAO = timedelta(days=90)
 
 
 def registrar(
-    db: Session, tipo: str, ip: str, usuario: str | None = None, detalhe: str = ""
+    db: Session,
+    tipo: str,
+    ip: str,
+    usuario: str | None = None,
+    detalhe: str = "",
+    *,
+    sessao: str | None = None,
+    quando: datetime | None = None,
 ) -> None:
+    """`sessao` é o Sessao.ref de onde veio o evento; `quando` só muda no fim de uma
+    sessão vencida, que acabou antes de alguém perceber."""
     db.execute(delete(Evento).where(Evento.quando < agora() - RETENCAO))
-    db.add(Evento(tipo=tipo, usuario=usuario, ip=origem(ip), detalhe=detalhe[:300]))
+    db.add(
+        Evento(
+            tipo=tipo,
+            usuario=usuario,
+            ip=origem(ip),
+            detalhe=detalhe[:300],
+            sessao=sessao,
+            quando=quando or agora(),
+        )
+    )
 
 
 def contar(db: Session, tipo: str, ip: str, janela: timedelta) -> int:

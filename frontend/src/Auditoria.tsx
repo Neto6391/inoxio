@@ -1,6 +1,7 @@
-import { Alert, Card, Empty, Flex, Input, List, Pagination, Skeleton, Tag, Typography } from "antd";
+import { Alert, Card, Empty, Flex, Input, List, Pagination, Segmented, Skeleton, Tag, Typography } from "antd";
 import { useEffect, useState } from "react";
 import { chamar, mensagemDeErro } from "./api";
+import { AuditoriaPorUsuario } from "./AuditoriaPorUsuario";
 import { quando } from "./formato";
 
 type Evento = { quando: string; tipo: string; usuario: string | null; ip: string; detalhe: string };
@@ -24,17 +25,43 @@ export const NOMES_EVENTO: Record<string, { texto: string; cor: string }> = {
   senha_pedida: { texto: "pediu senha nova", cor: "default" },
   senha_redefinida: { texto: "trocou a senha", cor: "default" },
   explicacao_pedida: { texto: "pediu a explicação de novo", cor: "purple" },
+  sessao_encerrada: { texto: "sessão encerrada", cor: "default" },
 };
 
-function nomeDoEvento(tipo: string) {
+export function nomeDoEvento(tipo: string) {
   return NOMES_EVENTO[tipo] ?? { texto: tipo, cor: "default" };
 }
 
+type Visao = "usuarios" | "eventos";
+const VISOES = [
+  { label: "Por usuário", value: "usuarios" as Visao },
+  { label: "Todos os eventos", value: "eventos" as Visao },
+];
+
 export function Auditoria() {
+  const [visao, setVisao] = useState<Visao>("usuarios");
+  return (
+    <Flex vertical gap="large">
+      <div>
+        <Typography.Title level={2}>Auditoria</Typography.Title>
+        <Typography.Text type="secondary">
+          Quem entrou, quem errou a senha, o que foi investigado e o que o admin mudou. Os eventos
+          ficam guardados por 90 dias.
+        </Typography.Text>
+      </div>
+      <Segmented<Visao> options={VISOES} value={visao} onChange={setVisao} className="seletor-visao" />
+      {visao === "usuarios" ? <AuditoriaPorUsuario /> : <TodosOsEventos />}
+    </Flex>
+  );
+}
+
+function TodosOsEventos() {
   const [pagina, setPagina] = useState<Pagina | null>(null);
   const [erro, setErro] = useState<string | null>(null);
   const [tipo, setTipo] = useState<string | null>(null);
   const [usuario, setUsuario] = useState("");
+  // O texto da caixa e o filtro aplicado andam juntos: apagar o texto tira o filtro.
+  const [texto, setTexto] = useState("");
   const [numero, setNumero] = useState(1);
 
   useEffect(() => {
@@ -62,15 +89,13 @@ export function Auditoria() {
     setNumero(1);
   }
 
+  function filtrarUsuario(valor: string) {
+    setUsuario(valor.trim());
+    setNumero(1);
+  }
+
   return (
     <Flex vertical gap="large">
-      <div>
-        <Typography.Title level={2}>Auditoria</Typography.Title>
-        <Typography.Text type="secondary">
-          Quem entrou, quem errou a senha, o que foi investigado e o que o admin mudou. Os eventos
-          ficam guardados por 90 dias.
-        </Typography.Text>
-      </div>
       <Card>
         <Flex vertical gap="middle">
           <Flex gap={6} wrap>
@@ -87,10 +112,12 @@ export function Auditoria() {
             allowClear
             placeholder="Filtrar por usuário"
             className="filtro-usuario"
-            onSearch={(valor) => {
-              setUsuario(valor.trim());
-              setNumero(1);
+            value={texto}
+            onChange={(evento) => {
+              setTexto(evento.target.value);
+              if (!evento.target.value.trim()) filtrarUsuario("");
             }}
+            onSearch={filtrarUsuario}
           />
         </Flex>
       </Card>

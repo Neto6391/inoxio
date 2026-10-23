@@ -181,7 +181,7 @@ def redefinir_senha(db: Session, token: str, senha: str) -> Usuario | None:
         return None
     usuario.senha_hash = gerar_hash(senha)
     db.execute(delete(RedefinicaoSenha).where(RedefinicaoSenha.usuario_id == usuario.id))
-    sessoes.fechar_todas(db, usuario.id)
+    sessoes.fechar_todas(db, usuario.id, "senha redefinida pelo e-mail")
     return usuario
 
 
@@ -195,17 +195,23 @@ def alterar(
     ativo: bool | None = None,
     cota_diaria: int | None = None,
     sem_cota: bool = False,
+    zerar_uso: bool = False,
+    encerrar_sessoes: bool = False,
     sessao_mantida: str | None = None,
 ) -> None:
     """Muda papel, senha, cota ou situação. Senha nova ou desativação derruba as sessões,
     menos a `sessao_mantida` (o hash do token): o admin que troca a própria senha segue
-    dentro. `sem_cota` tira a cota diária; `cota_diaria=None` só deixa como está."""
+    dentro. `sem_cota` tira a cota diária; `cota_diaria=None` só deixa como está.
+    `zerar_uso` devolve os créditos de hoje; `encerrar_sessoes` derruba as sessões sem
+    desativar a conta. O admin não tem cota: virar admin tira a que havia."""
     if papel is not None:
         _conferir_papel(papel)
     if cota_diaria is not None and not 1 <= cota_diaria <= 10_000:
         raise ValueError("A cota diária precisa ficar entre 1 e 10.000 investigações.")
     if sem_cota and cota_diaria is not None:
         raise ValueError("Informe a cota ou peça para tirá-la, não as duas coisas.")
+    if cota_diaria is not None and (papel or alvo.papel) == "admin":
+        raise ValueError("O admin não tem cota diária.")
     novo_hash = gerar_hash(senha) if senha is not None else None
     if ativo is False and alvo.id == quem_altera.id:
         raise Conflito("Você não pode desativar a própria conta.")
@@ -221,6 +227,8 @@ def alterar(
         raise Conflito("Precisa sobrar pelo menos um admin ativo.")
     if papel is not None:
         alvo.papel = papel
+        if papel == "admin":
+            alvo.cota_diaria = None
     if novo_hash is not None:
         alvo.senha_hash = novo_hash
     if ativo is not None:
@@ -238,8 +246,17 @@ def alterar(
         alvo.cota_diaria = cota_diaria
     if sem_cota:
         alvo.cota_diaria = None
-    if novo_hash is not None or ativo is False:
-        sessoes.fechar_todas(db, alvo.id, exceto=sessao_mantida)
+    if zerar_uso:
+        alvo.uso_zerado_em = agora()
+    if ativo is False:
+        motivo = "conta desativada pelo admin"
+    elif novo_hash is not None:
+        motivo = "senha trocada pelo admin"
+    elif encerrar_sessoes:
+        motivo = "encerrada pelo admin"
+    else:
+        return
+    sessoes.fechar_todas(db, alvo.id, motivo, exceto=sessao_mantida)
 
 
 def _admins_ativos(db: Session) -> int:

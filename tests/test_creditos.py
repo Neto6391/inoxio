@@ -1,9 +1,10 @@
 from datetime import datetime, timedelta
 
-from ajudantes import entrar
+from ajudantes import csrf, entrar
+from fastapi.testclient import TestClient
 from sqlalchemy import select
 
-from inoxio.db import Investigacao, Usuario
+from inoxio.db import Evento, Investigacao, Usuario
 from inoxio.seguranca import limites
 
 
@@ -43,11 +44,11 @@ def test_cota_zera_a_meia_noite_e_nao_em_24_horas(usuarios, fabrica):
     for _ in range(2):
         investigar_em(fabrica, ana, inicio - timedelta(minutes=1))
     with fabrica() as db:
-        assert limites.investigacao_excedida(db, ana, 2) is False
+        assert limites.investigacao_excedida(db, db.get(Usuario, ana)) is False
     for _ in range(2):
         investigar_em(fabrica, ana, inicio + timedelta(seconds=1))
     with fabrica() as db:
-        assert limites.investigacao_excedida(db, ana, 2) is True
+        assert limites.investigacao_excedida(db, db.get(Usuario, ana)) is True
 
 
 def test_creditos_mostram_cota_usados_restantes_e_a_renovacao(cliente, usuarios, fabrica):
@@ -107,3 +108,48 @@ def test_serie_dos_14_dias_e_os_tipos_no_painel(cliente, usuarios, fabrica):
     assert dias[0]["vereditos"] == {"sem_evidencia": 1}
     assert sum(sum(d["vereditos"].values()) for d in dias) == 4
     assert dados["por_tipo"] == {"url": 2, "dominio": 1, "hash": 1, "ip": 1}
+
+
+def test_admin_nao_tem_cota_nem_com_uma_guardada_de_antes(cliente, usuarios, fabrica):
+    # A conta virou admin pelo terminal e manteve a cota 1 do cadastro.
+    chefe = conta(fabrica, "chefe", 1)
+    for _ in range(2):
+        investigar_em(fabrica, chefe, limites.inicio_do_dia() + timedelta(seconds=1))
+    with fabrica() as db:
+        assert limites.investigacao_excedida(db, db.get(Usuario, chefe)) is False
+    entrar(cliente, "chefe")
+    assert cliente.get("/api/creditos").json()["cota"] is None
+    lista = {u["nome"]: u for u in cliente.get("/api/usuarios").json()}
+    assert lista["chefe"]["cota_diaria"] is None
+
+
+def test_admin_zera_o_uso_de_hoje_e_os_creditos_voltam(app, cliente, usuarios, fabrica):
+    ana = conta(fabrica, "ana", 2)
+    for _ in range(2):
+        investigar_em(fabrica, ana, limites.inicio_do_dia() + timedelta(seconds=1))
+    with fabrica() as db:
+        assert limites.investigacao_excedida(db, db.get(Usuario, ana)) is True
+    entrar(cliente, "chefe")
+    resposta = cliente.patch("/api/usuarios/ana", json={"zerar_uso": True}, headers=csrf(cliente))
+    assert resposta.status_code == 200
+    assert resposta.json()["cota_diaria"] == 2
+    with fabrica() as db:
+        assert limites.investigacao_excedida(db, db.get(Usuario, ana)) is False
+        evento = db.scalar(select(Evento).where(Evento.tipo == "admin_alterou"))
+        assert evento.detalhe == "ana: uso de hoje zerado"
+    da_ana = TestClient(app, base_url="https://testserver")
+    entrar(da_ana, "ana")
+    assert da_ana.get("/api/creditos").json()["restantes"] == 2
+
+
+def test_virar_admin_tira_a_cota_e_admin_nao_recebe_cota(cliente, usuarios, fabrica):
+    conta(fabrica, "ana", 10)
+    entrar(cliente, "chefe")
+    cabecalho = csrf(cliente)
+    resposta = cliente.patch("/api/usuarios/ana", json={"papel": "admin"}, headers=cabecalho)
+    assert resposta.json()["cota_diaria"] is None
+    with fabrica() as db:
+        assert db.scalar(select(Usuario).where(Usuario.nome == "ana")).cota_diaria is None
+    recusa = cliente.patch("/api/usuarios/ana", json={"cota_diaria": 5}, headers=cabecalho)
+    assert recusa.status_code == 400
+    assert "admin não tem cota" in recusa.json()["erro"]
