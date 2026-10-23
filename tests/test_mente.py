@@ -185,3 +185,29 @@ def test_recusa_de_esquema_e_separada_das_outras_falhas():
 
     assert tentar_analisar({}, recusa) == ("esquema", None)
     assert tentar_analisar({}, outra) == ("falha", None)
+
+
+def test_parece_normal_tambem_sai():
+    resumo = "Os IPs são da Cloudflare. Em resumo, o site parece normal, mas não há provas. Fim."
+    analise = analisar({}, lambda s, c: VALIDA | {"resumo": resumo})
+    assert analise["resumo"] == "Os IPs são da Cloudflare. Fim."
+    # "normal" sem o "parece" continua: não afirma nada sobre o indicador.
+    outro = analisar({}, lambda s, c: VALIDA | {"resumo": "O tráfego é normal para um DNS."})
+    assert outro["resumo"] == "O tráfego é normal para um DNS."
+
+
+def test_o_glossario_passa_pelo_mesmo_filtro():
+    termos = [
+        {
+            "termo": "reputação",
+            "significado": "Mostra se um IP é usado por atividades seguras ou suspeitas.",
+        },
+        {"termo": "Cloudflare", "significado": "Empresa que entrega sites. Ela é confiável."},
+        {"termo": "IP", "significado": "Número de um computador na internet."},
+    ]
+    analise = analisar({}, lambda s, c: VALIDA | {"termos": termos})
+    # O termo cujo significado fica vazio sai; o outro perde só a frase proibida.
+    assert analise["termos"] == [
+        {"termo": "Cloudflare", "significado": "Empresa que entrega sites."},
+        {"termo": "IP", "significado": "Número de um computador na internet."},
+    ]
