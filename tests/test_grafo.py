@@ -3,6 +3,7 @@ import json
 from inoxio.agente.desenhar import README, bloco
 from inoxio.agente.fontes import evidencia
 from inoxio.agente.grafo import construir_grafo
+from inoxio.agente.mente import VERSAO_ANALISE
 
 VALIDA = {"resumo": "ok", "tecnicas_mitre": [], "recomendacoes": [], "confianca": "baixa"}
 MALICIOSA = evidencia(
@@ -90,7 +91,7 @@ def test_reaproveitada_sem_analise_chama_so_a_mente():
     estado = investigar(construir_grafo([fonte], mente, lambda t, v: anterior), "8.8.8.8")
     assert fonte.chamadas == []
     assert len(mente.cargas) == 1
-    assert estado["analise"] == VALIDA | {"termos": [], "por_fonte": []}
+    assert estado["analise"] == VALIDA | {"termos": [], "por_fonte": [], "versao": VERSAO_ANALISE}
 
 
 def test_sem_consulta_anterior_consulta_as_fontes():

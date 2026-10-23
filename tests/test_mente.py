@@ -21,11 +21,17 @@ VALIDA = {
 
 
 def test_resposta_valida_passa():
-    assert analisar({"a": 1}, lambda sistema, carga: VALIDA) == VALIDA
+    from inoxio.agente.mente import VERSAO_ANALISE
+
+    assert analisar({"a": 1}, lambda sistema, carga: VALIDA) == VALIDA | {"versao": VERSAO_ANALISE}
 
 
 def test_aceita_o_modelo_pydantic_devolvido_pelo_langchain():
-    assert analisar({"a": 1}, lambda s, c: RespostaMente(**VALIDA)) == VALIDA
+    from inoxio.agente.mente import VERSAO_ANALISE
+
+    assert analisar({"a": 1}, lambda s, c: RespostaMente(**VALIDA)) == VALIDA | {
+        "versao": VERSAO_ANALISE
+    }
 
 
 def test_sem_invocar_nao_ha_analise():
@@ -292,3 +298,12 @@ def test_explicacao_por_fonte_e_pedida_aceita_e_filtrada():
 def test_analise_antiga_sem_por_fonte_continua_valendo():
     antiga = {chave: valor for chave, valor in VALIDA.items() if chave != "por_fonte"}
     assert analisar({}, lambda s, c: antiga)["por_fonte"] == []
+
+
+def test_a_explicacao_guarda_a_versao_das_instrucoes():
+    import hashlib
+
+    from inoxio.agente.mente import PROMPT, VERSAO_ANALISE
+
+    assert VERSAO_ANALISE == hashlib.sha256(PROMPT.encode()).hexdigest()[:12]
+    assert analisar({}, lambda s, c: VALIDA)["versao"] == VERSAO_ANALISE

@@ -15,6 +15,7 @@ from typing import Any
 from sqlalchemy import select
 from sqlalchemy.orm import Session, sessionmaker
 
+from inoxio.agente.mente import VERSAO_ANALISE
 from inoxio.db import Investigacao, agora
 
 JANELA = timedelta(hours=24)
@@ -43,7 +44,11 @@ def buscador(fabrica: sessionmaker) -> Buscar:
             )
             if anterior is None or falhou:
                 return None
-            analise = anterior.analise or _analise_de_uma_copia(db, anterior)
+            analise = (
+                anterior.analise
+                if _atual(anterior.analise)
+                else _analise_de_uma_copia(db, anterior)
+            )
         return {
             "evidencias": anterior.evidencias,
             "veredito": anterior.veredito,
@@ -55,7 +60,8 @@ def buscador(fabrica: sessionmaker) -> Buscar:
 
 
 def _analise_de_uma_copia(db: Session, original: Investigacao) -> dict[str, Any] | None:
-    """Se a IA falhou na consulta original, uma cópia posterior pode ter conseguido."""
+    """Se a IA falhou na consulta original (ou a explicação dela é de outra versão das
+    instruções), uma cópia posterior pode ter a atual."""
     copias = db.scalars(
         select(Investigacao)
         .where(
@@ -67,4 +73,9 @@ def _analise_de_uma_copia(db: Session, original: Investigacao) -> dict[str, Any]
         .order_by(Investigacao.criada_em.desc())
         .limit(20)
     )
-    return next((copia.analise for copia in copias if copia.analise), None)
+    return next((copia.analise for copia in copias if _atual(copia.analise)), None)
+
+
+def _atual(analise: dict[str, Any] | None) -> bool:
+    """Explicação das instruções de hoje; a de outra versão é escrita de novo."""
+    return bool(analise) and analise.get("versao") == VERSAO_ANALISE
