@@ -51,6 +51,8 @@ export type Analise = {
   confianca: string;
   // Análises feitas antes do glossário não têm termos.
   termos?: Termo[];
+  // Um parágrafo por fonte consultada; as análises antigas não têm.
+  por_fonte?: string[];
 };
 
 // Cota de hoje, que zera à meia-noite de Brasília. Sem cota (admin), cota e restantes vêm nulos.

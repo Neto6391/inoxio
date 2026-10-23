@@ -16,6 +16,7 @@ VALIDA = {
     "termos": [
         {"termo": "Cloudflare", "significado": "Empresa que fica na frente de muitos sites."},
     ],
+    "por_fonte": ["O AbuseIPDB reúne denúncias de abuso; este IP tem muitas."],
 }
 
 
@@ -76,7 +77,8 @@ def test_esquemas_nao_tem_veredito_nem_nota():
 
 
 def test_limites_de_custo_do_groq():
-    assert (TIMEOUT, MAX_TOKENS) == (10, 500)
+    # 900: a explicação por fonte pede mais texto que o resumo sozinho.
+    assert (TIMEOUT, MAX_TOKENS) == (10, 900)
 
 
 def test_sem_chave_ou_modelo_nao_cria_invocar():
@@ -158,7 +160,7 @@ def test_as_instrucoes_sao_as_aprovadas_na_medicao():
 
     from inoxio.agente.mente import PROMPT
 
-    esperado = "626ab0f2df85723feb024e38f9cb516225cb2f8bfd199742ce99f489facf1a92"
+    esperado = "59d1ba73c4f45854c996644723b34f127d6a32ff90566bcbf4ca7af91d7bd32c"
     assert hashlib.sha256(PROMPT.encode()).hexdigest() == esperado
 
 
@@ -211,3 +213,31 @@ def test_o_glossario_passa_pelo_mesmo_filtro():
         {"termo": "Cloudflare", "significado": "Empresa que entrega sites."},
         {"termo": "IP", "significado": "Número de um computador na internet."},
     ]
+
+
+def test_explicacao_por_fonte_e_pedida_aceita_e_filtrada():
+    from inoxio.agente.mente import RespostaMente
+
+    assert "por_fonte" in RespostaMente.model_fields
+    por_fonte = [
+        "O VirusTotal passa o endereço por dezenas de antivírus. Nenhum acusou nada.",
+        "O AbuseIPDB reúne denúncias. O site parece seguro.",
+        "Ele é limpo.",
+    ]
+    analise = analisar({}, lambda s, c: VALIDA | {"por_fonte": por_fonte})
+    # A frase proibida sai; o parágrafo que fica vazio sai da lista.
+    assert analise["por_fonte"] == [
+        "O VirusTotal passa o endereço por dezenas de antivírus. Nenhum acusou nada.",
+        "O AbuseIPDB reúne denúncias.",
+    ]
+
+
+def test_limites_da_explicacao_por_fonte():
+    paragrafo = "O VirusTotal não acusou nada."
+    assert analisar({}, lambda s, c: VALIDA | {"por_fonte": [paragrafo] * 5}) is None
+    assert analisar({}, lambda s, c: VALIDA | {"por_fonte": ["x" * 801]}) is None
+
+
+def test_analise_antiga_sem_por_fonte_continua_valendo():
+    antiga = {chave: valor for chave, valor in VALIDA.items() if chave != "por_fonte"}
+    assert analisar({}, lambda s, c: antiga)["por_fonte"] == []
