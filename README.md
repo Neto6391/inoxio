@@ -84,7 +84,7 @@ graph TD;
   ("senha segura"). Termo do glossário que fica sem significado sai da lista, e
   se o resumo inteiro sai, a tela segue sem a análise. A explicação é escrita em segundo
   plano, uma chamada ao Groq por vez: se o provedor recusa por limite (429), ela
-  espera e tenta de novo; se recusa o JSON por faltar campo, tenta mais uma vez. Se o Groq
+  espera e tenta de novo; se recusa o JSON, tenta mais uma vez. Só o resumo é obrigatório no formato pedido, e os campos mais valiosos vêm primeiro: se o modelo para no meio, o que veio antes ainda vira explicação. Se mesmo assim ela fica indisponível, a tela oferece "Tentar explicar de novo" (sem gastar crédito; no máximo 10 vezes por hora). Se o Groq
   falhar ou demorar mais de 10 s, a tela também mostra o resultado sem a análise.
 
 ## Telas

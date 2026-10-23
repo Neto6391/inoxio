@@ -10,7 +10,7 @@ from datetime import timedelta
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from inoxio import auditoria, estatisticas
@@ -18,7 +18,7 @@ from inoxio.agente.classificar import LIMITE_ENTRADA
 from inoxio.agente.decidir import ROTULOS
 from inoxio.agente.grafo import dados_da_mente
 from inoxio.agente.mente import para_exibir
-from inoxio.db import Investigacao, agora
+from inoxio.db import Evento, Investigacao, agora
 from inoxio.explicador import PRAZO
 from inoxio.seguranca import limites
 from inoxio.web.autenticacao import ip_do_cliente
@@ -27,6 +27,7 @@ from inoxio.web.dependencias import Contexto, banco, conferir_csrf, sessao_atual
 # A página de investigações mostra as mais recentes; o painel, as primeiras delas.
 LISTA = 50
 FOLGA_PENDENTE = timedelta(seconds=30)
+PEDIDOS_DE_EXPLICACAO_POR_HORA = 10
 
 rotas = APIRouter(prefix="/api")
 
@@ -128,7 +129,8 @@ def _estado_da_analise(investigacao: Investigacao) -> str:
         # Investigação de antes da explicação em segundo plano.
         return "pronta" if investigacao.analise else "indisponivel"
     # Uma pendente além do prazo não chega mais (o processo reiniciou, por exemplo).
-    vencida = investigacao.criada_em < agora() - PRAZO - FOLGA_PENDENTE
+    pedida_em = investigacao.analise_pedida_em or investigacao.criada_em
+    vencida = pedida_em < agora() - PRAZO - FOLGA_PENDENTE
     return "indisponivel" if estado == "pendente" and vencida else estado
 
 
@@ -161,6 +163,53 @@ def ver(
         "analise_estado": _estado_da_analise(investigacao),
         "reaproveitada": investigacao.reaproveitada,
     }
+
+
+@rotas.post("/investigacoes/{id_}/explicar", status_code=202)
+def explicar_de_novo(
+    id_: str,
+    request: Request,
+    ctx: Contexto = Depends(sessao_atual),
+    db: Session = Depends(banco),
+):
+    """Pede de novo a explicação que ficou indisponível. Não gasta crédito: as fontes
+    já foram consultadas, só a IA escreve outra vez."""
+    conferir_csrf(ctx, token_csrf(request))
+    investigacao = db.get(Investigacao, id_)
+    if investigacao is None or investigacao.usuario_id != ctx.usuario.id:
+        raise HTTPException(status_code=404)
+    explicador = request.app.state.explicador
+    if not explicador.ativo or _estado_da_analise(investigacao) != "indisponivel":
+        return JSONResponse({"erro": "Esta explicação já está pronta ou sendo escrita."}, 409)
+    if _pedidos_de_explicacao(db, ctx.usuario.nome) >= PEDIDOS_DE_EXPLICACAO_POR_HORA:
+        raise HTTPException(status_code=429)
+    investigacao.analise_estado = "pendente"
+    investigacao.analise_pedida_em = agora()
+    auditoria.registrar(
+        db, "explicacao_pedida", ip_do_cliente(request), ctx.usuario.nome, investigacao.valor[:200]
+    )
+    db.commit()
+    estado = {
+        "tipo": investigacao.tipo,
+        "valor": investigacao.valor,
+        "veredito": investigacao.veredito,
+        "nota": investigacao.nota,
+        "evidencias": investigacao.evidencias,
+    }
+    explicador.pedir(investigacao.id, dados_da_mente(estado))
+    return {"analise_estado": "pendente"}
+
+
+def _pedidos_de_explicacao(db: Session, nome: str) -> int:
+    return db.scalar(
+        select(func.count())
+        .select_from(Evento)
+        .where(
+            Evento.tipo == "explicacao_pedida",
+            Evento.usuario == nome,
+            Evento.quando >= agora() - timedelta(hours=1),
+        )
+    )
 
 
 @rotas.get("/estatisticas")

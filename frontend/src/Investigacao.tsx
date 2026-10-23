@@ -1,4 +1,4 @@
-import { Card, Col, Descriptions, Flex, Progress, Result, Row, Skeleton, Tag, Typography } from "antd";
+import { Alert, Card, Col, Descriptions, Flex, Progress, Result, Row, Skeleton, Tag, Typography } from "antd";
 import { type CSSProperties, useEffect, useState } from "react";
 import { AnaliseIA } from "./AnaliseIA";
 import { Carregando } from "./Carregando";
@@ -151,6 +151,23 @@ export function Investigacao({ id, intervalo = INTERVALO_MS, consultas = CONSULT
   const [detalhe, setDetalhe] = useState<DetalheInvestigacao | null>(null);
   const [erro, setErro] = useState<string | null>(null);
   const [feitas, setFeitas] = useState(0);
+  const [tentando, setTentando] = useState(false);
+  const [erroTentativa, setErroTentativa] = useState<string | null>(null);
+
+  // Não gasta crédito: as fontes já foram consultadas, só a IA escreve de novo.
+  async function tentarDeNovo() {
+    setTentando(true);
+    setErroTentativa(null);
+    try {
+      await chamar(`/api/investigacoes/${id}/explicar`, { metodo: "POST" });
+      setDetalhe((atual) => atual && { ...atual, analise: null, analise_estado: "pendente" });
+      setFeitas(0);
+    } catch (falha) {
+      setErroTentativa(mensagemDeErro(falha));
+    } finally {
+      setTentando(false);
+    }
+  }
 
   useEffect(() => {
     chamar<DetalheInvestigacao>(`/api/investigacoes/${id}`)
@@ -223,7 +240,15 @@ export function Investigacao({ id, intervalo = INTERVALO_MS, consultas = CONSULT
           descricao="A IA está lendo as evidências. O veredito acima já está pronto; a explicação aparece aqui em instantes."
         />
       ) : (
-        <AnaliseIA analise={detalhe.analise} />
+        <Flex vertical gap="small">
+          {erroTentativa && <Alert type="error" showIcon title={erroTentativa} />}
+          <AnaliseIA
+            analise={detalhe.analise}
+            // Indisponível, ou a página desistiu de esperar: dá para pedir de novo.
+            aoTentarDeNovo={detalhe.analise_estado !== "pronta" ? tentarDeNovo : undefined}
+            tentando={tentando}
+          />
+        </Flex>
       )}
 
       <QuemOpera evidencias={detalhe.evidencias} />

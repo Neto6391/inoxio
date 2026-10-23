@@ -95,3 +95,47 @@ test("ao investigar, o painel mostra o carregamento enquanto as fontes respondem
   responder(json({ erro: "Entrada não reconhecida." }, 400));
   await waitFor(() => expect(screen.queryByText("Consultando as fontes")).toBeNull());
 });
+
+test("explicação indisponível oferece tentar de novo, e a nova chega", async () => {
+  const pedidos: string[] = [];
+  const leituras = [
+    { ...BASE, analise: null, analise_estado: "indisponivel" },
+    { ...BASE, analise: null, analise_estado: "pendente" },
+    { ...BASE, analise: PRONTA, analise_estado: "pronta" },
+  ];
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (caminho: string, pedido: RequestInit = {}) => {
+      if (pedido.method === "POST") {
+        pedidos.push(caminho);
+        return json({ analise_estado: "pendente" }, 202);
+      }
+      return json(leituras.length > 1 ? leituras.shift() : leituras[0]);
+    }),
+  );
+  render(<Investigacao id="1" intervalo={10} />);
+  fireEvent.click(await screen.findByRole("button", { name: "Tentar explicar de novo" }));
+  expect(await screen.findByText("O IP é do Google.")).toBeInTheDocument();
+  expect(pedidos).toEqual(["/api/investigacoes/1/explicar"]);
+});
+
+test("explicação pronta não mostra o botão de tentar de novo", async () => {
+  vi.stubGlobal("fetch", vi.fn(async () => json({ ...BASE, analise: PRONTA, analise_estado: "pronta" })));
+  render(<Investigacao id="1" />);
+  expect(await screen.findByText("O IP é do Google.")).toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "Tentar explicar de novo" })).toBeNull();
+});
+
+test("quando a página desiste de esperar, ainda dá para pedir de novo", async () => {
+  vi.stubGlobal("fetch", vi.fn(async () => json({ ...BASE, analise: null, analise_estado: "pendente" })));
+  render(<Investigacao id="1" intervalo={5} consultas={2} />);
+  expect(await screen.findByRole("button", { name: "Tentar explicar de novo" })).toBeInTheDocument();
+});
+
+test("explicação pronta que o filtro esvaziou não oferece pedir de novo", async () => {
+  // O servidor diria que já está pronta; o botão só levaria a um erro.
+  vi.stubGlobal("fetch", vi.fn(async () => json({ ...BASE, analise: null, analise_estado: "pronta" })));
+  render(<Investigacao id="1" />);
+  expect(await screen.findByText(/Explicação indisponível/)).toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "Tentar explicar de novo" })).toBeNull();
+});

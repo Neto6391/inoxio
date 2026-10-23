@@ -236,11 +236,12 @@ def test_banco_antigo_ganha_o_estado_da_explicacao(tmp_path):
     motor = create_engine(url)
     with motor.begin() as conexao:
         conexao.execute(text("ALTER TABLE investigacoes DROP COLUMN analise_estado"))
+        conexao.execute(text("ALTER TABLE investigacoes DROP COLUMN analise_pedida_em"))
     motor.dispose()
     criar_fabrica(url)
     motor = create_engine(url)
     colunas = {coluna["name"] for coluna in inspect(motor).get_columns("investigacoes")}
-    assert "analise_estado" in colunas
+    assert {"analise_estado", "analise_pedida_em"} <= colunas
 
 
 def test_o_prazo_corta_as_tentativas(fabrica, config, cliente_de):
@@ -334,3 +335,77 @@ def test_explicacao_antiga_aparece_pelo_filtro_atual(fabrica, config, cliente_de
         db.flush()
         id_ = velha.id
     assert detalhe(cliente, id_)["analise"]["resumo"] == "Os IPs são da Cloudflare."
+
+
+def indisponivel(cliente, fila):
+    """Investiga e deixa a explicação indisponível (o Groq falha)."""
+    id_ = investigar(cliente)
+    fila.pop(0)()
+    assert detalhe(cliente, id_)["analise_estado"] == "indisponivel"
+    return id_
+
+
+def test_tentar_explicar_de_novo_poe_na_fila_e_a_explicacao_chega(fabrica, config, cliente_de):
+    groq = Groq(TimeoutError("demorou"), BOA)
+    app, fila, _ = montar(fabrica, config, groq)
+    cliente = cliente_de(app)
+    id_ = indisponivel(cliente, fila)
+    resposta = cliente.post(f"/api/investigacoes/{id_}/explicar", headers=csrf(cliente))
+    assert resposta.status_code == 202
+    assert detalhe(cliente, id_)["analise_estado"] == "pendente"
+    fila.pop(0)()
+    final = detalhe(cliente, id_)
+    assert (final["analise_estado"], final["analise"]["resumo"]) == ("pronta", BOA["resumo"])
+
+
+def test_pedido_de_nova_explicacao_conta_o_prazo_a_partir_do_pedido(fabrica, config, cliente_de):
+    # Investigação antiga: o prazo de 90 s conta do pedido, não da investigação.
+    groq = Groq(TimeoutError("demorou"), BOA)
+    app, fila, _ = montar(fabrica, config, groq)
+    cliente = cliente_de(app)
+    id_ = indisponivel(cliente, fila)
+    with fabrica() as db, db.begin():
+        db.get(Investigacao, id_).criada_em = agora() - timedelta(hours=2)
+    cliente.post(f"/api/investigacoes/{id_}/explicar", headers=csrf(cliente))
+    assert detalhe(cliente, id_)["analise_estado"] == "pendente"
+
+
+def test_so_pede_de_novo_o_que_esta_indisponivel(fabrica, config, cliente_de):
+    app, fila, _ = montar(fabrica, config, Groq(BOA))
+    cliente = cliente_de(app)
+    id_ = investigar(cliente)
+    fila.pop(0)()
+    assert (
+        cliente.post(f"/api/investigacoes/{id_}/explicar", headers=csrf(cliente)).status_code == 409
+    )
+    assert fila == []
+
+
+def test_pedir_de_novo_exige_csrf_e_ser_o_dono(fabrica, config, cliente_de):
+    from fastapi.testclient import TestClient
+
+    groq = Groq(TimeoutError("demorou"))
+    app, fila, _ = montar(fabrica, config, groq)
+    cliente = cliente_de(app)
+    id_ = indisponivel(cliente, fila)
+    assert cliente.post(f"/api/investigacoes/{id_}/explicar").status_code == 403
+    beto = TestClient(app, base_url="https://testserver")
+    entrar(beto, "beto")
+    assert beto.post(f"/api/investigacoes/{id_}/explicar", headers=csrf(beto)).status_code == 404
+    assert fila == []
+
+
+def test_limite_de_pedidos_de_nova_explicacao(fabrica, config, cliente_de):
+    groq = Groq(TimeoutError("demorou"))
+    app, fila, _ = montar(fabrica, config, groq)
+    cliente = cliente_de(app)
+    id_ = indisponivel(cliente, fila)
+    for _ in range(10):
+        assert (
+            cliente.post(f"/api/investigacoes/{id_}/explicar", headers=csrf(cliente)).status_code
+            == 202
+        )
+        fila.pop(0)()
+    assert (
+        cliente.post(f"/api/investigacoes/{id_}/explicar", headers=csrf(cliente)).status_code == 429
+    )

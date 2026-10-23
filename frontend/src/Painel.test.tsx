@@ -218,3 +218,8 @@ test("análise sem explicação por fonte não mostra a seção vazia", () => {
   render(<AnaliseIA analise={{ resumo: "Resumo.", tecnicas_mitre: [], recomendacoes: [], confianca: "baixa" }} />);
   expect(screen.queryByText("O que cada fonte mostrou")).toBeNull();
 });
+
+test("sem confiança informada, a tela diz isso em vez de ficar em branco", () => {
+  render(<AnaliseIA analise={{ resumo: "Resumo.", tecnicas_mitre: [], recomendacoes: [], confianca: null }} />);
+  expect(screen.getByText(/Confiança da análise: não informada/)).toBeInTheDocument();
+});

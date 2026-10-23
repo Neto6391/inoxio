@@ -302,8 +302,34 @@ def test_analise_antiga_sem_por_fonte_continua_valendo():
 
 def test_a_explicacao_guarda_a_versao_das_instrucoes():
     import hashlib
+    import json
 
-    from inoxio.agente.mente import PROMPT, VERSAO_ANALISE
+    from inoxio.agente.mente import PROMPT, VERSAO_ANALISE, RespostaMente
 
-    assert VERSAO_ANALISE == hashlib.sha256(PROMPT.encode()).hexdigest()[:12]
+    # Instruções e formato pedido: mudar qualquer um dos dois muda a versão.
+    formato = json.dumps(RespostaMente.model_json_schema(), sort_keys=True)
+    assert VERSAO_ANALISE == hashlib.sha256((PROMPT + formato).encode()).hexdigest()[:12]
     assert analisar({}, lambda s, c: VALIDA)["versao"] == VERSAO_ANALISE
+
+
+def test_so_o_resumo_e_obrigatorio_no_formato_pedido():
+    # O modelo às vezes para no meio; o que veio antes de parar ainda serve.
+    from inoxio.agente.mente import RespostaMente
+
+    esquema = RespostaMente.model_json_schema()
+    assert esquema["required"] == ["resumo"]
+    # Os campos mais valiosos vêm primeiro: se o modelo parar cedo, sobra o que importa.
+    assert list(esquema["properties"])[:3] == ["resumo", "por_fonte", "recomendacoes"]
+
+
+def test_resposta_que_parou_no_meio_ainda_vira_explicacao():
+    parcial = {"resumo": "Os IPs são da Cloudflare.", "recomendacoes": ["Confira o endereço."]}
+    analise = analisar({}, lambda s, c: parcial)
+    assert analise["resumo"] == "Os IPs são da Cloudflare."
+    assert analise["recomendacoes"] == ["Confira o endereço."]
+    assert (
+        analise["termos"],
+        analise["por_fonte"],
+        analise["tecnicas_mitre"],
+        analise["confianca"],
+    ) == ([], [], [], None)

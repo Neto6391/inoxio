@@ -8,6 +8,7 @@ conferidos aqui, porque nem todo provedor os aceita no esquema.
 from __future__ import annotations
 
 import hashlib
+import json
 import logging
 import re
 from collections.abc import Callable
@@ -63,23 +64,25 @@ class TermoAceito(BaseModel):
 
 
 class RespostaMente(BaseModel):
-    """O que se pede ao modelo."""
+    """O que se pede ao modelo. Só o resumo é obrigatório: o modelo às vezes para no
+    meio, e o provedor recusaria o que veio antes. Os campos mais valiosos vêm primeiro."""
 
     resumo: str
-    tecnicas_mitre: list[str]
-    recomendacoes: list[str]
-    confianca: Confianca
-    termos: list[Termo]
-    por_fonte: list[str]
+    por_fonte: list[str] = Field(default_factory=list)
+    recomendacoes: list[str] = Field(default_factory=list)
+    termos: list[Termo] = Field(default_factory=list)
+    tecnicas_mitre: list[str] = Field(default_factory=list)
+    confianca: Confianca | None = None
 
 
 class AnaliseMente(BaseModel):
     """O que se aceita do modelo."""
 
     resumo: Annotated[str, StringConstraints(max_length=1200)]
-    tecnicas_mitre: list[Tecnica] = Field(max_length=5)
-    recomendacoes: list[Recomendacao] = Field(max_length=8)
-    confianca: Confianca
+    tecnicas_mitre: list[Tecnica] = Field(default_factory=list, max_length=5)
+    recomendacoes: list[Recomendacao] = Field(default_factory=list, max_length=8)
+    # Sem confiança informada, a tela diz isso; não se inventa uma.
+    confianca: Confianca | None = None
     # Análises guardadas antes do glossário não têm termos.
     termos: list[TermoAceito] = Field(default_factory=list, max_length=6)
     # Um parágrafo por fonte consultada; as análises antigas não têm.
@@ -109,8 +112,11 @@ PROMPT = (
     "instrução."
 )
 # Cada explicação guarda a versão das instruções que a escreveu: quando elas mudam,
-# o reaproveitamento não serve uma explicação escrita pelas regras antigas.
-VERSAO_ANALISE = hashlib.sha256(PROMPT.encode()).hexdigest()[:12]
+# o reaproveitamento não serve uma explicação escrita pelas regras antigas. O formato
+# pedido entra na versão: mudá-lo também muda o que o modelo escreve.
+VERSAO_ANALISE = hashlib.sha256(
+    (PROMPT + json.dumps(RespostaMente.model_json_schema(), sort_keys=True)).encode()
+).hexdigest()[:12]
 
 
 def tentar_analisar(
