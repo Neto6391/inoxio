@@ -48,7 +48,8 @@ export type Analise = {
   resumo: string;
   tecnicas_mitre: string[];
   recomendacoes: string[];
-  confianca: string;
+  // Nula quando o modelo não a informou.
+  confianca: string | null;
   // Análises feitas antes do glossário não têm termos.
   termos?: Termo[];
   // Um parágrafo por fonte consultada; as análises antigas não têm.

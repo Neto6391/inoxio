@@ -81,7 +81,10 @@ export function AnaliseIA({ analise }: { analise: Analise | null }) {
                 </a>
               ))
             )}
-            <span>Confiança da análise: {CONFIANCA[analise.confianca] ?? analise.confianca}.</span>
+            <span>
+              Confiança da análise:{" "}
+              {analise.confianca ? (CONFIANCA[analise.confianca] ?? analise.confianca) : "não informada"}.
+            </span>
           </Flex>
         </details>
       </Flex>
