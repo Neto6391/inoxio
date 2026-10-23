@@ -11,7 +11,7 @@ type Publico = { contato_privacidade: string; versao_termos: string };
 
 // A versão dos termos tem uma fonte só, o servidor: é ela que decide quem precisa
 // aceitar de novo.
-function usePublico(): Publico | null {
+export function usePublico(): Publico | null {
   const [publico, setPublico] = useState<Publico | null>(null);
   useEffect(() => {
     chamar<Publico>("/api/publico")
@@ -45,24 +45,29 @@ function Documento({ titulo, secoes, dentroDoApp = false }: PropsDocumento) {
   );
   if (dentroDoApp) return cartao;
   return (
-    <div className="landing">
-      <header className="landing-topo">
-        <Link para="/">
-          <span className="marca">
-            <span className="marca-simbolo">I</span>
-            Inóxio
-          </span>
-        </Link>
-        <Button
-          className="botao-voltar"
-          icon={<IconeVoltar />}
-          onClick={() => (temAnterior() ? window.history.back() : navegar("/"))}
-        >
-          Voltar
-        </Button>
+    <div className="pagina-inicial">
+      <header className="pagina-topo">
+        <div className="pagina-largura pagina-topo-linha">
+          <Link para="/">
+            <span className="marca">
+              <span className="marca-simbolo">I</span>
+              Inóxio
+            </span>
+          </Link>
+          <span className="topo-espaco" />
+          <Button
+            className="botao-voltar"
+            icon={<IconeVoltar />}
+            onClick={() => (temAnterior() ? window.history.back() : navegar("/"))}
+          >
+            Voltar
+          </Button>
+        </div>
       </header>
-      {cartao}
-      <Rodape />
+      <div className="pagina-largura">
+        {cartao}
+        <Rodape />
+      </div>
     </div>
   );
 }
