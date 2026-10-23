@@ -108,6 +108,8 @@ def criar_app(
     async def cabecalhos_de_seguranca(request: Request, chamar):
         resposta = await chamar(request)
         resposta.headers.setdefault("Content-Security-Policy", spa.politica())
+        if request.url.path.startswith("/api/"):
+            resposta.headers[spa.CABECALHO_VERSAO] = spa.versao(frontend)
         resposta.headers["X-Content-Type-Options"] = "nosniff"
         resposta.headers["Referrer-Policy"] = "no-referrer"
         return resposta

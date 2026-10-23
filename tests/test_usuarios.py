@@ -3,6 +3,7 @@ from ajudantes import SENHA, csrf, entrar
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, inspect, select, text
 
+from inoxio import usuarios as usuarios_mod
 from inoxio.db import Usuario, criar_fabrica
 
 NOVA = "outra-senha-bem-longa"
@@ -136,19 +137,53 @@ def test_admin_nao_desativa_a_propria_conta(cliente, usuarios):
     assert "própria conta" in resposta.json()["erro"]
 
 
-def test_ultimo_admin_ativo_nao_perde_o_papel(cliente, usuarios):
-    entrar(cliente, "chefe")
-    resposta = alterar(cliente, "chefe", papel="analista")
-    assert resposta.status_code == 409
-    assert "pelo menos um admin" in resposta.json()["erro"]
-
-
-def test_com_outro_admin_o_papel_pode_sair(cliente, usuarios):
+def test_admin_nao_muda_o_proprio_papel_nem_com_outro_admin(cliente, usuarios):
     entrar(cliente, "chefe")
     alterar(cliente, "ana", papel="admin")
-    assert alterar(cliente, "ana", ativo=False).status_code == 200
-    # "ana" desativada não conta: "chefe" volta a ser o último admin ativo.
-    assert alterar(cliente, "chefe", papel="analista").status_code == 409
+    resposta = alterar(cliente, "chefe", papel="analista")
+    assert resposta.status_code == 409
+    assert "próprio papel" in resposta.json()["erro"]
+    assert cliente.get("/api/usuarios").status_code == 200
+    # Reenviar o papel que já tem não é mudança.
+    assert alterar(cliente, "chefe", papel="admin").status_code == 200
+
+
+def test_ultimo_admin_ativo_nao_perde_o_papel(fabrica, usuarios):
+    # Pela API o admin só rebaixa outra pessoa, e então sobra ele; a regra fica na
+    # função para quem a chamar de outro jeito.
+    with fabrica() as db:
+        chefe = db.scalar(select(Usuario).where(Usuario.nome == "chefe"))
+        ana = db.scalar(select(Usuario).where(Usuario.nome == "ana"))
+        with pytest.raises(usuarios_mod.Conflito, match="pelo menos um admin"):
+            usuarios_mod.alterar(db, chefe, ana, papel="analista")
+        with pytest.raises(usuarios_mod.Conflito, match="pelo menos um admin"):
+            usuarios_mod.alterar(db, chefe, ana, ativo=False)
+
+
+def test_com_outro_admin_o_papel_pode_sair(app, cliente, usuarios):
+    entrar(cliente, "chefe")
+    alterar(cliente, "ana", papel="admin")
+    da_ana = outro_cliente(app)
+    entrar(da_ana, "ana")
+    assert alterar(da_ana, "chefe", papel="analista").status_code == 200
+    assert alterar(da_ana, "chefe", papel="admin").status_code == 200
+
+
+def test_cota_sai_com_null_e_fica_quando_ausente(cliente, usuarios):
+    entrar(cliente, "chefe")
+    assert alterar(cliente, "ana", cota_diaria=10).json()["cota_diaria"] == 10
+    assert alterar(cliente, "ana", papel="analista").json()["cota_diaria"] == 10
+    assert alterar(cliente, "ana", cota_diaria=None).json()["cota_diaria"] is None
+
+
+def test_troca_da_propria_senha_mantem_so_a_sessao_de_quem_trocou(app, cliente, usuarios):
+    noutra_aba = outro_cliente(app)
+    entrar(noutra_aba, "chefe")
+    entrar(cliente, "chefe")
+    assert alterar(cliente, "chefe", senha=NOVA).status_code == 200
+    assert cliente.get("/api/usuarios").status_code == 200
+    assert noutra_aba.get("/api/usuarios").status_code == 401
+    assert entrar(outro_cliente(app), "chefe", NOVA).status_code == 200
 
 
 @pytest.mark.parametrize(
@@ -188,7 +223,14 @@ def test_banco_antigo_ganha_a_coluna_ativo_com_todos_ativos(tmp_path):
     criar_fabrica(url)  # rodar de novo não pode falhar
     motor = create_engine(url)
     colunas = {coluna["name"] for coluna in inspect(motor).get_columns("usuarios")}
-    assert {"ativo", "email", "email_confirmado_em", "cota_diaria", "onboarding_visto"} <= colunas
+    assert {
+        "ativo",
+        "email",
+        "email_confirmado_em",
+        "recusada_em",
+        "cota_diaria",
+        "onboarding_visto",
+    } <= colunas
     indices = {
         indice["name"]: indice["unique"] for indice in inspect(motor).get_indexes("usuarios")
     }

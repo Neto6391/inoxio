@@ -274,8 +274,8 @@ export function Investigacao({ id, intervalo = INTERVALO_MS, consultas = CONSULT
           {erroTentativa && <Alert type="error" showIcon title={erroTentativa} />}
           <AnaliseIA
             analise={detalhe.analise}
-            // Indisponível, ou a página desistiu de esperar: dá para pedir de novo.
-            aoTentarDeNovo={detalhe.analise_estado !== "pronta" ? tentarDeNovo : undefined}
+            // Indisponível, ou a página desistiu de esperar: a dona pode pedir de novo.
+            aoTentarDeNovo={detalhe.analise_estado !== "pronta" && detalhe.minha ? tentarDeNovo : undefined}
             tentando={tentando}
           />
         </Flex>

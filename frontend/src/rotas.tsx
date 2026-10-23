@@ -1,8 +1,20 @@
 // Roteador mínimo: cinco telas não justificam uma biblioteca de rotas.
 import { type ReactNode, useEffect, useState } from "react";
+import { paginaDesatualizada } from "./api";
 
 export function navegar(caminho: string): void {
+  // Depois de um deploy, a troca de tela carrega a página inteira: vem o JavaScript novo.
+  if (paginaDesatualizada()) {
+    window.location.assign(caminho);
+    return;
+  }
   window.history.pushState(null, "", caminho);
+  window.dispatchEvent(new PopStateEvent("popstate"));
+}
+
+// Troca o endereço sem criar uma entrada nova no histórico.
+export function substituir(caminho: string): void {
+  window.history.replaceState(null, "", caminho);
   window.dispatchEvent(new PopStateEvent("popstate"));
 }
 

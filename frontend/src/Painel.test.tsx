@@ -61,10 +61,10 @@ test("os créditos aparecem no topo, no menu e no painel", async () => {
 });
 
 test("sem cota, os créditos aparecem como sem limite", async () => {
-  servidor("admin", { "/api/creditos": { cota: null, usados: 2, restantes: null, renova_em: "x" } });
+  servidor("admin", { "/api/creditos": { cota: null, usados: 2, restantes: null, renova_em: "x", por_hora: 20 } });
   navegar("/painel");
   render(<App />);
-  expect(await screen.findByText("Sem limite de créditos")).toBeInTheDocument();
+  expect(await screen.findByText("Sem cota diária · até 20 por hora")).toBeInTheDocument();
 });
 
 test("créditos esgotados avisam e travam o botão de investigar", async () => {

@@ -23,6 +23,7 @@ const BASE = {
   rotulo: "Sem evidência de atividade maliciosa nas fontes consultadas",
   evidencias: [],
   reaproveitada: false,
+  minha: true,
 };
 
 const PRONTA = {
@@ -137,5 +138,13 @@ test("explicação pronta que o filtro esvaziou não oferece pedir de novo", asy
   vi.stubGlobal("fetch", vi.fn(async () => json({ ...BASE, analise: null, analise_estado: "pronta" })));
   render(<Investigacao id="1" />);
   expect(await screen.findByText(/Explicação indisponível/)).toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "Tentar explicar de novo" })).toBeNull();
+});
+
+test("o admin abrindo a investigação de outra pessoa não tem o botão de pedir de novo", async () => {
+  const fetch = vi.fn(async () => json({ ...BASE, analise: null, analise_estado: "indisponivel", minha: false }));
+  vi.stubGlobal("fetch", fetch);
+  render(<Investigacao id="1" />);
+  expect(await screen.findByText(/indisponível/i)).toBeInTheDocument();
   expect(screen.queryByRole("button", { name: "Tentar explicar de novo" })).toBeNull();
 });

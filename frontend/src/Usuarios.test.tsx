@@ -28,8 +28,17 @@ function servidor(papel: "admin" | "analista", pedidos: RequestInit[] = []) {
       }
       if (caminho === "/api/usuarios") {
         return json([
-          { nome: "chefe", papel: "admin", criado_em: "2026-09-26T12:00:00", ativo: true },
-          { nome: "dani", papel: "analista", criado_em: "2026-09-26T13:00:00", ativo: true },
+          { nome: "chefe", papel: "admin", criado_em: "2026-09-26T12:00:00", ativo: true, cota_diaria: null },
+          { nome: "dani", papel: "analista", criado_em: "2026-09-26T13:00:00", ativo: true, cota_diaria: 10 },
+          {
+            nome: "eva",
+            papel: "analista",
+            criado_em: "2026-09-26T14:00:00",
+            ativo: false,
+            pendente: true,
+            email: "eva@exemplo.test",
+            cota_diaria: 10,
+          },
         ]);
       }
       return json([]);
@@ -133,4 +142,41 @@ test("trocar só a senha não manda o papel", async () => {
   fireEvent.click(screen.getByRole("button", { name: "Salvar" }));
   await waitFor(() => expect(pedidos).toHaveLength(1));
   expect(JSON.parse(pedidos[0].body as string)).toEqual({ senha: "senha-nova-bem-longa" });
+});
+
+test("o admin não muda o próprio papel pela tela", async () => {
+  abrirUsuarios([]);
+  await screen.findByText("dani", { selector: "span" });
+  fireEvent.click(within(linhaDe("chefe")).getByRole("button", { name: "Editar" }));
+  await screen.findByText("Editar chefe");
+  expect(screen.getByText("O próprio papel só outro admin muda.")).toBeInTheDocument();
+  expect(document.querySelector(".ant-segmented-disabled")).not.toBeNull();
+});
+
+test("apagar a cota manda null, e a lista mostra a cota de cada um", async () => {
+  const pedidos: RequestInit[] = [];
+  abrirUsuarios(pedidos);
+  await screen.findByText("dani", { selector: "span" });
+  expect(within(linhaDe("dani")).getByText(/cota 10\/dia/)).toBeInTheDocument();
+  expect(within(linhaDe("chefe")).getByText(/sem cota diária/)).toBeInTheDocument();
+  fireEvent.click(within(linhaDe("dani")).getByRole("button", { name: "Editar" }));
+  await screen.findByText("Editar dani");
+  fireEvent.change(screen.getByLabelText("Cota diária"), { target: { value: "" } });
+  fireEvent.click(screen.getByRole("button", { name: "Salvar" }));
+  await waitFor(() => expect(pedidos).toHaveLength(1));
+  expect(JSON.parse(pedidos[0].body as string)).toEqual({ cota_diaria: null });
+});
+
+test("conta que espera o e-mail pode ser ativada ou recusada", async () => {
+  const pedidos: RequestInit[] = [];
+  abrirUsuarios(pedidos);
+  await screen.findByText("eva", { selector: "span" });
+  expect(within(linhaDe("eva")).getByRole("button", { name: "Ativar" })).toBeInTheDocument();
+  fireEvent.click(within(linhaDe("eva")).getByRole("button", { name: "Recusar" }));
+  const confirmar = await screen.findByText("Recusar eva?");
+  const caixa = confirmar.closest(".ant-popover") as HTMLElement;
+  fireEvent.click(within(caixa).getByRole("button", { name: "Recusar" }));
+  await waitFor(() => expect(pedidos).toHaveLength(1));
+  expect((pedidos[0] as { caminho?: string }).caminho).toBe("/api/usuarios/eva");
+  expect(JSON.parse(pedidos[0].body as string)).toEqual({ ativo: false });
 });

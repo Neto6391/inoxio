@@ -21,7 +21,12 @@ class Alteracao(BaseModel):
     papel: str | None = Field(default=None, max_length=16)
     senha: str | None = Field(default=None, max_length=256)
     ativo: bool | None = None
+    # Ausente deixa como está; null tira a cota.
     cota_diaria: int | None = None
+
+    @property
+    def sem_cota(self) -> bool:
+        return "cota_diaria" in self.model_fields_set and self.cota_diaria is None
 
 
 class NovoUsuario(BaseModel):
@@ -94,6 +99,8 @@ def alterar(
             senha=pedido.senha,
             ativo=pedido.ativo,
             cota_diaria=pedido.cota_diaria,
+            sem_cota=pedido.sem_cota,
+            sessao_mantida=ctx.sessao.token_hash,
         )
     except ValueError as erro:
         return JSONResponse({"erro": str(erro)}, status_code=400)
@@ -117,6 +124,8 @@ def _o_que_mudou(nome: str, pedido: Alteracao) -> str:
         partes.append("ativada" if pedido.ativo else "desativada")
     if pedido.cota_diaria is not None:
         partes.append(f"cota {pedido.cota_diaria}/dia")
+    if pedido.sem_cota:
+        partes.append("sem cota")
     return f"{nome}: {', '.join(partes) or 'nada'}"
 
 
@@ -139,6 +148,8 @@ TIPOS_EVENTO = (
     "explicacao_pedida",
 )
 POR_PAGINA = 50
+# Além disso o deslocamento não cabe no inteiro do SQLite e a consulta dava erro 500.
+PAGINA_MAXIMA = 1_000_000
 
 
 @rotas.get("/auditoria")
@@ -155,7 +166,7 @@ def listar_eventos(
     if usuario:
         filtro.append(Evento.usuario == usuario)
     total = db.scalar(select(func.count()).select_from(Evento).where(*filtro))
-    pagina = max(1, pagina)
+    pagina = min(max(1, pagina), PAGINA_MAXIMA)
     eventos = db.scalars(
         select(Evento)
         .where(*filtro)

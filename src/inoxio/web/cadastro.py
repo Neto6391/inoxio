@@ -74,7 +74,8 @@ def cadastrar(
         reenviar = enviar is not None and usuarios.pendente(existente)
         token = usuarios.abrir_ativacao(db, existente) if reenviar else None
         detalhe = "e-mail já cadastrado, link reenviado" if token else "e-mail já cadastrado"
-        auditoria.registrar(db, "cadastro", ip, pedido.nome, detalhe)
+        # Em nome da dona do e-mail: o nome digitado no formulário ninguém conferiu.
+        auditoria.registrar(db, "cadastro", ip, existente.nome, detalhe)
         db.commit()
         if token:
             link = f"{request.app.state.config.url_publica}/ativar#{token}"

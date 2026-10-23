@@ -42,3 +42,31 @@ test("401 avisa o app que a sessão expirou", async () => {
   expect(ouvinte).toHaveBeenCalledOnce();
   window.removeEventListener(SESSAO_EXPIRADA, ouvinte);
 });
+
+test("depois de um deploy, a próxima troca de tela carrega a página inteira", async () => {
+  const meta = document.createElement("meta");
+  meta.name = "versao";
+  meta.content = "aaaaaaaaaaaa";
+  document.head.append(meta);
+  const assign = vi.fn();
+  vi.stubGlobal("location", { ...window.location, assign, pathname: "/painel" });
+  const { navegar } = await import("./rotas");
+  try {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response("{}", { status: 200, headers: { "X-Inoxio-Versao": "aaaaaaaaaaaa" } })),
+    );
+    await chamar("/api/sessao");
+    navegar("/investigacoes");
+    expect(assign).not.toHaveBeenCalled();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response("{}", { status: 200, headers: { "X-Inoxio-Versao": "bbbbbbbbbbbb" } })),
+    );
+    await chamar("/api/sessao");
+    navegar("/painel");
+    expect(assign).toHaveBeenCalledWith("/painel");
+  } finally {
+    meta.remove();
+  }
+});

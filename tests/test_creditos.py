@@ -62,6 +62,7 @@ def test_creditos_mostram_cota_usados_restantes_e_a_renovacao(cliente, usuarios,
         "usados": 3,
         "restantes": 7,
         "renova_em": (inicio + timedelta(days=1)).isoformat(),
+        "por_hora": 20,
     }
 
 

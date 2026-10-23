@@ -7,12 +7,17 @@ na meta tag que o React lê e repassa ao ConfigProvider.
 
 from __future__ import annotations
 
+import hashlib
 import secrets
 from pathlib import Path
 
 from fastapi.responses import HTMLResponse
 
 MARCADOR = "__CSP_NONCE__"
+MARCADOR_VERSAO = "__VERSAO__"
+# Toda resposta da API diz qual frontend está publicado. A aba aberta antes de um deploy
+# compara com a versão dela e carrega a página de novo na navegação seguinte.
+CABECALHO_VERSAO = "X-Inoxio-Versao"
 PROVISORIA = (
     '<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>Inóxio</title>'
     "</head><body><p>Frontend não publicado.</p></body></html>"
@@ -28,11 +33,21 @@ def politica(nonce: str | None = None) -> str:
     )
 
 
+def _modelo(diretorio: Path) -> str:
+    try:
+        return (diretorio / "index.html").read_text(encoding="utf-8")
+    except FileNotFoundError:
+        return PROVISORIA
+
+
+def versao(diretorio: Path) -> str:
+    """O build do Vite muda o index.html (os nomes dos arquivos levam o hash do conteúdo)."""
+    return hashlib.sha256(_modelo(diretorio).encode()).hexdigest()[:12]
+
+
 def pagina(diretorio: Path) -> HTMLResponse:
     nonce = secrets.token_urlsafe(16)
-    try:
-        modelo = (diretorio / "index.html").read_text(encoding="utf-8")
-    except FileNotFoundError:
-        modelo = PROVISORIA
+    modelo = _modelo(diretorio)
     cabecalhos = {"Content-Security-Policy": politica(nonce), "Cache-Control": "no-store"}
-    return HTMLResponse(modelo.replace(MARCADOR, nonce), headers=cabecalhos)
+    html = modelo.replace(MARCADOR, nonce).replace(MARCADOR_VERSAO, versao(diretorio))
+    return HTMLResponse(html, headers=cabecalhos)

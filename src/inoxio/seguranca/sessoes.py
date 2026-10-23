@@ -42,9 +42,13 @@ def validar(db: Session, token: str | None) -> tuple[Usuario, Sessao] | None:
     return (usuario, sessao) if usuario and usuario.ativo else None
 
 
-def fechar_todas(db: Session, usuario_id: str) -> None:
-    """Derruba todas as sessões do usuário: senha trocada ou conta desativada."""
-    db.execute(delete(Sessao).where(Sessao.usuario_id == usuario_id))
+def fechar_todas(db: Session, usuario_id: str, exceto: str | None = None) -> None:
+    """Derruba todas as sessões do usuário: senha trocada ou conta desativada.
+    `exceto` é o hash da sessão que fica: a de quem trocou a própria senha."""
+    filtro = [Sessao.usuario_id == usuario_id]
+    if exceto is not None:
+        filtro.append(Sessao.token_hash != exceto)
+    db.execute(delete(Sessao).where(*filtro))
 
 
 def fechar(db: Session, token: str | None) -> None:
