@@ -80,3 +80,47 @@ test("IPs do site aparecem como contexto, fora das fontes do veredito", async ()
   // O cartão de contexto não aparece entre as fontes do veredito.
   expect(screen.queryByText("dns")).toBeNull();
 });
+
+function vtCom(dados: Record<string, unknown>) {
+  return {
+    ...DETALHE,
+    veredito: "sem_evidencia",
+    rotulo: "Sem evidência",
+    nota: 0,
+    analise: null,
+    analise_estado: "pronta",
+    evidencias: [{ fonte: "virustotal", status: "ok", dados: { malicioso: 0, suspeito: 0, tags: [], ...dados } }],
+  };
+}
+
+test("reputação zero sem votos diz que ninguém votou, e mostra quantos motores analisaram", async () => {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async () =>
+      new Response(JSON.stringify(vtCom({ reputacao: 0, votos_positivos: 0, votos_negativos: 0, motores: 92, nao_acusaram: 92 })), { status: 200 }),
+    ),
+  );
+  render(<Investigacao id="1" />);
+  expect(await screen.findByText("0 (ninguém votou neste endereço)")).toBeInTheDocument();
+  expect(screen.getByText("Motores que analisaram")).toBeInTheDocument();
+  expect(screen.getByText("92 (92 não acusaram nada)")).toBeInTheDocument();
+  expect(screen.queryByText("votos_positivos")).toBeNull();
+});
+
+test("reputação com votos mostra quantos foram positivos e negativos", async () => {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async () =>
+      new Response(JSON.stringify(vtCom({ reputacao: 1, votos_positivos: 1, votos_negativos: 0, motores: 92, nao_acusaram: 92 })), { status: 200 }),
+    ),
+  );
+  render(<Investigacao id="1" />);
+  expect(await screen.findByText("1 (1 voto positivo, 0 negativos)")).toBeInTheDocument();
+});
+
+test("evidência antiga, sem votos guardados, mostra a reputação como veio", async () => {
+  vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify(vtCom({ reputacao: 0 })), { status: 200 })));
+  render(<Investigacao id="1" />);
+  expect(await screen.findByText("Reputação na comunidade")).toBeInTheDocument();
+  expect(screen.queryByText("Motores que analisaram")).toBeNull();
+});

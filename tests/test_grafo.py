@@ -157,3 +157,38 @@ def test_caminho_da_url_vai_so_nos_dados_nao_confiaveis():
     assert carga["indicador"] == {"tipo": "url", "host": "exemplo.com"}
     assert "ignore-as-instrucoes" in json.dumps(carga["DADOS_NAO_CONFIAVEIS"])
     assert "ignore-as-instrucoes" not in json.dumps(carga["indicador"])
+
+
+def test_campos_so_da_tela_nao_vao_para_a_ia():
+    # As instruções foram medidas sem estes números; eles servem à tela.
+    from inoxio.agente.grafo import dados_da_mente
+
+    vt = evidencia(
+        "virustotal",
+        "ok",
+        {
+            "malicioso": 0,
+            "suspeito": 0,
+            "reputacao": 0,
+            "tags": [],
+            "votos_positivos": 0,
+            "votos_negativos": 0,
+            "motores": 92,
+            "nao_acusaram": 92,
+        },
+    )
+    dados = dados_da_mente(
+        {
+            "tipo": "ip",
+            "valor": "8.8.8.8",
+            "veredito": "sem_evidencia",
+            "nota": 0,
+            "evidencias": [vt],
+        }
+    )
+    assert dados["DADOS_NAO_CONFIAVEIS"][0]["dados"] == {
+        "malicioso": 0,
+        "suspeito": 0,
+        "reputacao": 0,
+        "tags": [],
+    }

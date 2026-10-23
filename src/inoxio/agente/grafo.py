@@ -25,9 +25,20 @@ def rota_reaproveitamento(estado: Estado) -> str:
     return "pronto" if estado.get("analise") else "explicar"
 
 
+# Números que só dão contexto na tela; as instruções da IA foram medidas sem eles.
+CAMPOS_SO_DA_TELA = {"votos_positivos", "votos_negativos", "motores", "nao_acusaram"}
+
+
+def _para_a_mente(evidencia: dict[str, Any]) -> dict[str, Any]:
+    dados = evidencia.get("dados")
+    if not isinstance(dados, dict):
+        return evidencia
+    return evidencia | {"dados": {k: v for k, v in dados.items() if k not in CAMPOS_SO_DA_TELA}}
+
+
 def dados_da_mente(estado: Estado) -> dict[str, Any]:
     indicador = {"tipo": estado["tipo"], "valor": estado["valor"]}
-    nao_confiaveis: list[dict[str, Any]] = list(estado["evidencias"])
+    nao_confiaveis: list[dict[str, Any]] = [_para_a_mente(e) for e in estado["evidencias"]]
     if estado["tipo"] == "url":
         # Caminho e parâmetros da URL são texto de quem investiga: vão com os dados
         # não confiáveis, e fora deles fica só o host, já validado.

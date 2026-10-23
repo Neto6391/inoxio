@@ -224,3 +224,36 @@ def test_url_que_o_virustotal_nunca_viu_e_nao_encontrada():
         "url", "https://exemplo.com/nova"
     )
     assert (resultado["fonte"], resultado["status"]) == ("virustotal_url", "nao_encontrado")
+
+
+def test_virustotal_guarda_os_votos_e_quantos_motores_analisaram():
+    # Do VirusTotal real em 23/10: www.crunchyroll.com, reputação 0 e nenhum voto.
+    def tratar(requisicao):
+        atributos = {
+            "last_analysis_stats": {
+                "malicious": 0,
+                "suspicious": 0,
+                "undetected": 34,
+                "harmless": 58,
+                "timeout": 0,
+            },
+            "reputation": 0,
+            "total_votes": {"harmless": 0, "malicious": 0},
+        }
+        return httpx.Response(200, json={"data": {"attributes": atributos}})
+
+    dados = VirusTotal("chave", cliente(tratar)).consultar("dominio", "www.crunchyroll.com")[
+        "dados"
+    ]
+    assert (dados["motores"], dados["nao_acusaram"]) == (92, 92)
+    assert (dados["votos_positivos"], dados["votos_negativos"]) == (0, 0)
+
+
+def test_virustotal_sem_votos_nem_estatisticas_completas_conta_zero():
+    def tratar(requisicao):
+        atributos = {"last_analysis_stats": {"malicious": 2}}
+        return httpx.Response(200, json={"data": {"attributes": atributos}})
+
+    dados = VirusTotal("chave", cliente(tratar)).consultar("ip", "8.8.8.8")["dados"]
+    assert (dados["motores"], dados["nao_acusaram"]) == (2, 0)
+    assert (dados["votos_positivos"], dados["votos_negativos"]) == (0, 0)
