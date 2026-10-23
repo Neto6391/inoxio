@@ -21,16 +21,33 @@ export function usePublico(): Publico | null {
   return publico;
 }
 
-type PropsDocumento = { titulo: string; secoes: Secao[]; dentroDoApp?: boolean };
+// Onde o documento aparece: logado, dentro do app (menu e breadcrumb); numa janela por
+// cima da tela de entrar, só o texto (a janela dá o título); sem sessão, sozinho, com o
+// botão Voltar e o logo levando à página inicial.
+type PropsDocumento = { titulo: string; secoes: Secao[]; dentroDoApp?: boolean; naJanela?: boolean };
+export type PropsDoDocumento = { dentroDoApp?: boolean; naJanela?: boolean };
 
-// Logado, o documento abre dentro do app, com o menu e o breadcrumb; sem sessão, sozinho,
-// com o botão Voltar e o logo levando à página inicial.
-function Documento({ titulo, secoes, dentroDoApp = false }: PropsDocumento) {
+function Documento({ titulo, secoes, dentroDoApp = false, naJanela = false }: PropsDocumento) {
   const publico = usePublico();
+  if (naJanela) {
+    return (
+      <div className="documento-na-janela">
+        {publico?.versao_termos && (
+          <Typography.Text type="secondary">Versão de {dataPorExtenso(publico.versao_termos)}.</Typography.Text>
+        )}
+        {secoes.map((secao) => (
+          <section key={secao.titulo}>
+            <Typography.Title level={5}>{secao.titulo}</Typography.Title>
+            {secao.corpo}
+          </section>
+        ))}
+      </div>
+    );
+  }
   const cartao = (
     <Card className="documento">
         <Typography.Title level={1}>{titulo}</Typography.Title>
-        {publico && (
+        {publico?.versao_termos && (
           <Typography.Text type="secondary">
             Versão de {dataPorExtenso(publico.versao_termos)}.
           </Typography.Text>
@@ -98,10 +115,11 @@ function Contato() {
   );
 }
 
-export function Privacidade({ dentroDoApp }: { dentroDoApp?: boolean }) {
+export function Privacidade({ dentroDoApp, naJanela }: PropsDoDocumento) {
   return (
     <Documento
       dentroDoApp={dentroDoApp}
+      naJanela={naJanela}
       titulo="Política de Privacidade"
       secoes={[
         {
@@ -249,10 +267,11 @@ export function Privacidade({ dentroDoApp }: { dentroDoApp?: boolean }) {
   );
 }
 
-export function Termos({ dentroDoApp }: { dentroDoApp?: boolean }) {
+export function Termos({ dentroDoApp, naJanela }: PropsDoDocumento) {
   return (
     <Documento
       dentroDoApp={dentroDoApp}
+      naJanela={naJanela}
       titulo="Termos de Uso"
       secoes={[
         {

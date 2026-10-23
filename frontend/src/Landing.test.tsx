@@ -68,13 +68,14 @@ test("sem contato configurado, os planos pagos ficam como em breve", async () =>
   for (const botao of breves) expect(botao).toBeDisabled();
 });
 
-test("criar conta grátis leva à tela de entrar e cadastrar", async () => {
+test("criar conta grátis abre a tela de entrar já na aba de criar conta", async () => {
   servidor(false);
   navegar("/");
   render(<App />);
   fireEvent.click((await screen.findAllByRole("button", { name: "Criar conta grátis" }))[0]);
-  expect(await screen.findByLabelText("Usuário")).toBeInTheDocument();
-  expect(window.location.pathname).toBe("/entrar");
+  expect(await screen.findByRole("heading", { name: "Crie a sua conta" })).toBeInTheDocument();
+  expect(screen.getByLabelText("Nome de usuário")).toBeInTheDocument();
+  expect(window.location.pathname).toBe("/cadastro");
 });
 
 test("Entrar leva ao login, e o login leva ao painel", async () => {

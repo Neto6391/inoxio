@@ -136,7 +136,8 @@ export function App() {
   // Com sessão aberta, a página inicial pública não aparece: o logo e o "/" levam ao Início.
   // A landing e o login só voltam depois de sair ou de a sessão vencer. O endereço antigo
   // do Início (/painel), de favoritos e links, também leva ao novo.
-  const naLandingLogado = Boolean(sessao) && (caminho === "/" || caminho === "/painel");
+  const naLandingLogado =
+    Boolean(sessao) && (caminho === "/" || caminho === "/painel" || caminho === "/cadastro");
   useEffect(() => {
     if (naLandingLogado) substituir(INICIO);
   }, [naLandingLogado]);
@@ -145,7 +146,7 @@ export function App() {
     guardarCsrf(nova.csrf);
     setSessao(nova);
     // Quem entrou pela tela de login vai para o Início, e o endereço acompanha.
-    if (window.location.pathname === "/entrar") substituir(INICIO);
+    if (["/entrar", "/cadastro"].includes(window.location.pathname)) substituir(INICIO);
   }
 
   useEffect(() => {
@@ -218,7 +219,7 @@ export function App() {
     if (caminho === "/") return <Landing sessao={null} />;
     if (caminho === "/termos") return <Termos />;
     if (caminho === "/privacidade") return <Privacidade />;
-    return <Login aoEntrar={entrarCom} />;
+    return <Login aoEntrar={entrarCom} abaInicial={caminho === "/cadastro" ? "criar" : "entrar"} />;
   }
 
   const admin = sessao.usuario.papel === "admin";
