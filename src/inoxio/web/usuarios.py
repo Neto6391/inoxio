@@ -136,6 +136,7 @@ TIPOS_EVENTO = (
     "conta_excluida",
     "senha_pedida",
     "senha_redefinida",
+    "explicacao_pedida",
 )
 POR_PAGINA = 50
 

@@ -1,4 +1,4 @@
-import { Alert, Card, Flex, Tag, Typography } from "antd";
+import { Alert, Button, Card, Flex, Tag, Typography } from "antd";
 import { IconeCheck, IconeLampada } from "./icones";
 import type { Analise } from "./tipos";
 
@@ -10,13 +10,27 @@ function linkMitre(tecnica: string): string {
   return `https://attack.mitre.org/techniques/${tecnica.replace(".", "/")}/`;
 }
 
-export function AnaliseIA({ analise }: { analise: Analise | null }) {
+type Props = {
+  analise: Analise | null;
+  // Presente quando a explicação pode ser pedida de novo (ficou indisponível).
+  aoTentarDeNovo?: () => void;
+  tentando?: boolean;
+};
+
+export function AnaliseIA({ analise, aoTentarDeNovo, tentando = false }: Props) {
   if (!analise) {
     return (
       <Alert
         type="info"
         showIcon
         title="Explicação indisponível. O resultado acima vem só das regras fixas."
+        action={
+          aoTentarDeNovo && (
+            <Button size="small" onClick={aoTentarDeNovo} loading={tentando}>
+              Tentar explicar de novo
+            </Button>
+          )
+        }
       />
     );
   }

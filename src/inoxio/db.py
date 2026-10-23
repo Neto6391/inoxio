@@ -118,6 +118,8 @@ class Investigacao(Base):
     # pendente (a IA ainda escreve), pronta ou indisponivel. Nulo nas investigações
     # anteriores à explicação em segundo plano.
     analise_estado: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    # Quando a explicação foi pedida de novo; o prazo dela conta daqui.
+    analise_pedida_em: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     reaproveitada: Mapped[bool] = mapped_column(Boolean, default=False)
     criada_em: Mapped[datetime] = mapped_column(DateTime, default=agora, index=True)
 
@@ -148,6 +150,7 @@ _COLUNAS_NOVAS = {
     },
     "investigacoes": {
         "analise_estado": "VARCHAR(16)",
+        "analise_pedida_em": "DATETIME",
     },
 }
 
