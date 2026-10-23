@@ -43,6 +43,21 @@ const GERAL = {
   top_usuarios: [],
 };
 
+const DETALHE = {
+  id: "abc-1",
+  tipo: "dominio",
+  valor: "exemplo.com",
+  veredito: "sem_evidencia",
+  rotulo: "Sem evidência",
+  nota: 0,
+  criada_em: "2026-10-23T12:00:00",
+  evidencias: [],
+  analise: null,
+  analise_estado: "indisponivel",
+  reaproveitada: false,
+  minha: true,
+};
+
 function servidor(usuario: Record<string, unknown> | null, pedidos: Pedido[] = []) {
   vi.stubGlobal(
     "fetch",
@@ -51,6 +66,7 @@ function servidor(usuario: Record<string, unknown> | null, pedidos: Pedido[] = [
       if (metodo !== "GET") pedidos.push({ caminho, metodo, corpo: pedido.body ? JSON.parse(pedido.body as string) : null });
       if (caminho === "/api/sessao") return json({ usuario, csrf: usuario ? "t" : null });
       if (caminho === "/api/estatisticas/geral") return json(GERAL);
+      if (caminho === "/api/investigacoes/abc-1") return json(DETALHE);
       if (caminho.startsWith("/api/usuarios?") || caminho.startsWith("/api/auditoria/usuarios?")) return json(pagina([]));
       if (caminho === "/api/publico") return json({ contato_privacidade: "dpo@exemplo.com", versao_termos: "2026-10-23" });
       if (caminho === "/api/conta" && metodo === "PATCH") {
@@ -84,7 +100,9 @@ function trilhaNaTela(): string[] {
 test("todo pai do mapa das telas é uma tela do mapa", () => {
   const caminhos = new Set(PAGINAS.map((pagina) => pagina.caminho));
   for (const pagina of PAGINAS) if (pagina.pai) expect(caminhos).toContain(pagina.pai);
-  expect(trilha("/investigacoes/abc-1").map((p) => p.titulo)).toEqual(["Início", "Investigações", "Investigação"]);
+  // A tela de uma investigação aparece pelo id dela.
+  expect(trilha("/investigacoes/abc-1").map((p) => p.titulo)).toEqual(["Início", "Investigações", "abc-1"]);
+  expect(trilha("/investigacoes/abc-1").map((p) => p.caminho)).toEqual(["/painel", "/investigacoes", "/investigacoes/abc-1"]);
   expect(trilha("/usuarios").map((p) => p.titulo)).toEqual(["Visão geral", "Usuários"]);
 });
 
@@ -219,4 +237,11 @@ test("o link do e-mail novo confirma a troca", async () => {
   render(<App />);
   expect(await screen.findByText("E-mail trocado", { selector: ".ant-result-title" })).toBeInTheDocument();
   expect(pedidos).toEqual([{ caminho: "/api/conta/email/confirmar", metodo: "POST", corpo: { token: "token-do-link" } }]);
+});
+
+test("a tela de uma investigação tem um Voltar só e o id no breadcrumb", async () => {
+  abrir("/investigacoes/abc-1", ANA);
+  await screen.findByText("exemplo.com");
+  expect(trilhaNaTela()).toEqual(["Início", "Investigações", "abc-1"]);
+  expect(screen.getAllByText(/Voltar|← Investigações/)).toHaveLength(1);
 });

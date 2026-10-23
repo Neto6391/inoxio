@@ -105,7 +105,9 @@ test("admin vê quem espera o e-mail, ativa e muda a cota", async () => {
   fireEvent.click(within(linha).getByRole("button", { name: "Ativar" }));
   await waitFor(() => expect(pedidos).toHaveLength(1));
   expect(pedidos[0]).toEqual({ caminho: "/api/usuarios/dani", corpo: { ativo: true } });
-  fireEvent.click(within(linha).getByRole("button", { name: "Editar" }));
+  // A lista é lida de novo (com o carregando): a linha é outra.
+  const nova = (await screen.findByText("dani", { selector: "span" })).closest(".ant-list-item") as HTMLElement;
+  fireEvent.click(within(nova).getByRole("button", { name: "Editar" }));
   await screen.findByText("Editar dani");
   fireEvent.change(screen.getByLabelText("Cota diária"), { target: { value: "50" } });
   fireEvent.click(screen.getByRole("button", { name: "Salvar" }));

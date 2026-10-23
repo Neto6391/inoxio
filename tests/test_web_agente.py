@@ -208,13 +208,19 @@ def test_lista_vem_em_paginas_da_mais_nova_para_a_mais_antiga(cliente, usuarios,
             )
     entrar(cliente, "ana")
     primeira = cliente.get("/api/investigacoes").json()
-    assert (primeira["total"], primeira["pagina"], primeira["por_pagina"]) == (55, 1, 20)
-    assert [item["valor"] for item in primeira["itens"]] == [f"8.8.8.{n}" for n in range(20)]
-    ultima = cliente.get("/api/investigacoes", params={"pagina": 3}).json()
-    assert [item["valor"] for item in ultima["itens"]] == [f"8.8.8.{n}" for n in range(40, 55)]
+    assert (primeira["total"], primeira["pagina"], primeira["por_pagina"]) == (55, 1, 5)
+    assert [item["valor"] for item in primeira["itens"]] == [f"8.8.8.{n}" for n in range(5)]
+    ultima = cliente.get("/api/investigacoes", params={"pagina": 11}).json()
+    assert [item["valor"] for item in ultima["itens"]] == [f"8.8.8.{n}" for n in range(50, 55)]
     # A busca procura no indicador; "%" e "_" valem como texto, não como curinga.
-    busca = cliente.get("/api/investigacoes", params={"busca": "8.8.8.5"}).json()
-    assert sorted(item["valor"] for item in busca["itens"]) == [
+    busca = [
+        item["valor"]
+        for numero in (1, 2)
+        for item in cliente.get(
+            "/api/investigacoes", params={"busca": "8.8.8.5", "pagina": numero}
+        ).json()["itens"]
+    ]
+    assert sorted(busca) == [
         "8.8.8.5",
         "8.8.8.50",
         "8.8.8.51",

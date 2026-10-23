@@ -194,6 +194,7 @@ test("zerar o uso de hoje e encerrar sessões pedem confirmação", async () => 
   fireEvent.click(within(zerar).getByRole("button", { name: "Zerar" }));
   await waitFor(() => expect(pedidos).toHaveLength(1));
   expect(JSON.parse(pedidos[0].body as string)).toEqual({ zerar_uso: true });
+  await screen.findByText("dani", { selector: "span" });
   fireEvent.click(within(linhaDe("dani")).getByRole("button", { name: "Editar" }));
   await screen.findByText("Editar dani");
   fireEvent.click(screen.getByRole("button", { name: "Encerrar sessões" }));

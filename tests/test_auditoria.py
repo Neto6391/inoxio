@@ -122,32 +122,10 @@ def test_acoes_do_admin_ficam_registradas_sem_a_senha(cliente, usuarios, fabrica
     assert "senha-nova-de-dani" not in str(eventos(fabrica))
 
 
-def test_so_o_admin_le_a_auditoria(cliente, usuarios):
-    entrar(cliente, "ana")
-    assert cliente.get("/api/auditoria").status_code == 403
-
-
-def test_filtro_paginacao_e_ordem(cliente, usuarios, fabrica):
-    with fabrica() as db, db.begin():
-        for numero in range(60):
-            db.add(
-                Evento(
-                    tipo="login",
-                    usuario="beto",
-                    ip="1.2.3.4",
-                    quando=agora() - timedelta(minutes=numero),
-                )
-            )
+def test_a_lista_corrida_de_eventos_saiu(cliente, usuarios):
+    # A Auditoria é por usuário; a rota da lista de todos os eventos não existe mais.
     entrar(cliente, "chefe")
-    primeira = cliente.get("/api/auditoria", params={"usuario": "beto"}).json()
-    segunda = cliente.get("/api/auditoria", params={"usuario": "beto", "pagina": 2}).json()
-    assert (primeira["total"], len(primeira["itens"]), len(segunda["itens"])) == (60, 50, 10)
-    quandos = [item["quando"] for item in primeira["itens"]]
-    assert quandos == sorted(quandos, reverse=True)
-    so_login_do_chefe = cliente.get(
-        "/api/auditoria", params={"tipo": "login", "usuario": "chefe"}
-    ).json()
-    assert [item["usuario"] for item in so_login_do_chefe["itens"]] == ["chefe"]
+    assert cliente.get("/api/auditoria").status_code == 404
 
 
 def test_eventos_de_mais_de_90_dias_sao_apagados(cliente, usuarios, fabrica):
@@ -159,8 +137,8 @@ def test_eventos_de_mais_de_90_dias_sao_apagados(cliente, usuarios, fabrica):
     assert all(usuario != "velho" for _, usuario, _, _ in eventos(fabrica))
 
 
-def test_paginacao_absurda_nao_derruba_a_auditoria(cliente, usuarios):
+def test_paginacao_absurda_nao_derruba_as_sessoes(cliente, usuarios):
     entrar(cliente, "chefe")
-    resposta = cliente.get("/api/auditoria", params={"pagina": 10**19})
+    resposta = cliente.get("/api/auditoria/usuarios/ana/sessoes", params={"pagina": 10**19})
     assert resposta.status_code == 200
-    assert resposta.json()["itens"] == []
+    assert resposta.json()["sessoes"]["itens"] == []

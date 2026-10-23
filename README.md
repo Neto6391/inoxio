@@ -124,14 +124,14 @@ graph TD;
   para investigar e as 5 investigações mais recentes. Os gráficos são SVG e CSS
   desenhados no próprio app, sem biblioteca a mais.
 - **Investigações** (`/investigacoes`): todas as do usuário, da mais nova para a
-  mais antiga, 20 por página, com busca pelo indicador.
+  mais antiga, 5 por página, com busca pelo indicador.
 - **Investigação:** veredito com a nota num medidor, a explicação em linguagem
   simples com o que cada fonte mostrou, o glossário e o que fazer, as evidências de cada fonte e os IPs do
   site com quem opera cada um. As técnicas MITRE ATT&CK ficam em "Para analistas".
   Quando os IPs são de uma empresa conhecida (Cloudflare, Akamai, Fastly, Google,
   Amazon, Microsoft), o cartão "Quem opera estes IPs" explica em linguagem simples
   por que o IP é dela, com texto fixo do app, sem depender da IA.
-- **Usuários:** só para o papel `admin`: a lista em páginas de 20, com busca (usuário,
+- **Usuários:** só para o papel `admin`: a lista em páginas de 10, com busca (usuário,
   nome ou e-mail) e filtro por papel e situação; "Novo usuário" e "Editar" abrem numa
   janela. O admin cadastra, edita (papel, cota e senha), zera o uso de hoje, encerra
   as sessões, desativa e reativa usuários por ali. O
@@ -143,12 +143,12 @@ graph TD;
   aguardando e-mail, recusadas), quem não usou nos últimos 30 dias, total de
   investigações e de sites pesquisados, e os 10 usuários que mais pesquisam.
 - **Auditoria** (`/auditoria`), só para o `admin`: uma tabela por usuário, com os
-  mesmos filtros e páginas da tela de Usuários; o botão Visualizar abre as sessões da
-  pessoa, 10 por página, com filtro por período e a linha do tempo de cada uma, do login ao fim (saiu, venceu, encerrada pelo admin). A aba Todos os
-  eventos mostra logins (certos, errados e bloqueados), logouts, cadastros,
-  ativações, aceites dos termos, contas excluídas, investigações, mudanças na própria
-  conta e toda ação do admin, com usuário, IP e horário, filtro por tipo e por
-  usuário. Guarda 90 dias.
+  mesmos filtros da tela de Usuários, 10 por página; o botão Visualizar abre as
+  sessões da pessoa, 5 por página, com filtro por período e a linha do tempo de cada
+  uma, do login ao fim (saiu, venceu, encerrada pelo admin), e os eventos de fora de
+  sessão (senha errada, cadastro, link de senha), também 5 por página. Toda lista
+  mostra a paginação, mesmo com uma página só, e o carregando enquanto a página pedida
+  não chega. Guarda 90 dias.
 
 ## LGPD
 

@@ -219,7 +219,7 @@ export function Investigacao({ id, intervalo = INTERVALO_MS, consultas = CONSULT
   }, [esperando, feitas, id, intervalo]);
 
   if (erro) {
-    return <Result status="warning" title={erro} extra={<Link para="/painel">Voltar ao painel</Link>} />;
+    return <Result status="warning" title={erro} extra={<Link para="/painel">Voltar ao início</Link>} />;
   }
   if (!detalhe) return <Skeleton active paragraph={{ rows: 6 }} />;
 
@@ -228,7 +228,6 @@ export function Investigacao({ id, intervalo = INTERVALO_MS, consultas = CONSULT
   const contexto = detalhe.evidencias.filter((evidencia) => evidencia.contexto);
   return (
     <Flex vertical gap="large">
-      <Link para="/investigacoes">← Investigações</Link>
       <Flex vertical gap={4}>
         <Typography.Title level={2} className="titulo-indicador indicador">
           {detalhe.valor}

@@ -28,7 +28,8 @@ export const INICIO = "/painel";
 export const PAGINAS: Pagina[] = [
   { caminho: INICIO, titulo: "Início", icone: <IconePainel /> },
   { caminho: "/investigacoes", titulo: "Investigações", pai: INICIO, icone: <IconeBusca /> },
-  { caminho: "/investigacoes/:id", titulo: "Investigação", pai: "/investigacoes" },
+  // No breadcrumb, o título é o próprio id da investigação.
+  { caminho: "/investigacoes/:id", titulo: ":id", pai: "/investigacoes" },
   { caminho: "/conta", titulo: "Minha conta", pai: INICIO, icone: <IconeConta /> },
   { caminho: "/termos", titulo: "Termos de Uso", pai: INICIO },
   { caminho: "/privacidade", titulo: "Política de Privacidade", pai: INICIO },
@@ -50,12 +51,17 @@ export function paginaDe(caminho: string): Pagina | undefined {
   return PAGINAS.find((pagina) => casa(pagina.caminho, alvo));
 }
 
-// Da raiz até a tela atual.
+// Da raiz até a tela atual. Um título ":id" vira o pedaço do endereço que ele casou.
 export function trilha(caminho: string): Pagina[] {
   const passos: Pagina[] = [];
   let atual = paginaDe(caminho);
+  let real: string | undefined = caminho;
   while (atual) {
-    passos.unshift(atual);
+    const modelo = atual.caminho.split("/");
+    const partes = (real ?? atual.caminho).split("/");
+    const titulo = atual.titulo.startsWith(":") ? partes[modelo.indexOf(atual.titulo)] ?? atual.titulo : atual.titulo;
+    passos.unshift({ ...atual, titulo, caminho: real ?? atual.caminho });
+    real = atual.pai;
     atual = atual.pai ? paginaDe(atual.pai) : undefined;
   }
   return passos;

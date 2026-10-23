@@ -8,7 +8,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy import func, select
 
 from inoxio import usuarios as usuarios_regras
-from inoxio.db import Ativacao, RedefinicaoSenha, Usuario, agora
+from inoxio.db import Ativacao, Evento, RedefinicaoSenha, Usuario, agora
 from inoxio.web.app import criar_app
 from inoxio.web.usuarios import TIPOS_EVENTO
 
@@ -169,9 +169,11 @@ def test_auditoria_registra_o_pedido_e_a_troca_sem_o_email_digitado(
     pedir(cliente, "ninguem@exemplo.com")
     pedir(cliente)
     redefinir(cliente, caixa.token("/redefinir#"))
-    admin = TestClient(app, base_url="https://testserver")
-    entrar(admin, "chefe")
-    eventos = admin.get("/api/auditoria").json()["itens"]
+    with fabrica() as db:
+        eventos = [
+            {"tipo": e.tipo, "usuario": e.usuario, "detalhe": e.detalhe}
+            for e in db.scalars(select(Evento))
+        ]
     nossos = [(e["tipo"], e["usuario"]) for e in eventos if e["tipo"].startswith("senha")]
     assert sorted(nossos, key=str) == sorted(
         [("senha_pedida", None), ("senha_pedida", "ana"), ("senha_redefinida", "ana")], key=str
