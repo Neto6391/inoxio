@@ -170,6 +170,29 @@ test("o painel mostra as 5 investigações mais recentes e o caminho para todas"
   expect(within(cartao).getByRole("link", { name: "Ver todas" })).toHaveAttribute("href", "/investigacoes");
 });
 
+test("com a tela aberta, os créditos voltam sozinhos na hora da renovação", async () => {
+  // O servidor manda a hora em UTC, sem fuso; aqui, um instante logo à frente.
+  const renova = new Date(Date.now() + 300).toISOString().replace("Z", "");
+  const respostas = [
+    { cota: 10, usados: 10, restantes: 0, renova_em: renova },
+    { cota: 10, usados: 0, restantes: 10, renova_em: "2099-01-01T03:00:00" },
+  ];
+  servidor("analista");
+  const fetchBase = globalThis.fetch;
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (caminho: string, pedido?: RequestInit) =>
+      caminho === "/api/creditos" ? json(respostas.length > 1 ? respostas.shift() : respostas[0]) : fetchBase(caminho, pedido),
+    ),
+  );
+  navegar("/painel");
+  render(<App />);
+  expect(await screen.findByText(/Seus créditos de hoje acabaram/)).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "Investigar" })).toBeDisabled();
+  await waitFor(() => expect(screen.getByRole("button", { name: "Investigar" })).toBeEnabled(), { timeout: 4000 });
+  expect(screen.getByText("10 de 10 créditos")).toBeInTheDocument();
+});
+
 test("a explicação mostra o que cada fonte mostrou, um parágrafo por fonte", () => {
   render(
     <AnaliseIA
