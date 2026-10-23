@@ -31,7 +31,7 @@ function servidor(pedidos: Pedido[], respostas: Record<string, Response> = {}) {
   );
 }
 
-test("o cadastro fica ao lado do login e não manda a confirmação da senha", async () => {
+test("o cadastro fica na aba Criar conta e não manda a confirmação da senha", async () => {
   const pedidos: Pedido[] = [];
   servidor(pedidos, {
     "/api/cadastro": json({ mensagem: "Enviamos um link de ativação para o seu e-mail." }, 202),
@@ -39,6 +39,10 @@ test("o cadastro fica ao lado do login e não manda a confirmação da senha", a
   navegar("/entrar");
   render(<App />);
   expect(await screen.findByRole("button", { name: "Entrar" })).toBeInTheDocument();
+  expect(screen.queryByLabelText("Nome de usuário")).toBeNull();
+  fireEvent.click(screen.getByText("Criar conta", { selector: ".ant-segmented-item-label" }));
+  expect(window.location.pathname).toBe("/cadastro");
+  expect(await screen.findByRole("heading", { name: "Crie a sua conta" })).toBeInTheDocument();
   const ids = [...document.querySelectorAll("input[id]")].map((campo) => campo.id);
   expect(new Set(ids).size).toBe(ids.length);
   fireEvent.change(screen.getByLabelText("Nome de usuário"), { target: { value: "dani" } });
@@ -118,9 +122,9 @@ test("admin vê quem espera o e-mail, ativa e muda a cota", async () => {
 test("sem marcar o aceite, o cadastro não sai", async () => {
   const pedidos: Pedido[] = [];
   servidor(pedidos);
-  navegar("/entrar");
+  navegar("/cadastro");
   render(<App />);
-  await screen.findByRole("button", { name: "Entrar" });
+  await screen.findByRole("heading", { name: "Crie a sua conta" });
   fireEvent.change(screen.getByLabelText("Nome de usuário"), { target: { value: "dani" } });
   fireEvent.change(screen.getByLabelText("E-mail"), { target: { value: "dani@exemplo.com" } });
   fireEvent.change(screen.getByLabelText("Crie uma senha"), { target: { value: "senha-bem-longa-1" } });
@@ -164,4 +168,48 @@ test("no StrictMode o link de ativação vai ao servidor uma vez só", async () 
   );
   expect(await screen.findByText("Conta ativada")).toBeInTheDocument();
   expect(pedidos).toEqual([{ caminho: "/api/ativar", corpo: { token: "uma-vez" } }]);
+});
+
+test("os Termos e a Política abrem numa janela, sem sair da tela e sem perder o que foi digitado", async () => {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (caminho: string) => {
+      if (caminho === "/api/sessao") return json({ usuario: null, csrf: null });
+      if (caminho === "/api/publico") return json({ contato_privacidade: "contato@exemplo.com", versao_termos: "2026-10-23" });
+      return json([]);
+    }),
+  );
+  navegar("/cadastro");
+  render(<App />);
+  await screen.findByRole("heading", { name: "Crie a sua conta" });
+  fireEvent.change(screen.getByLabelText("Nome de usuário"), { target: { value: "dani" } });
+  fireEvent.click(screen.getByRole("button", { name: "Termos de Uso" }));
+  const termos = await screen.findByRole("dialog", { name: "Termos de Uso" });
+  expect(within(termos).getByText("1. Aceite")).toBeInTheDocument();
+  expect(window.location.pathname).toBe("/cadastro");
+  fireEvent.click(within(termos).getByRole("button", { name: "Fechar" }));
+  expect(screen.queryByRole("dialog")).toBeNull();
+  expect(screen.getByLabelText("Nome de usuário")).toHaveValue("dani");
+  fireEvent.click(screen.getByRole("button", { name: "Política de Privacidade" }));
+  const politica = await screen.findByRole("dialog", { name: "Política de Privacidade" });
+  expect(within(politica).getByText("2. Dados que tratamos")).toBeInTheDocument();
+});
+
+test("a tela de entrar mostra a foto ao lado do cartão", async () => {
+  servidor([]);
+  navegar("/entrar");
+  render(<App />);
+  expect(await screen.findByRole("heading", { name: "Bem-vindo de volta" })).toBeInTheDocument();
+  expect(screen.getByRole("img", { name: "Mesa com notebook, caderno e uma lupa" })).toBeInTheDocument();
+  expect(screen.getByRole("heading", { name: "Investigue antes de clicar." })).toBeInTheDocument();
+});
+
+test("documento sem a data da versão ainda abre", async () => {
+  servidor([]);
+  navegar("/cadastro");
+  render(<App />);
+  await screen.findByRole("heading", { name: "Crie a sua conta" });
+  fireEvent.click(screen.getByRole("button", { name: "Termos de Uso" }));
+  const termos = await screen.findByRole("dialog", { name: "Termos de Uso" });
+  expect(within(termos).getByText("1. Aceite")).toBeInTheDocument();
 });

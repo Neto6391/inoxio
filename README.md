@@ -95,8 +95,12 @@ graph TD;
   VirusTotal e do AbuseIPDB não permitem uso comercial. "Pedir demonstração" só abre
   um e-mail para o contato da Política de Privacidade; sem contato configurado, os
   planos pagos aparecem como "Em breve". As cores seguem o tema claro ou escuro.
-- **Entrar ou criar conta** (`/entrar`): login e, ao lado, o cadastro com nome, e-mail
-  e senha. Criar a conta exige aceitar os Termos de Uso e a Política de Privacidade.
+- **Entrar ou criar conta** (`/entrar` e `/cadastro`): uma foto à esquerda e, à direita,
+  um cartão com as abas Entrar e Criar conta (cada aba tem o próprio endereço). O
+  cadastro pede nome, e-mail e senha e exige aceitar os Termos de Uso e a Política de
+  Privacidade, que abrem numa janela por cima da tela, sem perder o que foi digitado.
+  A foto é do Pexels (licença Pexels, uso livre, sem crédito obrigatório):
+  https://www.pexels.com/photo/black-notebook-on-white-surface-7793163/.
   A conta só entra depois de confirmar o e-mail pelo link (válido por 24 h) e começa
   com 10 créditos por dia: cada investigação usa um, e eles voltam à meia-noite,
   horário de Brasília.

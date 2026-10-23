@@ -243,8 +243,8 @@ export function Landing({ sessao }: { sessao: Sessao | null }) {
   const publico = usePublico();
   const contato = publico?.contato_privacidade ?? "";
   const entrar = () => navegar(sessao ? INICIO : "/entrar");
-  // O cadastro fica na mesma tela do login, ao lado.
-  const criarConta = () => navegar(sessao ? INICIO : "/entrar");
+  // A tela de entrar abre direto na aba de criar conta.
+  const criarConta = () => navegar(sessao ? INICIO : "/cadastro");
 
   return (
     <div className="pagina-inicial">
