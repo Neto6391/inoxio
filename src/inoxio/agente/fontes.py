@@ -113,6 +113,7 @@ class VirusTotal:
                 return evidencia(nome, "falha")
             atributos = resposta.json()["data"]["attributes"]
             estatisticas = atributos.get("last_analysis_stats") or {}
+            votos = atributos.get("total_votes") or {}
             return evidencia(
                 nome,
                 "ok",
@@ -121,6 +122,13 @@ class VirusTotal:
                     "suspeito": int(estatisticas.get("suspicious", 0)),
                     "reputacao": int(atributos.get("reputation", 0)),
                     "tags": [_texto(tag) for tag in (atributos.get("tags") or [])[:5]],
+                    # A reputação é a soma dos votos da comunidade: sem votos, ela é 0
+                    # sem dizer nada. Os votos e os motores dão o contexto na tela.
+                    "votos_positivos": int(votos.get("harmless", 0)),
+                    "votos_negativos": int(votos.get("malicious", 0)),
+                    "motores": sum(int(n) for n in estatisticas.values()),
+                    "nao_acusaram": int(estatisticas.get("harmless", 0))
+                    + int(estatisticas.get("undetected", 0)),
                 },
             )
         except _ERROS:
