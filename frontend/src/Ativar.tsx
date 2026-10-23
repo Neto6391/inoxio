@@ -1,24 +1,37 @@
 import { Button, Result, Spin } from "antd";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { chamar, mensagemDeErro } from "./api";
 import { navegar } from "./rotas";
 
-// O token vem depois do "#", que o navegador não manda ao servidor. Depois de lido,
-// sai da barra de endereço para não ficar no histórico.
-function lerToken(): string {
-  const token = window.location.hash.slice(1);
-  window.history.replaceState(null, "", window.location.pathname);
-  return token;
-}
-
 export function Ativar() {
+  // O token vem depois do "#", que o navegador não manda ao servidor. Lido sem apagar,
+  // porque o StrictMode chama o inicializador duas vezes; a barra é limpa depois.
+  const [token, setToken] = useState(() => window.location.hash.slice(1));
   const [resultado, setResultado] = useState<{ ok: boolean; texto: string } | null>(null);
+  // O link é de uso único: o mesmo token não vai duas vezes, nem com o efeito repetido.
+  const enviado = useRef<string | null>(null);
 
   useEffect(() => {
-    chamar<{ mensagem: string }>("/api/ativar", { metodo: "POST", corpo: { token: lerToken() } })
+    // Colar outro link nesta mesma página só troca o "#", sem recarregar.
+    function lerDaBarra() {
+      const novo = window.location.hash.slice(1);
+      if (!novo) return;
+      setToken(novo);
+      window.history.replaceState(null, "", window.location.pathname);
+    }
+    lerDaBarra();
+    window.addEventListener("hashchange", lerDaBarra);
+    return () => window.removeEventListener("hashchange", lerDaBarra);
+  }, []);
+
+  useEffect(() => {
+    if (enviado.current === token) return;
+    enviado.current = token;
+    setResultado(null);
+    chamar<{ mensagem: string }>("/api/ativar", { metodo: "POST", corpo: { token } })
       .then(({ mensagem }) => setResultado({ ok: true, texto: mensagem }))
       .catch((falha) => setResultado({ ok: false, texto: mensagemDeErro(falha) }));
-  }, []);
+  }, [token]);
 
   if (!resultado) {
     return (
