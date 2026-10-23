@@ -720,7 +720,11 @@ a {
 .janela-corpo {
   max-height: min(70vh, 720px);
   overflow-y: auto;
-  padding-right: 4px;
+  /* Folga em cima: o rótulo dos campos não fica cortado pela borda da rolagem. */
+  padding: 4px 4px 0 0;
+}
+.carregando-solto {
+  padding: 8px 0;
 }
 .campo-data {
   display: flex;

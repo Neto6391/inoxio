@@ -30,13 +30,25 @@ function usuario(nome: string) {
   return { nome, nome_exibicao: null, papel: "analista", criado_em: "2026-10-20T12:00:00", ativo: true, email: null, pendente: false, cota_diaria: 10 };
 }
 
+// A resposta de uma página fica presa até o teste soltar: o carregando é visto sem
+// depender do relógio.
+let soltar: () => void = () => undefined;
+let trava: Promise<void> = Promise.resolve();
+function prender() {
+  trava = new Promise((pronto) => {
+    soltar = pronto;
+  });
+}
+
 function servidor(pedidos: string[]) {
+  trava = Promise.resolve();
   vi.stubGlobal(
     "fetch",
     vi.fn(async (caminho: string, pedido: RequestInit = {}) => {
       if (caminho === "/api/sessao") return json({ usuario: ADMIN, csrf: "t" });
       if (caminho.startsWith("/api/investigacoes?")) {
         pedidos.push(caminho);
+        await trava;
         const numero = Number(new URLSearchParams(caminho.split("?")[1]).get("pagina"));
         return json(investigacoes(45, numero));
       }
@@ -51,7 +63,10 @@ function servidor(pedidos: string[]) {
       }
       if (caminho.startsWith("/api/auditoria/usuarios/")) {
         pedidos.push(caminho);
-        const numero = Number(new URLSearchParams(caminho.split("?")[1] ?? "").get("pagina") || 1);
+        const busca = new URLSearchParams(caminho.split("?")[1] ?? "");
+        const numero = Number(busca.get("pagina") || 1);
+        const numeroFora = Number(busca.get("pagina_fora") || 1);
+        await trava;
         const sessao = (n: number) => ({
           id: `s${numero}-${n}`,
           aproximada: false,
@@ -65,13 +80,18 @@ function servidor(pedidos: string[]) {
           eventos: [],
         });
         return json({
-          sessoes: { total: 12, pagina: numero, por_pagina: 10, itens: [sessao(0), sessao(1)] },
-          fora_de_sessao: Array.from({ length: 12 }, (_, n) => ({
-            quando: `2026-10-22T10:${String(n).padStart(2, "0")}:00`,
-            tipo: "login_falhou",
-            ip: `9.9.9.${n}`,
-            detalhe: "",
-          })),
+          sessoes: { total: 12, pagina: numero, por_pagina: 5, itens: [sessao(0), sessao(1)] },
+          fora_de_sessao: {
+            total: 7,
+            pagina: numeroFora,
+            por_pagina: 5,
+            itens: Array.from({ length: numeroFora === 1 ? 5 : 2 }, (_, n) => ({
+              quando: `2026-10-22T10:0${n}:00`,
+              tipo: "login_falhou",
+              ip: `9.9.${numeroFora}.${n}`,
+              detalhe: "",
+            })),
+          },
         });
       }
       if (caminho.startsWith("/api/auditoria/usuarios?")) {
@@ -113,7 +133,10 @@ test("Investigações vem em páginas e busca pelo indicador", async () => {
   abrir("/investigacoes", pedidos);
   expect(await screen.findByText("10.0.1.0")).toBeInTheDocument();
   expect(screen.getByText("45 investigações")).toBeInTheDocument();
+  prender();
   fireEvent.click(screen.getByTitle("3"));
+  expect(await screen.findByText("Carregando a página 3")).toBeInTheDocument();
+  soltar();
   expect(await screen.findByText("10.0.3.0")).toBeInTheDocument();
   expect(pedidos.at(-1)).toBe("/api/investigacoes?pagina=3");
   const busca = screen.getByLabelText("Buscar investigação");
@@ -157,12 +180,60 @@ test("Auditoria pagina a tabela e as sessões da janela", async () => {
   fireEvent.click(within(linha).getByRole("button", { name: "Visualizar" }));
   const janela = await screen.findByRole("dialog", { name: "Sessões de ana" });
   expect(await within(janela).findByText("12 sessões nos últimos 90 dias. Clique numa sessão para ver a linha do tempo.")).toBeInTheDocument();
+  expect(within(janela).getByText("12 sessões")).toBeInTheDocument();
+  // Trocar de página mostra o carregando e depois as sessões da página nova.
+  prender();
   fireEvent.click(within(janela).getAllByTitle("2")[0]);
-  await waitFor(() => expect(pedidos.at(-1)).toBe("/api/auditoria/usuarios/ana/sessoes?pagina=2"));
-  // Fora de sessão: 12 eventos, 10 por página.
-  expect(within(janela).getByText("9.9.9.0")).toBeInTheDocument();
-  expect(within(janela).queryByText("9.9.9.11")).toBeNull();
+  expect(await within(janela).findByText("Carregando a página 2 das sessões")).toBeInTheDocument();
+  soltar();
+  expect(await within(janela).findByText("22/10/2026 09:00:00")).toBeInTheDocument();
+  expect(within(janela).queryByText(/Carregando a página/)).toBeNull();
+  expect(pedidos.at(-1)).toBe("/api/auditoria/usuarios/ana/sessoes?pagina=2");
+  // Fora de sessão tem a própria página, também pedida ao servidor.
+  expect(within(janela).getByText("9.9.1.0")).toBeInTheDocument();
   const fora = within(janela).getByText(/Fora de sessão/).closest(".ant-card") as HTMLElement;
+  prender();
   fireEvent.click(within(fora).getByTitle("2"));
-  expect(within(janela).getByText("9.9.9.11")).toBeInTheDocument();
+  expect(await within(fora).findByText("Carregando a página 2")).toBeInTheDocument();
+  soltar();
+  expect(await within(janela).findByText("9.9.2.1")).toBeInTheDocument();
+  expect(pedidos.at(-1)).toBe("/api/auditoria/usuarios/ana/sessoes?pagina=2&pagina_fora=2");
+});
+
+test("com uma página só, a paginação continua visível", async () => {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (caminho: string) => {
+      if (caminho === "/api/sessao") return json({ usuario: ADMIN, csrf: "t" });
+      if (caminho.startsWith("/api/investigacoes?")) return json(investigacoes(3, 1));
+      return json({});
+    }),
+  );
+  navegar("/investigacoes");
+  render(
+    <AntApp>
+      <App />
+    </AntApp>,
+  );
+  expect(await screen.findByText("3 investigações")).toBeInTheDocument();
+  expect(screen.getByTitle("1")).toBeInTheDocument();
+});
+
+test("o total vai no singular quando há um item só", async () => {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (caminho: string) => {
+      if (caminho === "/api/sessao") return json({ usuario: ADMIN, csrf: "t" });
+      if (caminho.startsWith("/api/investigacoes?")) return json(investigacoes(1, 1));
+      return json({});
+    }),
+  );
+  navegar("/investigacoes");
+  render(
+    <AntApp>
+      <App />
+    </AntApp>,
+  );
+  expect(await screen.findByText("1 investigação")).toBeInTheDocument();
+  expect(screen.getByTitle("1")).toBeInTheDocument();
 });

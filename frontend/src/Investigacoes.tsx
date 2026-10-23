@@ -1,42 +1,34 @@
 import { Alert, Card, Empty, Flex, Input, List, Skeleton, Typography } from "antd";
 import { useEffect, useState } from "react";
-import { chamar, ErroApi, mensagemDeErro } from "./api";
+import { Carregando } from "./Carregando";
 import { NOMES_TIPO, quando, TagVeredito } from "./formato";
-import { ehPagina, FORA_DO_FORMATO, Paginacao } from "./Paginacao";
+import { Paginacao, usePagina } from "./Paginacao";
 import { navegar } from "./rotas";
-import type { Pagina, ResumoInvestigacao } from "./tipos";
+import type { ResumoInvestigacao } from "./tipos";
 
 type PropsLista = { limite?: number; busca?: string; paginar?: boolean };
 
 export function ListaInvestigacoes({ limite, busca = "", paginar = false }: PropsLista) {
-  const [pagina, setPagina] = useState<Pagina<ResumoInvestigacao> | null>(null);
   const [numero, setNumero] = useState(1);
-  const [erro, setErro] = useState<string | null>(null);
 
   // Busca nova volta para a página 1.
   useEffect(() => setNumero(1), [busca]);
 
-  useEffect(() => {
-    let vigente = true;
-    const parametros = new URLSearchParams({ pagina: String(numero) });
-    if (busca.trim()) parametros.set("busca", busca.trim());
-    chamar<Pagina<ResumoInvestigacao>>(`/api/investigacoes?${parametros}`)
-      .then((nova) => {
-        if (!vigente) return;
-        if (!ehPagina<ResumoInvestigacao>(nova)) throw new ErroApi(200, FORA_DO_FORMATO);
-        setPagina(nova);
-        setErro(null);
-      })
-      .catch((falha) => {
-        if (vigente) setErro(mensagemDeErro(falha));
-      });
-    return () => {
-      vigente = false;
-    };
-  }, [numero, busca]);
+  const parametros = new URLSearchParams({ pagina: String(numero) });
+  if (busca.trim()) parametros.set("busca", busca.trim());
+  const { pagina, erro, carregando } = usePagina<ResumoInvestigacao>(`/api/investigacoes?${parametros}`);
 
   if (erro) return <Alert type="error" showIcon title={erro} />;
   if (pagina === null) return <Skeleton active paragraph={{ rows: 3 }} />;
+  const rodape = paginar && <Paginacao pagina={pagina} aoMudar={setNumero} rotulo={["investigação", "investigações"]} />;
+  if (carregando) {
+    return (
+      <>
+        <Carregando solto titulo={`Carregando a página ${numero}`} linhas={5} />
+        {rodape}
+      </>
+    );
+  }
   if (pagina.itens.length === 0) {
     const texto = busca.trim() ? "Nenhuma investigação com essa busca." : "Nenhuma investigação ainda.";
     return <Empty description={texto} image={Empty.PRESENTED_IMAGE_SIMPLE} />;
@@ -59,7 +51,7 @@ export function ListaInvestigacoes({ limite, busca = "", paginar = false }: Prop
         </List.Item>
       )}
     />
-    {paginar && <Paginacao pagina={pagina} aoMudar={setNumero} rotulo="investigações" />}
+    {rodape}
     </>
   );
 }

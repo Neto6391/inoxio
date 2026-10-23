@@ -33,7 +33,10 @@ def sessoes(admin, nome, **periodo):
     assert resposta.status_code == 200
     dados = resposta.json()
     # As sessões vêm em páginas; aqui os testes olham a primeira.
-    return dados | {"sessoes": dados["sessoes"]["itens"]}
+    return dados | {
+        "sessoes": dados["sessoes"]["itens"],
+        "fora_de_sessao": dados["fora_de_sessao"]["itens"],
+    }
 
 
 def tipos(sessao):
@@ -188,7 +191,7 @@ def test_auditoria_por_usuario_e_so_do_admin(app, usuarios):
     assert admin.get("/api/auditoria/usuarios/ninguem/sessoes").status_code == 404
 
 
-def test_sessoes_vem_em_paginas_de_10(app, usuarios, fabrica):
+def test_sessoes_e_eventos_de_fora_vem_em_paginas_de_5(app, usuarios, fabrica):
     base = agora() - timedelta(days=1)
     with fabrica() as db, db.begin():
         for n in range(12):
@@ -199,12 +202,18 @@ def test_sessoes_vem_em_paginas_de_10(app, usuarios, fabrica):
             )
     admin = novo(app)
     entrar(admin, "chefe")
-    primeira = admin.get("/api/auditoria/usuarios/ana/sessoes").json()["sessoes"]
-    segunda = admin.get("/api/auditoria/usuarios/ana/sessoes", params={"pagina": 2}).json()[
-        "sessoes"
-    ]
-    assert (primeira["total"], len(primeira["itens"]), len(segunda["itens"])) == (12, 10, 2)
-    assert primeira["itens"][0]["inicio"] > segunda["itens"][0]["inicio"]
+    caminho = "/api/auditoria/usuarios/ana/sessoes"
+    primeira = admin.get(caminho).json()["sessoes"]
+    terceira = admin.get(caminho, params={"pagina": 3}).json()["sessoes"]
+    assert (primeira["total"], len(primeira["itens"]), len(terceira["itens"])) == (12, 5, 2)
+    assert primeira["itens"][0]["inicio"] > terceira["itens"][0]["inicio"]
+    with fabrica() as db, db.begin():
+        for n in range(7):
+            falha = Evento(tipo="login_falhou", usuario="ana", ip="1.2.3.4", quando=base)
+            falha.quando = base + timedelta(minutes=n)
+            db.add(falha)
+    fora = admin.get(caminho, params={"pagina_fora": 2}).json()["fora_de_sessao"]
+    assert (fora["total"], fora["pagina"], len(fora["itens"])) == (7, 2, 2)
 
 
 def test_tabela_por_usuario_usa_os_filtros_da_tela_de_usuarios(app, usuarios):

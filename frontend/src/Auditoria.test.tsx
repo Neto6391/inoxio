@@ -95,36 +95,13 @@ const SESSOES = {
       acoes: 0,
       eventos: [{ quando: "2026-10-20T12:00:00", tipo: "login", ip: "1.2.3.4", detalhe: "" }],
     },
-  ], 10),
-  fora_de_sessao: [{ quando: "2026-10-22T10:00:00", tipo: "login_falhou", ip: "9.9.9.9", detalhe: "" }],
+  ], 5),
+  fora_de_sessao: pagina([{ quando: "2026-10-22T10:00:00", tipo: "login_falhou", ip: "9.9.9.9", detalhe: "" }], 5),
 };
 
 async function abrirEventos() {
   fireEvent.click(await screen.findByText("Todos os eventos"));
 }
-
-test("admin vê os eventos, e texto vindo de terceiros fica texto", async () => {
-  const pedidos: string[] = [];
-  servidor("admin", pedidos);
-  navegar("/auditoria");
-  const { container } = render(<App />);
-  await abrirEventos();
-  expect(await screen.findByText("ip 8.8.8.8 → malicioso")).toBeInTheDocument();
-  // Uma vez no filtro e outra na etiqueta do evento.
-  expect(screen.getAllByText("senha errada")).toHaveLength(2);
-  expect(container.querySelector(".linha-evento b")).toBeNull();
-});
-
-test("filtrar por tipo pede só aquele tipo, da página 1", async () => {
-  const pedidos: string[] = [];
-  servidor("admin", pedidos);
-  navegar("/auditoria");
-  render(<App />);
-  await abrirEventos();
-  await screen.findByText("ip 8.8.8.8 → malicioso");
-  fireEvent.click(screen.getByText("login bloqueado"));
-  await waitFor(() => expect(pedidos.at(-1)).toBe("/api/auditoria?pagina=1&tipo=login_bloqueado"));
-});
 
 test("analista não tem a auditoria", async () => {
   const pedidos: string[] = [];
@@ -134,79 +111,6 @@ test("analista não tem a auditoria", async () => {
   expect(await screen.findByText("Página não encontrada")).toBeInTheDocument();
   expect(screen.queryByRole("link", { name: "Auditoria" })).toBeNull();
   expect(pedidos).toEqual([]);
-});
-
-test("trocar o filtro volta para a página 1", async () => {
-  const pedidos: string[] = [];
-  vi.stubGlobal(
-    "fetch",
-    vi.fn(async (caminho: string) => {
-      if (caminho === "/api/sessao") return json({ usuario: { nome: "chefe", papel: "admin" }, csrf: "t" });
-      if (caminho.startsWith("/api/auditoria/usuarios?")) return json(pagina(LINHAS));
-      pedidos.push(caminho);
-      return json({ ...PAGINA, total: 120 });
-    }),
-  );
-  navegar("/auditoria");
-  render(<App />);
-  await abrirEventos();
-  await screen.findByText("ip 8.8.8.8 → malicioso");
-  fireEvent.click(screen.getByTitle("2"));
-  await waitFor(() => expect(pedidos.at(-1)).toBe("/api/auditoria?pagina=2"));
-  fireEvent.click(screen.getByText("entrou"));
-  await waitFor(() => expect(pedidos.at(-1)).toBe("/api/auditoria?pagina=1&tipo=login"));
-});
-
-test("as etiquetas de filtro são os tipos que o servidor lista", async () => {
-  servidor("admin", []);
-  navegar("/auditoria");
-  render(<App />);
-  await abrirEventos();
-  await screen.findByText("ip 8.8.8.8 → malicioso");
-  expect(screen.getByText("conta excluída")).toBeInTheDocument();
-  expect(screen.queryByText("backup")).toBeNull();
-});
-
-test("o erro some quando a consulta seguinte dá certo", async () => {
-  let falhar = false;
-  vi.stubGlobal(
-    "fetch",
-    vi.fn(async (caminho: string) => {
-      if (caminho === "/api/sessao") return json({ usuario: { nome: "chefe", papel: "admin" }, csrf: "t" });
-      if (caminho.startsWith("/api/auditoria/usuarios?")) return json(pagina(LINHAS));
-      if (caminho.startsWith("/api/auditoria?")) {
-        return falhar ? json({ erro: "Falhou agora." }, 500) : json({ ...PAGINA, total: 120 });
-      }
-      return json([]);
-    }),
-  );
-  navegar("/auditoria");
-  render(<App />);
-  await abrirEventos();
-  await screen.findByText("ip 8.8.8.8 → malicioso");
-  falhar = true;
-  fireEvent.click(screen.getByTitle("2"));
-  expect(await screen.findByText("Falhou agora.")).toBeInTheDocument();
-  falhar = false;
-  fireEvent.click(screen.getByText("entrou"));
-  await waitFor(() => expect(screen.queryByText("Falhou agora.")).toBeNull());
-  expect(screen.getByText("ip 8.8.8.8 → malicioso")).toBeInTheDocument();
-});
-
-test("apagar o texto do filtro de usuário tira o filtro", async () => {
-  const pedidos: string[] = [];
-  servidor("admin", pedidos);
-  navegar("/auditoria");
-  render(<App />);
-  await abrirEventos();
-  await screen.findByText("ip 8.8.8.8 → malicioso");
-  const caixa = screen.getByPlaceholderText("Filtrar por usuário");
-  fireEvent.change(caixa, { target: { value: "teste" } });
-  fireEvent.keyDown(caixa, { key: "Enter", code: "Enter", keyCode: 13 });
-  await waitFor(() => expect(pedidos.at(-1)).toBe("/api/auditoria?pagina=1&usuario=teste"));
-  fireEvent.change(caixa, { target: { value: "" } });
-  await waitFor(() => expect(pedidos.at(-1)).toBe("/api/auditoria?pagina=1"));
-  expect(caixa).toHaveValue("");
 });
 
 test("a tabela por usuário abre as sessões, com período e linha do tempo", async () => {
@@ -249,4 +153,14 @@ test("período invertido não filtra", async () => {
   fireEvent.change(within(janela).getByLabelText("Até"), { target: { value: "2026-10-01" } });
   expect(within(janela).getByRole("button", { name: "Filtrar" })).toBeDisabled();
   expect(within(janela).getByText("A data inicial vem depois da final.")).toBeInTheDocument();
+});
+
+test("a Auditoria não tem mais a lista de todos os eventos", async () => {
+  const pedidos: string[] = [];
+  servidor("admin", pedidos);
+  navegar("/auditoria");
+  render(<App />);
+  await screen.findByText("ana");
+  expect(screen.queryByText("Todos os eventos")).toBeNull();
+  expect(pedidos.some((caminho) => caminho.startsWith("/api/auditoria?"))).toBe(false);
 });

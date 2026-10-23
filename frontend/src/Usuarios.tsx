@@ -17,12 +17,13 @@ import {
 } from "antd";
 import type { Rule } from "antd/es/form";
 import { useEffect, useState } from "react";
-import { chamar, ErroApi, mensagemDeErro } from "./api";
+import { chamar, mensagemDeErro } from "./api";
+import { Carregando } from "./Carregando";
 import { type Filtros, FiltrosUsuarios, parametros, SEM_FILTRO } from "./FiltrosUsuarios";
 import { Janela } from "./Janela";
-import { ehPagina, FORA_DO_FORMATO, Paginacao } from "./Paginacao";
+import { Paginacao, usePagina } from "./Paginacao";
 import { quando } from "./formato";
-import type { Pagina, Papel, UsuarioListado } from "./tipos";
+import type { Papel, UsuarioListado } from "./tipos";
 
 type Cadastro = { nome: string; senha: string; confirmacao: string; papel: Papel };
 type Edicao = { papel: Papel; senha?: string; confirmacao?: string; cota?: number | null };
@@ -244,33 +245,19 @@ function FormEdicao({ alvo, eu, aoTerminar }: PropsEdicao) {
 }
 
 export function Usuarios({ eu }: { eu: string }) {
-  const [pagina, setPagina] = useState<Pagina<UsuarioListado> | null>(null);
   const [numero, setNumero] = useState(1);
   const [filtros, setFiltros] = useState<Filtros>(SEM_FILTRO);
   // Sobe para ler a lista de novo depois de uma mudança.
   const [releitura, setReleitura] = useState(0);
-  const [erroLista, setErroLista] = useState<string | null>(null);
   const [erroAcao, setErroAcao] = useState<string | null>(null);
   const [editando, setEditando] = useState<UsuarioListado | null>(null);
   const [cadastrando, setCadastrando] = useState(false);
   const { message } = App.useApp();
-
-  useEffect(() => {
-    let vigente = true;
-    chamar<Pagina<UsuarioListado>>(`/api/usuarios?${parametros(filtros, numero)}`)
-      .then((nova) => {
-        if (!vigente) return;
-        if (!ehPagina<UsuarioListado>(nova)) throw new ErroApi(200, FORA_DO_FORMATO);
-        setPagina(nova);
-        setErroLista(null);
-      })
-      .catch((falha) => {
-        if (vigente) setErroLista(mensagemDeErro(falha));
-      });
-    return () => {
-      vigente = false;
-    };
-  }, [filtros, numero, releitura]);
+  const {
+    pagina,
+    erro: erroLista,
+    carregando,
+  } = usePagina<UsuarioListado>(`/api/usuarios?${parametros(filtros, numero)}`, releitura);
 
   function carregar() {
     setReleitura((n) => n + 1);
@@ -366,6 +353,11 @@ export function Usuarios({ eu }: { eu: string }) {
           <Alert type="error" showIcon title={erroLista} className="espaco-topo" />
         ) : pagina === null ? (
           <Skeleton active />
+        ) : carregando ? (
+          <>
+            <Carregando solto titulo={`Carregando a página ${numero}`} linhas={5} />
+            <Paginacao pagina={pagina} aoMudar={setNumero} rotulo={["usuário", "usuários"]} />
+          </>
         ) : pagina.itens.length === 0 ? (
           <Empty description="Nenhum usuário com esses filtros." image={Empty.PRESENTED_IMAGE_SIMPLE} />
         ) : (
@@ -398,7 +390,7 @@ export function Usuarios({ eu }: { eu: string }) {
                 </List.Item>
               )}
             />
-            <Paginacao pagina={pagina} aoMudar={setNumero} rotulo="usuários" />
+            <Paginacao pagina={pagina} aoMudar={setNumero} rotulo={["usuário", "usuários"]} />
           </>
         )}
       </Card>

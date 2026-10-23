@@ -256,9 +256,9 @@ def test_lista_de_usuarios_filtra_e_pagina(cliente, usuarios, fabrica):
         db.scalar(select(Usuario).where(Usuario.nome == "ana")).nome_exibicao = "Ana Maria"
     entrar(cliente, "chefe")
     pagina = cliente.get("/api/usuarios").json()
-    assert (pagina["total"], len(pagina["itens"]), pagina["por_pagina"]) == (28, 20, 20)
-    segunda = cliente.get("/api/usuarios", params={"pagina": 2}).json()
-    assert len(segunda["itens"]) == 8
+    assert (pagina["total"], len(pagina["itens"]), pagina["por_pagina"]) == (28, 10, 10)
+    terceira = cliente.get("/api/usuarios", params={"pagina": 3}).json()
+    assert len(terceira["itens"]) == 8
 
     def nomes(**filtro):
         return [u["nome"] for u in cliente.get("/api/usuarios", params=filtro).json()["itens"]]

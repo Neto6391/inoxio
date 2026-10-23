@@ -7,12 +7,12 @@ from datetime import date
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from inoxio import auditoria, estatisticas, linha_do_tempo, paginacao, usuarios
-from inoxio.db import Evento, Usuario
+from inoxio.db import Usuario
 from inoxio.seguranca import limites
 from inoxio.web.autenticacao import ip_do_cliente
 from inoxio.web.dependencias import Contexto, banco, conferir_csrf, exigir_admin, token_csrf
@@ -55,8 +55,9 @@ def _publico(usuario: Usuario) -> dict:
     }
 
 
-USUARIOS_POR_PAGINA = 20
-SESSOES_POR_PAGINA = 10
+# Páginas curtas: a paginação aparece já com poucos usuários e poucas sessões.
+USUARIOS_POR_PAGINA = 10
+SESSOES_POR_PAGINA = 5
 
 
 @rotas.get("/usuarios")
@@ -161,6 +162,7 @@ def _o_que_mudou(nome: str, pedido: Alteracao) -> str:
     return f"{nome}: {', '.join(partes) or 'nada'}"
 
 
+# Todo tipo de evento que o sistema registra; a tela da Auditoria dá nome a cada um.
 TIPOS_EVENTO = (
     "login",
     "login_falhou",
@@ -183,46 +185,6 @@ TIPOS_EVENTO = (
     "email_troca_pedida",
     "email_trocado",
 )
-POR_PAGINA = 50
-
-
-@rotas.get("/auditoria")
-def listar_eventos(
-    tipo: str | None = None,
-    usuario: str | None = None,
-    pagina: int = 1,
-    ctx: Contexto = Depends(exigir_admin),
-    db: Session = Depends(banco),
-):
-    filtro = []
-    if tipo:
-        filtro.append(Evento.tipo == tipo)
-    if usuario:
-        filtro.append(Evento.usuario == usuario)
-    total = db.scalar(select(func.count()).select_from(Evento).where(*filtro))
-    pagina = paginacao.numero(pagina)
-    eventos = db.scalars(
-        select(Evento)
-        .where(*filtro)
-        .order_by(Evento.quando.desc(), Evento.id.desc())
-        .offset((pagina - 1) * POR_PAGINA)
-        .limit(POR_PAGINA)
-    )
-    return {
-        "total": total,
-        "por_pagina": POR_PAGINA,
-        "tipos": TIPOS_EVENTO,
-        "itens": [
-            {
-                "quando": evento.quando.isoformat(),
-                "tipo": evento.tipo,
-                "usuario": evento.usuario,
-                "ip": evento.ip,
-                "detalhe": evento.detalhe,
-            }
-            for evento in eventos
-        ],
-    }
 
 
 @rotas.get("/auditoria/usuarios")
@@ -248,14 +210,20 @@ def sessoes_do_usuario(
     de: date | None = None,
     ate: date | None = None,
     pagina: int = 1,
+    pagina_fora: int = 1,
     ctx: Contexto = Depends(exigir_admin),
     db: Session = Depends(banco),
 ):
+    """As sessões e os eventos de fora de sessão vêm em páginas próprias, de 5 em 5."""
     if db.scalar(select(Usuario.id).where(Usuario.nome == nome)) is None:
         raise HTTPException(status_code=404)
     dados = linha_do_tempo.sessoes_de(db, nome, de, ate)
-    dados["sessoes"] = paginacao.da_lista(dados["sessoes"], pagina, SESSOES_POR_PAGINA)
-    return dados
+    return {
+        "sessoes": paginacao.da_lista(dados["sessoes"], pagina, SESSOES_POR_PAGINA),
+        "fora_de_sessao": paginacao.da_lista(
+            dados["fora_de_sessao"], pagina_fora, SESSOES_POR_PAGINA
+        ),
+    }
 
 
 @rotas.get("/estatisticas/geral")

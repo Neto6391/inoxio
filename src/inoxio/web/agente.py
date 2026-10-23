@@ -24,7 +24,7 @@ from inoxio.seguranca import limites
 from inoxio.web.autenticacao import ip_do_cliente
 from inoxio.web.dependencias import Contexto, banco, conferir_csrf, sessao_atual, token_csrf
 
-INVESTIGACOES_POR_PAGINA = 20
+INVESTIGACOES_POR_PAGINA = 5
 FOLGA_PENDENTE = timedelta(seconds=30)
 PEDIDOS_DE_EXPLICACAO_POR_HORA = 10
 JANELA_ALHEIA = timedelta(minutes=30)
