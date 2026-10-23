@@ -1,7 +1,7 @@
 import pytest
 
-from inoxio.agente.decidir import NOTA_MALICIOSO, NOTA_SUSPEITO, ROTULOS, decidir_veredito
-from inoxio.agente.fontes import evidencia
+from inoxio.investigacoes.decidir import NOTA_MALICIOSO, NOTA_SUSPEITO, ROTULOS, decidir_veredito
+from inoxio.investigacoes.fontes.base import evidencia
 
 
 def abuse(score):

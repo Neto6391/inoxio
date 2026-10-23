@@ -6,10 +6,11 @@ from ajudantes import csrf, entrar
 from fastapi.testclient import TestClient
 from sqlalchemy import select
 
-from inoxio.agente.fontes import evidencia
-from inoxio.agente.grafo import construir_grafo
-from inoxio.db import Investigacao, Usuario
-from inoxio.historico import buscador
+from inoxio.contas.modelos import Usuario
+from inoxio.investigacoes.fontes.base import evidencia
+from inoxio.investigacoes.grafo import construir_grafo
+from inoxio.investigacoes.historico import buscador
+from inoxio.investigacoes.modelos import Investigacao
 from inoxio.web.app import criar_app
 
 TAG_HOSTIL = "<script>alert(1)</script>"
@@ -191,7 +192,7 @@ def test_segunda_investigacao_simultanea_do_mesmo_usuario_e_recusada(fabrica, co
 def test_lista_vem_em_paginas_da_mais_nova_para_a_mais_antiga(cliente, usuarios, fabrica):
     from datetime import timedelta
 
-    from inoxio.db import agora
+    from inoxio.plataforma.banco import agora
 
     with fabrica() as db, db.begin():
         ana = db.scalar(select(Usuario).where(Usuario.nome == "ana"))

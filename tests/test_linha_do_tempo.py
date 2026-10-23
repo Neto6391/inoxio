@@ -5,10 +5,12 @@ from ajudantes import csrf, entrar
 from fastapi.testclient import TestClient
 from sqlalchemy import select
 
-from inoxio.agente.fontes import evidencia
-from inoxio.agente.grafo import construir_grafo
-from inoxio.db import Evento, Sessao, Usuario, agora
-from inoxio.seguranca.limites import FUSO_BRASILIA
+from inoxio.auditoria.modelos import Evento
+from inoxio.contas.modelos import Sessao, Usuario
+from inoxio.investigacoes.fontes.base import evidencia
+from inoxio.investigacoes.grafo import construir_grafo
+from inoxio.plataforma.banco import agora
+from inoxio.plataforma.horario import FUSO_BRASILIA
 from inoxio.web.app import criar_app
 
 

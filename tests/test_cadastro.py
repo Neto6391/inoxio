@@ -5,8 +5,10 @@ from ajudantes import SENHA, CaixaDeSaida, csrf, entrar
 from fastapi.testclient import TestClient
 from sqlalchemy import select
 
-from inoxio.db import Ativacao, Evento, Usuario, agora
-from inoxio.seguranca import limites
+from inoxio.auditoria.modelos import Evento
+from inoxio.contas.modelos import Ativacao, Usuario
+from inoxio.plataforma import horario
+from inoxio.plataforma.banco import agora
 from inoxio.web.app import criar_app
 
 NOVA = "senha-do-cadastro-1"
@@ -174,7 +176,7 @@ def test_admin_ve_quem_espera_o_email_e_pode_ativar(cliente, usuarios, caixa):
 
 
 def test_cota_diaria_vale_para_quem_se_cadastrou(fabrica, config, usuarios):
-    from inoxio.db import Investigacao
+    from inoxio.investigacoes.modelos import Investigacao
 
     with fabrica() as db, db.begin():
         ana = db.scalar(select(Usuario).where(Usuario.nome == "ana"))
@@ -188,7 +190,7 @@ def test_cota_diaria_vale_para_quem_se_cadastrou(fabrica, config, usuarios):
                     veredito="inconclusivo",
                     evidencias=[],
                     # Hoje em Brasília, a qualquer hora que o teste rode.
-                    criada_em=limites.inicio_do_dia() + timedelta(seconds=1),
+                    criada_em=horario.inicio_do_dia() + timedelta(seconds=1),
                 )
             )
     cliente = TestClient(criar_app(config, fabrica=fabrica), base_url="https://testserver")
@@ -208,7 +210,7 @@ def test_cadastro_sem_aceite_dos_termos_e_recusado(cliente, usuarios, caixa, fab
 
 
 def test_cadastro_guarda_a_versao_aceita(cliente, usuarios, fabrica):
-    from inoxio.usuarios import VERSAO_TERMOS
+    from inoxio.contas.regras import VERSAO_TERMOS
 
     cadastrar(cliente)
     novo = usuario(fabrica, "dani")

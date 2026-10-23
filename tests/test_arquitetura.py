@@ -1,10 +1,11 @@
 """Fronteiras que o código não pode cruzar."""
 
 import ast
+import re
 from pathlib import Path
 
-from inoxio.agente.decidir import ROTULOS
-from inoxio.agente.mente import AnaliseMente, RespostaMente
+from inoxio.investigacoes.decidir import ROTULOS
+from inoxio.investigacoes.ia.esquema import AnaliseMente, RespostaMente
 
 RAIZ = Path(__file__).resolve().parents[1]
 SRC = RAIZ / "src" / "inoxio"
@@ -41,7 +42,10 @@ def test_app_nao_executa_processo():
 
 
 def test_mente_nao_tem_tools_nem_campo_de_veredito():
-    fonte = (SRC / "agente" / "mente.py").read_text(encoding="utf-8")
+    # Todo o pacote da IA, não só o arquivo da chamada.
+    fonte = "".join(
+        a.read_text(encoding="utf-8") for a in (SRC / "investigacoes" / "ia").glob("*.py")
+    )
     assert "bind_tools" not in fonte
     assert "tools=" not in fonte
     for esquema in (RespostaMente, AnaliseMente):
@@ -67,3 +71,20 @@ def test_interface_nunca_diz_seguro_ou_limpo():
 def test_servico_nao_ganha_privilegios():
     unidade = (RAIZ / "infra" / "implantacao" / "inoxio.service").read_text(encoding="utf-8")
     assert "NoNewPrivileges=true" in unidade.splitlines()
+
+
+def test_readme_so_cita_arquivos_e_testes_que_existem():
+    # Mover um arquivo ou renomear um teste sem atualizar o README quebra aqui.
+    texto = (RAIZ / "README.md").read_text(encoding="utf-8")
+    caminhos = set(re.findall(r"`((?:src|frontend|infra|tests)/[\w./-]+)`", texto))
+    faltam = sorted(c for c in caminhos if not (RAIZ / c).exists())
+    testes, arquivo = set(), None
+    for nome, funcao in re.findall(r"(test_\w+\.py)?::(test_\w+)", texto):
+        arquivo = nome or arquivo
+        testes.add((arquivo, funcao))
+    for nome, funcao in sorted(testes):
+        fonte = (RAIZ / "tests" / nome).read_text(encoding="utf-8")
+        if not re.search(rf"^def {funcao}\(", fonte, re.MULTILINE):
+            faltam.append(f"{nome}::{funcao}")
+    assert caminhos and testes
+    assert faltam == []

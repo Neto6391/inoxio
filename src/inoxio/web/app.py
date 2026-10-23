@@ -19,16 +19,21 @@ from sqlalchemy.orm import sessionmaker
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 
-from inoxio.agente.fontes import AbuseIPDB, ResolucaoDNS, VirusTotal
-from inoxio.agente.grafo import construir_grafo
-from inoxio.agente.mente import criar_invocar
-from inoxio.config import Config
-from inoxio.correio import Enviar, criar_envio
-from inoxio.db import criar_fabrica
-from inoxio.explicador import Explicador
-from inoxio.historico import buscador
-from inoxio.web import agente as rotas_agente
-from inoxio.web import autenticacao, cadastro, conta, senha, spa, usuarios
+from inoxio.auditoria import rotas as auditoria
+from inoxio.contas.rotas import autenticacao, cadastro, conta, senha, usuarios
+from inoxio.investigacoes import rotas as investigacoes
+from inoxio.investigacoes import rotas_estatisticas as estatisticas
+from inoxio.investigacoes.fontes.abuseipdb import AbuseIPDB
+from inoxio.investigacoes.fontes.dns import ResolucaoDNS
+from inoxio.investigacoes.fontes.virustotal import VirusTotal
+from inoxio.investigacoes.grafo import construir_grafo
+from inoxio.investigacoes.historico import buscador
+from inoxio.investigacoes.ia.explicador import Explicador
+from inoxio.investigacoes.ia.mente import criar_invocar
+from inoxio.plataforma.banco import criar_fabrica
+from inoxio.plataforma.config import Config
+from inoxio.plataforma.correio import Enviar, criar_envio
+from inoxio.web import spa
 
 log = logging.getLogger("inoxio")
 
@@ -81,12 +86,17 @@ def criar_app(
     app.state.enviar_email = enviar_email or criar_envio(config)
     app.state.grafo = grafo or grafo_de_producao(config, app.state.fabrica, cliente_http)
     app.state.explicador = explicador or Explicador(app.state.fabrica, criar_invocar(config))
-    app.include_router(autenticacao.rotas)
-    app.include_router(rotas_agente.rotas)
-    app.include_router(usuarios.rotas)
-    app.include_router(cadastro.rotas)
-    app.include_router(conta.rotas)
-    app.include_router(senha.rotas)
+    for modulo in (
+        autenticacao,
+        cadastro,
+        senha,
+        conta,
+        usuarios,
+        investigacoes,
+        estatisticas,
+        auditoria,
+    ):
+        app.include_router(modulo.rotas)
     app.mount("/assets", StaticFiles(directory=frontend / "assets", check_dir=False), "assets")
     # Só a borda declara o IP real; por isso o uvicorn roda com --no-proxy-headers.
     app.add_middleware(ProxyHeadersMiddleware, trusted_hosts=config.proxies_confiaveis)

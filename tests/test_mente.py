@@ -1,12 +1,6 @@
-from inoxio.agente.mente import (
-    MAX_TOKENS,
-    TIMEOUT,
-    AnaliseMente,
-    RespostaMente,
-    analisar,
-    criar_invocar,
-)
-from inoxio.config import Config
+from inoxio.investigacoes.ia.esquema import AnaliseMente, RespostaMente
+from inoxio.investigacoes.ia.mente import MAX_TOKENS, TIMEOUT, analisar, criar_invocar
+from inoxio.plataforma.config import Config
 
 VALIDA = {
     "resumo": "IP com muitos relatos de abuso.",
@@ -21,13 +15,13 @@ VALIDA = {
 
 
 def test_resposta_valida_passa():
-    from inoxio.agente.mente import VERSAO_ANALISE
+    from inoxio.investigacoes.ia.instrucoes import VERSAO_ANALISE
 
     assert analisar({"a": 1}, lambda sistema, carga: VALIDA) == VALIDA | {"versao": VERSAO_ANALISE}
 
 
 def test_aceita_o_modelo_pydantic_devolvido_pelo_langchain():
-    from inoxio.agente.mente import VERSAO_ANALISE
+    from inoxio.investigacoes.ia.instrucoes import VERSAO_ANALISE
 
     assert analisar({"a": 1}, lambda s, c: RespostaMente(**VALIDA)) == VALIDA | {
         "versao": VERSAO_ANALISE
@@ -117,7 +111,7 @@ def test_suavizar_ou_garantir_com_outras_palavras_tambem_sai():
 
 
 def test_o_pedido_e_para_quem_nao_e_da_area():
-    from inoxio.agente.mente import PROMPT
+    from inoxio.investigacoes.ia.instrucoes import PROMPT
 
     for trecho in ("não é da área de tecnologia", "termos", "não altere nem conteste o veredito"):
         assert trecho in PROMPT.lower()
@@ -221,7 +215,7 @@ def test_as_instrucoes_sao_as_aprovadas_na_medicao():
     # Texto aprovado pelo dono depois da medição pré-registrada de 23/10.
     import hashlib
 
-    from inoxio.agente.mente import PROMPT
+    from inoxio.investigacoes.ia.instrucoes import PROMPT
 
     esperado = "59d1ba73c4f45854c996644723b34f127d6a32ff90566bcbf4ca7af91d7bd32c"
     assert hashlib.sha256(PROMPT.encode()).hexdigest() == esperado
@@ -237,7 +231,7 @@ class RecusaDeEsquema(Exception):
 
 
 def test_recusa_de_esquema_e_separada_das_outras_falhas():
-    from inoxio.agente.mente import tentar_analisar
+    from inoxio.investigacoes.ia.mente import tentar_analisar
 
     def recusa(sistema, carga):
         raise RecusaDeEsquema()
@@ -279,7 +273,7 @@ def test_o_glossario_passa_pelo_mesmo_filtro():
 
 
 def test_explicacao_por_fonte_e_pedida_aceita_e_filtrada():
-    from inoxio.agente.mente import RespostaMente
+    from inoxio.investigacoes.ia.esquema import RespostaMente
 
     assert "por_fonte" in RespostaMente.model_fields
     por_fonte = [
@@ -304,7 +298,8 @@ def test_a_explicacao_guarda_a_versao_das_instrucoes():
     import hashlib
     import json
 
-    from inoxio.agente.mente import PROMPT, VERSAO_ANALISE, RespostaMente
+    from inoxio.investigacoes.ia.esquema import RespostaMente
+    from inoxio.investigacoes.ia.instrucoes import PROMPT, VERSAO_ANALISE
 
     # Instruções e formato pedido: mudar qualquer um dos dois muda a versão.
     formato = json.dumps(RespostaMente.model_json_schema(), sort_keys=True)
@@ -314,7 +309,7 @@ def test_a_explicacao_guarda_a_versao_das_instrucoes():
 
 def test_so_o_resumo_e_obrigatorio_no_formato_pedido():
     # O modelo às vezes para no meio; o que veio antes de parar ainda serve.
-    from inoxio.agente.mente import RespostaMente
+    from inoxio.investigacoes.ia.esquema import RespostaMente
 
     esquema = RespostaMente.model_json_schema()
     assert esquema["required"] == ["resumo"]

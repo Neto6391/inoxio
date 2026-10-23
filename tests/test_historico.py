@@ -2,10 +2,12 @@ from datetime import timedelta
 
 from sqlalchemy import select
 
-from inoxio.agente.mente import VERSAO_ANALISE
 from inoxio.cli import criar_usuario
-from inoxio.db import Investigacao, Usuario, agora
-from inoxio.historico import buscador
+from inoxio.contas.modelos import Usuario
+from inoxio.investigacoes.historico import buscador
+from inoxio.investigacoes.ia.instrucoes import VERSAO_ANALISE
+from inoxio.investigacoes.modelos import Investigacao
+from inoxio.plataforma.banco import agora
 
 
 def gravar(fabrica, **campos):

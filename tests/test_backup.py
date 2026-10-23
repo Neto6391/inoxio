@@ -10,7 +10,7 @@ from pathlib import Path
 import pytest
 
 from inoxio.cli import criar_usuario
-from inoxio.db import criar_fabrica
+from inoxio.plataforma.banco import criar_fabrica
 
 SCRIPT = Path(__file__).resolve().parents[1] / "infra" / "backup" / "backup-banco.py"
 especificacao = importlib.util.spec_from_file_location("backup_banco", SCRIPT)

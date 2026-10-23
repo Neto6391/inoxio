@@ -7,10 +7,12 @@ from ajudantes import SENHA, CaixaDeSaida, csrf, entrar
 from fastapi.testclient import TestClient
 from sqlalchemy import func, select
 
-from inoxio import usuarios as usuarios_regras
-from inoxio.db import Ativacao, Evento, RedefinicaoSenha, Usuario, agora
+from inoxio.auditoria.modelos import Evento
+from inoxio.auditoria.trilha import TIPOS_EVENTO
+from inoxio.contas import credenciais
+from inoxio.contas.modelos import Ativacao, RedefinicaoSenha, Usuario
+from inoxio.plataforma.banco import agora
 from inoxio.web.app import criar_app
-from inoxio.web.usuarios import TIPOS_EVENTO
 
 NOVA = "senha-nova-bem-longa"
 
@@ -128,7 +130,7 @@ def test_no_maximo_tres_emails_por_conta_por_hora_de_ips_diferentes(
 ):
     from fastapi.testclient import TestClient
 
-    from inoxio.config import Config
+    from inoxio.plataforma.config import Config
 
     app = criar_app(
         Config(proxies_confiaveis="*", frontend_dir=config.frontend_dir),
@@ -204,7 +206,7 @@ def test_todo_tipo_de_evento_registrado_aparece_no_filtro_da_auditoria():
     usados = set()
     for arquivo in fonte.rglob("*.py"):
         texto = arquivo.read_text(encoding="utf-8")
-        usados |= set(re.findall(r'auditoria\.registrar\(\s*db,\s*"(\w+)"', texto))
+        usados |= set(re.findall(r'trilha\.registrar\(\s*db,\s*"(\w+)"', texto))
     assert len(usados) >= 10
     assert usados <= set(TIPOS_EVENTO), usados - set(TIPOS_EVENTO)
 
@@ -221,10 +223,10 @@ def test_a_funcao_recusa_a_senha_curta_antes_de_apagar_o_link(usuarios, fabrica)
     com_email(fabrica, "ana", "ana@exemplo.com")
     with fabrica() as db:
         conta = db.scalar(select(Usuario).where(Usuario.nome == "ana"))
-        token = usuarios_regras.abrir_redefinicao(db, conta)
+        token = credenciais.abrir_redefinicao(db, conta)
         db.commit()
         with pytest.raises(ValueError):
-            usuarios_regras.redefinir_senha(db, token, "curta")
+            credenciais.redefinir_senha(db, token, "curta")
         db.commit()
     assert contar(fabrica, RedefinicaoSenha) == 1
 

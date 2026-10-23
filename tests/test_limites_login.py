@@ -4,9 +4,11 @@ from ajudantes import SENHA, entrar
 from fastapi.testclient import TestClient
 from sqlalchemy import select
 
-from inoxio.config import Config
-from inoxio.db import TentativaLogin, agora
-from inoxio.seguranca.limites import JANELA_LOGIN, origem
+from inoxio.contas.modelos import TentativaLogin
+from inoxio.contas.tentativas import JANELA_LOGIN
+from inoxio.plataforma.banco import agora
+from inoxio.plataforma.config import Config
+from inoxio.plataforma.rede import origem
 from inoxio.web.app import criar_app
 
 ERRADA = "senha-errada-longa"

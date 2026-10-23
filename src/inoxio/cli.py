@@ -9,15 +9,15 @@ import sys
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import sessionmaker
 
-from inoxio import usuarios
-from inoxio.config import Config
-from inoxio.db import criar_fabrica
-from inoxio.usuarios import PAPEIS
+from inoxio.contas import registro
+from inoxio.contas.regras import PAPEIS
+from inoxio.plataforma.banco import criar_fabrica
+from inoxio.plataforma.config import Config
 
 
 def criar_usuario(fabrica: sessionmaker, nome: str, papel: str, senha: str) -> None:
     with fabrica() as db, db.begin():
-        usuarios.criar(db, nome, papel, senha)
+        registro.criar(db, nome, papel, senha)
 
 
 def main(argv: list[str] | None = None) -> int:
