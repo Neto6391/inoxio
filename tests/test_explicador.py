@@ -9,7 +9,7 @@ from sqlalchemy import create_engine, inspect, select, text
 from inoxio.agente.fontes import evidencia
 from inoxio.agente.grafo import construir_grafo
 from inoxio.db import Investigacao, Usuario, agora, criar_fabrica
-from inoxio.explicador import ESPERAS_429, PRAZO, Explicador
+from inoxio.explicador import ESPERA_ESQUEMA, ESPERAS_429, PRAZO, Explicador
 from inoxio.historico import buscador
 from inoxio.web.app import criar_app
 
@@ -253,4 +253,33 @@ def test_o_prazo_corta_as_tentativas(fabrica, config, cliente_de):
     fila.pop(0)()
     assert relogio.esperas == [5, 10]
     assert groq.chamadas == 3
+    assert detalhe(cliente, id_)["analise_estado"] == "indisponivel"
+
+
+class Esquema(Exception):
+    """Imita a recusa do Groq quando o JSON gerado não segue o esquema."""
+
+    status_code = 400
+
+    def __init__(self):
+        super().__init__("Generated JSON does not match the expected schema.")
+
+
+def test_recusa_de_esquema_tenta_de_novo_uma_vez(fabrica, config, cliente_de):
+    groq = Groq(Esquema(), BOA)
+    app, fila, relogio = montar(fabrica, config, groq)
+    cliente = cliente_de(app)
+    id_ = investigar(cliente)
+    fila.pop(0)()
+    assert (groq.chamadas, relogio.esperas) == (2, [ESPERA_ESQUEMA])
+    assert detalhe(cliente, id_)["analise_estado"] == "pronta"
+
+
+def test_segunda_recusa_de_esquema_desiste(fabrica, config, cliente_de):
+    groq = Groq(Esquema())
+    app, fila, relogio = montar(fabrica, config, groq)
+    cliente = cliente_de(app)
+    id_ = investigar(cliente)
+    fila.pop(0)()
+    assert (groq.chamadas, relogio.esperas) == (2, [ESPERA_ESQUEMA])
     assert detalhe(cliente, id_)["analise_estado"] == "indisponivel"

@@ -24,6 +24,8 @@ log = logging.getLogger("inoxio.explicador")
 # Contado de quando a investigação entra na fila: a tela espera um pouco mais que isso.
 PRAZO = timedelta(seconds=90)
 ESPERAS_429 = (5, 10, 20, 30)
+# O modelo às vezes devolve o JSON sem campos; uma nova tentativa costuma vir completa.
+ESPERA_ESQUEMA = 15
 
 
 class Explicador:
@@ -74,11 +76,17 @@ class Explicador:
         if self._relogio() >= limite:
             log.warning("explicacao_vencida_na_fila")
             return None
-        for espera in (*ESPERAS_429, None):
+        esperas_429 = iter(ESPERAS_429)
+        repetiu_esquema = False
+        while True:
             situacao, analise = tentar_analisar(dados, self._invocar)
-            if situacao != "limite":
+            if situacao == "limite":
+                espera = next(esperas_429, None)
+            elif situacao == "esquema" and not repetiu_esquema:
+                repetiu_esquema = True
+                espera = ESPERA_ESQUEMA
+            else:
                 return analise
             if espera is None or self._relogio() + espera >= limite:
                 return None
             self._dormir(espera)
-        return None

@@ -71,9 +71,13 @@ graph TD;
   um resumo em linguagem simples, um glossário dos termos que aparecem (o
   provedor do IP, como a Cloudflare, por exemplo), recomendações práticas e as
   técnicas MITRE ATT&CK, num esquema fixo. Ele não tem ferramentas e o esquema
-  não tem campo de veredito. Sem evidência não é garantia: toda frase que chama
-  o indicador de seguro, limpo, legítimo ou confiável sai do resumo e das
-  recomendações, e se o resumo inteiro sai, a tela segue sem a análise. Se o Groq
+  não tem campo de veredito. As recomendações são para uma pessoa comum, sem
+  termos técnicos. Sem evidência não é garantia: toda frase que chama o indicador
+  de seguro, limpo, legítimo ou confiável, ou que diz não haver motivo para
+  suspeitar ou se preocupar, sai do resumo e das recomendações, e se o resumo
+  inteiro sai, a tela segue sem a análise. A explicação é escrita em segundo
+  plano, uma chamada ao Groq por vez: se o provedor recusa por limite (429), ela
+  espera e tenta de novo; se recusa o JSON por faltar campo, tenta mais uma vez. Se o Groq
   falhar ou demorar mais de 10 s, a tela também mostra o resultado sem a análise.
 
 ## Telas
