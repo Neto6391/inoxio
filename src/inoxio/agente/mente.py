@@ -27,14 +27,26 @@ Confianca = Literal["baixa", "media", "alta"]
 Tecnica = Annotated[str, StringConstraints(pattern=r"^T\d{4}(\.\d{3})?$")]
 Recomendacao = Annotated[str, StringConstraints(max_length=300)]
 Paragrafo = Annotated[str, StringConstraints(max_length=800)]
-# Sem evidência não é garantia: a frase que diz que algo é seguro sai da explicação.
+# Sem evidência não é garantia: a frase que diz que algo é seguro, ou que suaviza
+# o resultado com outras palavras, sai da explicação.
 PROIBIDAS = re.compile(
-    r"\b(segur[oa]s?|limp[oa]s?|leg[ií]tim[oa]s?|confiáve(l|is)|parecem? norma(l|is))\b"
-    r"|não há motivo para suspeitar|não há motivo para preocupação|se o ip fosse de um provedor",
+    r"\b(?P<palavra>segur[oa]s?|limp[oa]s?|leg[ií]tim[oa]s?|confiáve(l|is)|parecem? norma(l|is))\b"
+    r"|não há motivo (imediato )?para|\bnão (é|seja|são) malicios[oa]s?\b"
+    r"|se o ip fosse de um provedor",
     re.IGNORECASE,
 )
+# Negar é aviso, não garantia: "não é seguro", "não é um site confiável" ficam.
+NEGADA = re.compile(
+    r"\b(não|nem|nunca)\s+((é|está|são|estão|parece|parecem|seja|sejam|foi|for)\s+)?"
+    r"((um|uma)\s+(site|link|endereço|ip|arquivo|domínio|servidor|lugar)\s+)?$",
+    re.IGNORECASE,
+)
+# Conselho, não afirmação sobre o indicador: "senha segura", "conexão segura" ficam.
+CONSELHO = re.compile(r"\b(senhas?|conex(ão|ões)|forma|maneira)\s+$", re.IGNORECASE)
 # Fim de frase é pontuação seguida de espaço: o ponto de um endereço ou IP não separa.
-SEPARADOR = re.compile(r"(?<=[.!?;])\s+|\n+")
+# O ";" também não: a frase sai inteira ou fica inteira, sem meia frase solta.
+SEPARADOR = re.compile(r"(?<=[.!?])\s+|\n+")
+TECNICA_VALIDA = re.compile(r"^T\d{4}(\.\d{3})?$")
 
 
 class Termo(BaseModel):
@@ -108,7 +120,7 @@ def tentar_analisar(
     try:
         resposta = invocar(PROMPT, montar_carga(dados))
         bruto = resposta.model_dump() if isinstance(resposta, BaseModel) else resposta
-        analise = AnaliseMente.model_validate(bruto).model_dump()
+        analise = AnaliseMente.model_validate(_dentro_dos_limites(bruto)).model_dump()
     except Exception as erro:
         if getattr(erro, "status_code", None) == 429:
             log.warning("mente_limite_do_provedor")
@@ -130,9 +142,62 @@ def analisar(dados: dict[str, Any], invocar: Invocar | None) -> dict[str, Any] |
     return tentar_analisar(dados, invocar)[1]
 
 
+def _frases(texto: str) -> list[str]:
+    return [frase.strip() for frase in SEPARADOR.split(texto) if frase and frase.strip()]
+
+
+def _proibida(frase: str) -> bool:
+    for achado in PROIBIDAS.finditer(frase):
+        antes = frase[: achado.start()]
+        if achado.group("palavra") and (NEGADA.search(antes) or CONSELHO.search(antes)):
+            continue
+        return True
+    return False
+
+
 def _sem_frases_proibidas(texto: str) -> str:
-    frases = [frase.strip() for frase in SEPARADOR.split(texto) if frase and frase.strip()]
-    return " ".join(frase for frase in frases if not PROIBIDAS.search(frase))
+    return " ".join(frase for frase in _frases(texto) if not _proibida(frase))
+
+
+def _dentro_dos_limites(bruto: Any) -> Any:
+    """O modelo às vezes passa de um limite. Sai só o que passou (o item longo demais,
+    o código MITRE inválido, o excesso da lista), e o resto da explicação continua."""
+    if not isinstance(bruto, dict):
+        return bruto
+
+    def texto(maximo: int) -> Callable[[Any], bool]:
+        return lambda item: isinstance(item, str) and len(item) <= maximo
+
+    def termo(item: Any) -> bool:
+        return (
+            isinstance(item, dict)
+            and len(str(item.get("termo", ""))) <= 60
+            and len(str(item.get("significado", ""))) <= 300
+        )
+
+    def tecnica(item: Any) -> bool:
+        return isinstance(item, str) and TECNICA_VALIDA.match(item) is not None
+
+    regras = {
+        "tecnicas_mitre": (5, tecnica),
+        "recomendacoes": (8, texto(300)),
+        "termos": (6, termo),
+        "por_fonte": (4, texto(800)),
+    }
+    ajustado = dict(bruto)
+    for campo, (maximo, cabe) in regras.items():
+        if isinstance(ajustado.get(campo), list):
+            ajustado[campo] = [item for item in ajustado[campo] if cabe(item)][:maximo]
+    resumo = ajustado.get("resumo")
+    if isinstance(resumo, str) and len(resumo) > 1200:
+        # Fica com as frases inteiras que cabem; uma frase só, gigante, não cabe.
+        cabem: list[str] = []
+        for frase in _frases(resumo):
+            if len(" ".join([*cabem, frase])) > 1200:
+                break
+            cabem.append(frase)
+        ajustado["resumo"] = " ".join(cabem)
+    return ajustado
 
 
 def _sem_garantia(analise: dict[str, Any]) -> dict[str, Any] | None:
