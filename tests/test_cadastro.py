@@ -1,7 +1,7 @@
 from datetime import timedelta
 
 import pytest
-from ajudantes import SENHA, csrf, entrar
+from ajudantes import SENHA, CaixaDeSaida, csrf, entrar
 from fastapi.testclient import TestClient
 from sqlalchemy import select
 
@@ -9,17 +9,6 @@ from inoxio.db import Ativacao, Usuario, agora
 from inoxio.web.app import criar_app
 
 NOVA = "senha-do-cadastro-1"
-
-
-class CaixaDeSaida:
-    def __init__(self):
-        self.mensagens = []
-
-    def __call__(self, destino, assunto, texto):
-        self.mensagens.append((destino, assunto, texto))
-
-    def token(self):
-        return self.mensagens[-1][2].split("/ativar#")[1].split()[0]
 
 
 @pytest.fixture

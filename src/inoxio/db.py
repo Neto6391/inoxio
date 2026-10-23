@@ -66,6 +66,15 @@ class Ativacao(Base):
     expira_em: Mapped[datetime] = mapped_column(DateTime)
 
 
+class RedefinicaoSenha(Base):
+    """Link de "esqueci a senha". O banco guarda só o SHA-256 do token."""
+
+    __tablename__ = "redefinicoes_senha"
+    token_hash: Mapped[str] = mapped_column(String(64), primary_key=True)
+    usuario_id: Mapped[str] = mapped_column(ForeignKey("usuarios.id"), index=True)
+    expira_em: Mapped[datetime] = mapped_column(DateTime)
+
+
 class Evento(Base):
     """Trilha de auditoria: quem fez o quê, de onde e quando."""
 

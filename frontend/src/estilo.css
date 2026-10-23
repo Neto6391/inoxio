@@ -84,6 +84,10 @@ a {
   width: 100%;
   max-width: 820px;
 }
+.area-senha {
+  width: 100%;
+  max-width: 420px;
+}
 
 /* Conteúdo */
 .indicador {

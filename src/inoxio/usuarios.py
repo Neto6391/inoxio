@@ -10,7 +10,16 @@ from datetime import timedelta
 from sqlalchemy import delete, func, select, update
 from sqlalchemy.orm import Session
 
-from inoxio.db import Ativacao, Evento, Investigacao, Sessao, TentativaLogin, Usuario, agora
+from inoxio.db import (
+    Ativacao,
+    Evento,
+    Investigacao,
+    RedefinicaoSenha,
+    Sessao,
+    TentativaLogin,
+    Usuario,
+    agora,
+)
 from inoxio.seguranca import sessoes
 from inoxio.seguranca.senhas import gerar_hash
 
@@ -23,9 +32,11 @@ EMAIL_INVALIDO = "Informe um e-mail válido."
 # Quem se cadastra sozinho começa com esta cota; o admin pode mudar.
 COTA_CADASTRO = 10
 VALIDADE_ATIVACAO = timedelta(hours=24)
+# O link de senha nova vale menos: ele dá acesso a uma conta que já existe.
+VALIDADE_REDEFINICAO = timedelta(hours=1)
 # Muda quando o texto dos Termos ou da Política mudar: quem aceitou outra versão
 # precisa aceitar de novo.
-VERSAO_TERMOS = "2026-10-20"
+VERSAO_TERMOS = "2026-10-22"
 
 
 class Conflito(Exception):
@@ -89,8 +100,10 @@ def _hash(token: str) -> str:
 
 def abrir_ativacao(db: Session, usuario: Usuario) -> str:
     """Token de uso único para o link do e-mail; o banco guarda só o hash.
-    Um link novo cancela os anteriores da mesma conta."""
-    db.execute(delete(Ativacao).where(Ativacao.usuario_id == usuario.id))
+    Um link novo cancela os anteriores da mesma conta, e os vencidos de todas saem do banco."""
+    db.execute(
+        delete(Ativacao).where((Ativacao.usuario_id == usuario.id) | (Ativacao.expira_em < agora()))
+    )
     token = secrets.token_urlsafe(32)
     db.add(
         Ativacao(
@@ -115,11 +128,58 @@ def ativar(db: Session, token: str) -> Usuario | None:
         return None
     usuario.ativo = True
     usuario.email_confirmado_em = agora()
+    db.execute(delete(Ativacao).where(Ativacao.usuario_id == usuario.id))
     return usuario
 
 
 def pendente(usuario: Usuario) -> bool:
     return usuario.email is not None and usuario.email_confirmado_em is None
+
+
+def pode_redefinir(usuario: Usuario | None) -> bool:
+    """Só conta ativa com e-mail confirmado recebe o link: conta pendente se ativa pelo
+    cadastro, e conta desativada pelo admin não volta por aqui."""
+    return (
+        usuario is not None
+        and usuario.ativo
+        and usuario.email is not None
+        and usuario.email_confirmado_em is not None
+    )
+
+
+def abrir_redefinicao(db: Session, usuario: Usuario) -> str:
+    """Token de uso único para o link de senha nova. Um pedido novo cancela os anteriores,
+    e os vencidos de todas as contas saem do banco."""
+    db.execute(
+        delete(RedefinicaoSenha).where(
+            (RedefinicaoSenha.usuario_id == usuario.id) | (RedefinicaoSenha.expira_em < agora())
+        )
+    )
+    token = secrets.token_urlsafe(32)
+    db.add(
+        RedefinicaoSenha(
+            token_hash=_hash(token),
+            usuario_id=usuario.id,
+            expira_em=agora() + VALIDADE_REDEFINICAO,
+        )
+    )
+    return token
+
+
+def redefinir_senha(db: Session, token: str, senha: str) -> Usuario | None:
+    """Troca a senha da conta do token e derruba as sessões. Token vencido, desconhecido
+    ou de conta que deixou de poder redefinir não troca nada. Senha curta levanta
+    ValueError antes de gastar o link."""
+    pedido = db.get(RedefinicaoSenha, _hash(token)) if token else None
+    if pedido is None or pedido.expira_em < agora():
+        return None
+    usuario = db.get(Usuario, pedido.usuario_id)
+    if not pode_redefinir(usuario):
+        return None
+    usuario.senha_hash = gerar_hash(senha)
+    db.execute(delete(RedefinicaoSenha).where(RedefinicaoSenha.usuario_id == usuario.id))
+    sessoes.fechar_todas(db, usuario.id)
+    return usuario
 
 
 def alterar(
@@ -172,12 +232,13 @@ def _admins_ativos(db: Session) -> int:
 
 def excluir(db: Session, usuario: Usuario) -> None:
     """Exclusão a pedido do titular (LGPD, art. 18): apaga a conta, as investigações,
-    as sessões e as ativações. Os eventos de segurança ficam, sem o nome."""
+    as sessões, as ativações e os pedidos de senha nova. Os eventos de segurança ficam, sem o nome."""
     if usuario.papel == "admin" and usuario.ativo and _admins_ativos(db) <= 1:
         raise Conflito("O último admin ativo não pode excluir a própria conta.")
     db.execute(delete(Investigacao).where(Investigacao.usuario_id == usuario.id))
     db.execute(delete(Sessao).where(Sessao.usuario_id == usuario.id))
     db.execute(delete(Ativacao).where(Ativacao.usuario_id == usuario.id))
+    db.execute(delete(RedefinicaoSenha).where(RedefinicaoSenha.usuario_id == usuario.id))
     db.execute(delete(TentativaLogin).where(TentativaLogin.nome == usuario.nome))
     db.execute(update(Evento).where(Evento.usuario == usuario.nome).values(usuario=None))
     # O admin que cadastrou ou alterou a conta deixou o nome dela no detalhe:

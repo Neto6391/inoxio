@@ -1,0 +1,87 @@
+"""Esqueci a senha: link de uso único por e-mail, sem revelar quem tem conta."""
+
+from __future__ import annotations
+
+from datetime import timedelta
+
+from fastapi import APIRouter, BackgroundTasks, Depends, Request
+from fastapi.responses import JSONResponse
+from pydantic import BaseModel, Field
+from sqlalchemy import select
+from sqlalchemy.orm import Session
+
+from inoxio import auditoria, usuarios
+from inoxio.db import Usuario
+from inoxio.web.autenticacao import ip_do_cliente
+from inoxio.web.dependencias import banco
+
+rotas = APIRouter(prefix="/api/senha")
+
+PEDIDOS_POR_IP = 5
+JANELA_PEDIDOS = timedelta(hours=1)
+LINK_INVALIDO = "Link inválido ou vencido. Peça outro em Esqueci minha senha."
+
+
+class PedidoSenha(BaseModel):
+    email: str = Field(max_length=254)
+
+
+class SenhaNova(BaseModel):
+    token: str = Field(max_length=128)
+    senha: str = Field(max_length=256)
+
+
+def _texto_do_email(nome: str, link: str) -> str:
+    return (
+        f"Olá, {nome}.\n\n"
+        "Recebemos um pedido para criar uma senha nova para a sua conta no Inóxio. "
+        f"Abra o link abaixo na próxima hora:\n\n{link}\n\n"
+        "Se não foi você, ignore esta mensagem: a senha atual continua valendo.\n"
+    )
+
+
+@rotas.post("/esqueci", status_code=202)
+def esqueci(
+    request: Request, pedido: PedidoSenha, tarefas: BackgroundTasks, db: Session = Depends(banco)
+):
+    ip = ip_do_cliente(request)
+    if auditoria.contar(db, "senha_pedida", ip, JANELA_PEDIDOS) >= PEDIDOS_POR_IP:
+        return JSONResponse({"erro": "Muitos pedidos deste endereço. Tente mais tarde."}, 429)
+    try:
+        email = usuarios.normalizar_email(pedido.email)
+    except ValueError as erro:
+        return JSONResponse({"erro": str(erro)}, status_code=400)
+    enviar = request.app.state.enviar_email
+    # A mesma resposta com ou sem conta: a tela não revela quem tem conta.
+    resposta = {
+        "mensagem": "Se houver uma conta ativa com esse e-mail, enviamos um link para criar "
+        "uma senha nova. Ele vale por 1 hora."
+        if enviar
+        else "O envio de e-mail está desligado: peça ao administrador para trocar a sua senha."
+    }
+    usuario = db.scalar(select(Usuario).where(Usuario.email == email))
+    token = None
+    if enviar and usuarios.pode_redefinir(usuario):
+        token = usuarios.abrir_redefinicao(db, usuario)
+    # O e-mail digitado não entra na auditoria: pode ser de quem nunca teve conta.
+    auditoria.registrar(db, "senha_pedida", ip, usuario.nome if token else None)
+    db.commit()
+    if token:
+        link = f"{request.app.state.config.url_publica}/redefinir#{token}"
+        tarefas.add_task(
+            enviar, usuario.email, "Senha nova no Inóxio", _texto_do_email(usuario.nome, link)
+        )
+    return resposta
+
+
+@rotas.post("/redefinir")
+def redefinir(request: Request, pedido: SenhaNova, db: Session = Depends(banco)):
+    try:
+        usuario = usuarios.redefinir_senha(db, pedido.token, pedido.senha)
+    except ValueError as erro:
+        return JSONResponse({"erro": str(erro)}, status_code=400)
+    if usuario is None:
+        return JSONResponse({"erro": LINK_INVALIDO}, status_code=400)
+    auditoria.registrar(db, "senha_redefinida", ip_do_cliente(request), usuario.nome)
+    db.commit()
+    return {"mensagem": "Senha trocada. Já pode entrar com a senha nova."}

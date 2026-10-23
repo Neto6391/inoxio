@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { chamar, ErroApi, guardarCsrf, SESSAO_EXPIRADA, SESSAO_TROCADA } from "./api";
 import { AceiteTermos } from "./AceiteTermos";
 import { Ativar } from "./Ativar";
+import { EsqueciSenha, RedefinirSenha } from "./Senha";
 import { Conta } from "./Conta";
 import { Privacidade, Termos } from "./Documentos";
 import { Auditoria } from "./Auditoria";
@@ -103,9 +104,11 @@ export function App() {
       </Flex>
     );
   }
-  // A página inicial e a ativação de conta são públicas, com ou sem sessão.
+  // A página inicial, a ativação de conta e a troca de senha são públicas, com ou sem sessão.
   if (caminho === "/") return <Landing sessao={sessao} />;
   if (caminho === "/ativar") return <Ativar />;
+  if (caminho === "/esqueci-senha") return <EsqueciSenha />;
+  if (caminho === "/redefinir") return <RedefinirSenha />;
   if (caminho === "/termos") return <Termos />;
   if (caminho === "/privacidade") return <Privacidade />;
   if (sessao === null) return <Login aoEntrar={entrarCom} />;
