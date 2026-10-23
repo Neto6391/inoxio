@@ -104,7 +104,10 @@ const IPS_POR_PAGINA = 5;
 
 function IpsDoDominio({ evidencia }: { evidencia: Evidencia }) {
   const status = STATUS[evidencia.status] ?? { texto: evidencia.status, cor: "default" };
-  const ips = (evidencia.dados.ips as IpDoDominio[] | undefined) ?? [];
+  const consultados = (evidencia.dados.ips as IpDoDominio[] | undefined) ?? [];
+  // Os IPs além dos consultados vêm só listados: o AbuseIPDB não foi perguntado sobre eles.
+  const outros = (evidencia.dados.outros_ips as string[] | undefined) ?? [];
+  const ips: IpDoDominio[] = [...consultados, ...outros.map((ip) => ({ ip, abuseipdb: "nao_consultado" }))];
   const [numero, setNumero] = useState(1);
   const pagina = {
     total: ips.length,
@@ -142,12 +145,20 @@ function IpsDoDominio({ evidencia }: { evidencia: Evidencia }) {
                       {comoTexto(item.isp)} · {comoTexto(item.pais)}
                     </span>
                   </>
+                ) : item.abuseipdb === "nao_consultado" ? (
+                  <Typography.Text type="secondary">não consultado no AbuseIPDB</Typography.Text>
                 ) : (
                   <Typography.Text type="secondary">AbuseIPDB indisponível</Typography.Text>
                 )}
               </div>
             ))}
           </div>
+          {outros.length > 0 && (
+            <Typography.Paragraph type="secondary" className="espaco-topo">
+              O AbuseIPDB é consultado só para os {consultados.length} primeiros IPs, para poupar a
+              cota de consultas; os outros {outros.length} aparecem aqui para você saber que existem.
+            </Typography.Paragraph>
+          )}
           <Paginacao pagina={pagina} aoMudar={setNumero} rotulo={["IP", "IPs"]} />
         </div>
       )}

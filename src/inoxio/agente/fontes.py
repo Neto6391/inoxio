@@ -165,7 +165,10 @@ class ResolucaoDNS:
     """
 
     NOME = "dns"
+    # Só os primeiros vão ao AbuseIPDB: cada IP é uma consulta da cota. Os outros aparecem
+    # na tela, sem consulta, até LISTADOS_NO_MAXIMO (um teto para o que fica guardado).
     MAX_IPS = 2
+    LISTADOS_NO_MAXIMO = 50
 
     def __init__(
         self,
@@ -186,7 +189,8 @@ class ResolucaoDNS:
             return evidencia(self.NOME, "nao_encontrado", contexto=True)
         except Exception:
             return evidencia(self.NOME, "falha", contexto=True)
-        ips = _publicos(enderecos)[: self.MAX_IPS]
+        publicos = _publicos(enderecos)[: self.LISTADOS_NO_MAXIMO]
+        ips, outros = publicos[: self.MAX_IPS], publicos[self.MAX_IPS :]
         if not ips:
             return evidencia(self.NOME, "nao_encontrado", contexto=True)
         with ThreadPoolExecutor(max_workers=len(ips)) as executor:
@@ -197,7 +201,10 @@ class ResolucaoDNS:
             {"ip": ip, "abuseipdb": resposta["status"], **resposta["dados"]}
             for ip, resposta in zip(ips, respostas, strict=True)
         ]
-        return evidencia(self.NOME, "ok", {"ips": itens}, contexto=True)
+        dados: dict[str, Any] = {"ips": itens}
+        if outros:
+            dados["outros_ips"] = outros
+        return evidencia(self.NOME, "ok", dados, contexto=True)
 
 
 def _consultar_uma(fonte: Fonte, tipo: str, valor: str) -> dict[str, Any] | None:

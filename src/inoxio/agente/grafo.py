@@ -26,7 +26,8 @@ def rota_reaproveitamento(estado: Estado) -> str:
 
 
 # Números que só dão contexto na tela; as instruções da IA foram medidas sem eles.
-CAMPOS_SO_DA_TELA = {"votos_positivos", "votos_negativos", "motores", "nao_acusaram"}
+# "outros_ips": os IPs do DNS além dos consultados no AbuseIPDB, só listados na tela.
+CAMPOS_SO_DA_TELA = {"votos_positivos", "votos_negativos", "motores", "nao_acusaram", "outros_ips"}
 
 
 def _para_a_mente(evidencia: dict[str, Any]) -> dict[str, Any]:
