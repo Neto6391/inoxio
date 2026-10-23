@@ -192,3 +192,29 @@ test("com a tela aberta, os créditos voltam sozinhos na hora da renovação", a
   await waitFor(() => expect(screen.getByRole("button", { name: "Investigar" })).toBeEnabled(), { timeout: 4000 });
   expect(screen.getByText("10 de 10 créditos")).toBeInTheDocument();
 });
+
+test("a explicação mostra o que cada fonte mostrou, um parágrafo por fonte", () => {
+  render(
+    <AnaliseIA
+      analise={{
+        resumo: "Nenhuma fonte acusou o site.",
+        tecnicas_mitre: [],
+        recomendacoes: [],
+        confianca: "media",
+        termos: [],
+        por_fonte: [
+          "O VirusTotal passa o endereço por dezenas de antivírus. Nenhum acusou nada.",
+          "O AbuseIPDB reúne denúncias de abuso. Os IPs do site têm 1 denúncia cada.",
+        ],
+      }}
+    />,
+  );
+  const secao = screen.getByText("O que cada fonte mostrou").closest("div") as HTMLElement;
+  expect(within(secao).getByText(/dezenas de antivírus/)).toBeInTheDocument();
+  expect(within(secao).getByText(/1 denúncia cada/)).toBeInTheDocument();
+});
+
+test("análise sem explicação por fonte não mostra a seção vazia", () => {
+  render(<AnaliseIA analise={{ resumo: "Resumo.", tecnicas_mitre: [], recomendacoes: [], confianca: "baixa" }} />);
+  expect(screen.queryByText("O que cada fonte mostrou")).toBeNull();
+});

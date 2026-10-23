@@ -16,6 +16,7 @@ VALIDA = {
     "termos": [
         {"termo": "Cloudflare", "significado": "Empresa que fica na frente de muitos sites."},
     ],
+    "por_fonte": ["O AbuseIPDB reúne denúncias de abuso; este IP tem muitas."],
 }
 
 
@@ -38,17 +39,74 @@ def test_falha_da_ia_vira_none():
     assert analisar({"a": 1}, invocar) is None
 
 
-def test_limites_sao_conferidos_aqui_e_nao_no_provedor():
-    # O modelo recebe um esquema só de tipos; quem barra é o AnaliseMente.
-    assert analisar({}, lambda s, c: VALIDA | {"tecnicas_mitre": ["rm -rf /"]}) is None
-    assert analisar({}, lambda s, c: VALIDA | {"resumo": "x" * 1201}) is None
-    assert analisar({}, lambda s, c: VALIDA | {"recomendacoes": ["r"] * 9}) is None
-    assert analisar({}, lambda s, c: VALIDA | {"confianca": "total"}) is None
+def test_o_que_passa_do_limite_sai_e_o_resto_fica():
+    # O modelo recebe um esquema só de tipos; os limites são aplicados aqui. Um item
+    # fora do limite sai sozinho, em vez de levar a explicação inteira junto.
     termo = {"termo": "IP", "significado": "Número de um computador na internet."}
-    assert analisar({}, lambda s, c: VALIDA | {"termos": [termo] * 7}) is None
-    assert analisar({}, lambda s, c: VALIDA | {"termos": [termo | {"termo": "x" * 61}]}) is None
+    analise = analisar(
+        {},
+        lambda s, c: (
+            VALIDA
+            | {
+                "tecnicas_mitre": ["rm -rf /", "T1110"],
+                "recomendacoes": [f"Ação {n}." for n in range(9)] + ["x" * 301],
+                "termos": [termo | {"termo": "x" * 61}, termo | {"significado": "x" * 301}]
+                + [termo] * 7,
+                "por_fonte": [f"Fonte {n}." for n in range(5)] + ["x" * 801],
+            }
+        ),
+    )
+    assert analise["tecnicas_mitre"] == ["T1110"]
+    assert analise["recomendacoes"] == [f"Ação {n}." for n in range(8)]
+    assert analise["termos"] == [termo] * 6
+    assert analise["por_fonte"] == [f"Fonte {n}." for n in range(4)]
+
+
+def test_resumo_longo_demais_fica_com_as_frases_que_cabem():
+    frase = "Uma frase de exemplo com cinquenta caracteres e um ponto. "
+    analise = analisar({}, lambda s, c: VALIDA | {"resumo": frase * 30})
+    assert len(analise["resumo"]) <= 1200
+    assert analise["resumo"].endswith("ponto.")
+    # Sem frase que caiba (uma só, gigante), não há resumo, e a análise não vale.
+    assert analisar({}, lambda s, c: VALIDA | {"resumo": "x" * 1201}) is None
+
+
+def test_confianca_fora_do_esperado_invalida_a_analise():
+    assert analisar({}, lambda s, c: VALIDA | {"confianca": "total"}) is None
+
+
+def test_negar_que_e_seguro_e_aviso_e_fica():
+    resumo = (
+        "Este link não é seguro e aparece em listas de golpe. "
+        "Não é um site confiável: 12 antivírus o marcaram. "
+        "O site parece seguro e não há sinais de abuso."
+    )
+    recomendacoes = ["Use uma senha segura e diferente em cada site.", "Ele é limpo."]
+    analise = analisar({}, lambda s, c: VALIDA | {"resumo": resumo, "recomendacoes": recomendacoes})
+    assert analise["resumo"] == (
+        "Este link não é seguro e aparece em listas de golpe. "
+        "Não é um site confiável: 12 antivírus o marcaram."
+    )
+    assert analise["recomendacoes"] == ["Use uma senha segura e diferente em cada site."]
+
+
+def test_ponto_e_virgula_nao_separa_e_a_frase_sai_inteira():
+    recomendacao = "Verifique se usa um DNS confiável; se não, altere para outro."
+    analise = analisar(
+        {}, lambda s, c: VALIDA | {"recomendacoes": [recomendacao, "Confira o endereço."]}
+    )
+    assert analise["recomendacoes"] == ["Confira o endereço."]
+
+
+def test_suavizar_ou_garantir_com_outras_palavras_tambem_sai():
+    resumo = (
+        "As fontes não responderam. Não há motivo imediato para bloquear este IP. "
+        "Nada foi encontrado, indicando que o conteúdo não é malicioso. "
+        "Não há evidências de que seja malicioso."
+    )
+    analise = analisar({}, lambda s, c: VALIDA | {"resumo": resumo})
     assert (
-        analisar({}, lambda s, c: VALIDA | {"termos": [termo | {"significado": "x" * 301}]}) is None
+        analise["resumo"] == "As fontes não responderam. Não há evidências de que seja malicioso."
     )
 
 
@@ -76,7 +134,8 @@ def test_esquemas_nao_tem_veredito_nem_nota():
 
 
 def test_limites_de_custo_do_groq():
-    assert (TIMEOUT, MAX_TOKENS) == (10, 500)
+    # 900: a explicação por fonte pede mais texto que o resumo sozinho.
+    assert (TIMEOUT, MAX_TOKENS) == (10, 900)
 
 
 def test_sem_chave_ou_modelo_nao_cria_invocar():
@@ -158,7 +217,7 @@ def test_as_instrucoes_sao_as_aprovadas_na_medicao():
 
     from inoxio.agente.mente import PROMPT
 
-    esperado = "626ab0f2df85723feb024e38f9cb516225cb2f8bfd199742ce99f489facf1a92"
+    esperado = "59d1ba73c4f45854c996644723b34f127d6a32ff90566bcbf4ca7af91d7bd32c"
     assert hashlib.sha256(PROMPT.encode()).hexdigest() == esperado
 
 
@@ -211,3 +270,25 @@ def test_o_glossario_passa_pelo_mesmo_filtro():
         {"termo": "Cloudflare", "significado": "Empresa que entrega sites."},
         {"termo": "IP", "significado": "Número de um computador na internet."},
     ]
+
+
+def test_explicacao_por_fonte_e_pedida_aceita_e_filtrada():
+    from inoxio.agente.mente import RespostaMente
+
+    assert "por_fonte" in RespostaMente.model_fields
+    por_fonte = [
+        "O VirusTotal passa o endereço por dezenas de antivírus. Nenhum acusou nada.",
+        "O AbuseIPDB reúne denúncias. O site parece seguro.",
+        "Ele é limpo.",
+    ]
+    analise = analisar({}, lambda s, c: VALIDA | {"por_fonte": por_fonte})
+    # A frase proibida sai; o parágrafo que fica vazio sai da lista.
+    assert analise["por_fonte"] == [
+        "O VirusTotal passa o endereço por dezenas de antivírus. Nenhum acusou nada.",
+        "O AbuseIPDB reúne denúncias.",
+    ]
+
+
+def test_analise_antiga_sem_por_fonte_continua_valendo():
+    antiga = {chave: valor for chave, valor in VALIDA.items() if chave != "por_fonte"}
+    assert analisar({}, lambda s, c: antiga)["por_fonte"] == []
