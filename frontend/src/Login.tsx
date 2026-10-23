@@ -38,6 +38,9 @@ function Entrar({ aoEntrar }: { aoEntrar: (sessao: Sessao) => void }) {
           Entrar
         </Button>
       </Form>
+      <div className="espaco-topo">
+        <Link para="/esqueci-senha">Esqueci minha senha</Link>
+      </div>
       <Typography.Paragraph type="secondary" className="espaco-topo">
         Acabou de se cadastrar? Ative a conta pelo link que mandamos por e-mail antes de entrar.
       </Typography.Paragraph>

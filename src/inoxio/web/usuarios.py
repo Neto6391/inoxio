@@ -134,6 +134,8 @@ TIPOS_EVENTO = (
     "backup",
     "termos_aceitos",
     "conta_excluida",
+    "senha_pedida",
+    "senha_redefinida",
 )
 POR_PAGINA = 50
 

@@ -126,7 +126,7 @@ export function Privacidade() {
             <Lista
               itens={[
                 "Criar e manter a sua conta e fazer as investigações que você pede: execução do contrato de uso do serviço (art. 7º, V).",
-                "Enviar o e-mail de ativação da conta: execução do contrato (art. 7º, V).",
+                "Enviar o e-mail de ativação da conta e, quando você pede, o link para criar uma senha nova: execução do contrato (art. 7º, V).",
                 "Prevenir fraude e abuso, limitar tentativas de login e manter a trilha de auditoria: legítimo interesse do controlador e proteção dos próprios usuários (art. 7º, IX).",
                 "Gerar estatísticas de uso, agregadas, para o administrador do sistema: legítimo interesse (art. 7º, IX).",
               ]}
@@ -146,7 +146,7 @@ export function Privacidade() {
                 itens={[
                   "VirusTotal e AbuseIPDB: recebem o indicador para consultar a reputação.",
                   "Groq: recebe o indicador e as evidências para a explicação gerada por IA.",
-                  "Google (Gmail): envia o e-mail de ativação para o seu endereço.",
+                  "Google (Gmail): envia para o seu endereço o e-mail de ativação e o de senha nova.",
                   "Hostinger: hospeda o servidor onde ficam o sistema e o banco de dados.",
                 ]}
               />
@@ -167,7 +167,7 @@ export function Privacidade() {
                 "Registros de auditoria (com IP): 90 dias.",
                 "Tentativas de login: 15 minutos, para o bloqueio contra força bruta.",
                 "Sessão: até 30 minutos sem uso ou 8 horas no total.",
-                "Link de ativação: 24 horas.",
+                "Links de ativação (válidos por 24 horas) e de senha nova (1 hora): apagados quando usados; os vencidos saem do banco no próximo pedido de link.",
                 "Cópias de segurança do banco: 14 dias. Um dado excluído pode continuar nelas até a cópia vencer.",
               ]}
             />
