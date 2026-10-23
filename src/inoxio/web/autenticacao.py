@@ -45,6 +45,7 @@ def _sessao_json(usuario: Usuario, sessao: Sessao) -> dict:
     return {
         "usuario": {
             "nome": usuario.nome,
+            "nome_exibicao": usuario.nome_exibicao,
             "papel": usuario.papel,
             "onboarding_visto": usuario.onboarding_visto,
             "termos_pendentes": usuarios.termos_pendentes(usuario),

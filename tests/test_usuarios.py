@@ -31,6 +31,7 @@ def test_admin_lista_sem_expor_hash(cliente, usuarios):
     assert [usuario["nome"] for usuario in lista] == ["ana", "beto", "chefe"]
     assert set(lista[0]) == {
         "nome",
+        "nome_exibicao",
         "papel",
         "criado_em",
         "ativo",

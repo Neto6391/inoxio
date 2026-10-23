@@ -25,6 +25,7 @@ def test_login_certo_devolve_usuario_e_token_csrf(cliente, usuarios):
     corpo = resposta.json()
     assert corpo["usuario"] == {
         "nome": "ana",
+        "nome_exibicao": None,
         "papel": "analista",
         "onboarding_visto": False,
         "termos_pendentes": True,
@@ -92,10 +93,13 @@ def test_logout_sem_csrf_e_recusado(cliente, usuarios):
     assert cliente.post("/api/logout", headers={"X-CSRF-Token": "outro"}).status_code == 403
 
 
-def test_sessao_ociosa_expira(cliente, usuarios, fabrica):
+def test_sessao_ociosa_expira_depois_de_1_hora(cliente, usuarios, fabrica):
     entrar(cliente, "ana")
     with fabrica() as db, db.begin():
-        db.execute(update(Sessao).values(ultimo_uso=agora() - timedelta(minutes=31)))
+        db.execute(update(Sessao).values(ultimo_uso=agora() - timedelta(minutes=59)))
+    assert cliente.get("/api/investigacoes").status_code == 200
+    with fabrica() as db, db.begin():
+        db.execute(update(Sessao).values(ultimo_uso=agora() - timedelta(minutes=61)))
     assert cliente.get("/api/investigacoes").status_code == 401
 
 

@@ -106,13 +106,6 @@ a {
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
-.creditos-lateral {
-  margin-top: auto;
-  padding: 14px 12px;
-  border: 1px solid var(--borda);
-  border-radius: 10px;
-  background: var(--cartao);
-}
 .coluna {
   display: flex;
   flex-direction: column;
@@ -225,9 +218,14 @@ a {
   .menu a {
     white-space: nowrap;
   }
-  .menu-secao,
-  .creditos-lateral {
+  .menu-secao {
     display: none;
+  }
+  .menu-grupo {
+    flex-direction: row;
+  }
+  .menu a.submenu {
+    margin-left: 0;
   }
   .topo {
     padding: 8px 16px;
@@ -762,4 +760,58 @@ a {
   padding: 12px;
   border: 1px solid var(--borda);
   border-radius: 8px;
+}
+/* Menu hierárquico, breadcrumb e atalhos da administração */
+.menu-grupo {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.menu-grupo-nome {
+  flex: 1;
+}
+.menu-seta {
+  color: var(--rotulo);
+  font-size: 12px;
+}
+.menu a.submenu {
+  min-height: 38px;
+  margin-left: 22px;
+  font-size: 14px;
+}
+.trilha {
+  margin-bottom: 16px;
+}
+.atalho {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  height: 100%;
+  box-sizing: border-box;
+  padding: 16px 18px;
+  border: 1px solid var(--borda);
+  border-radius: 10px;
+  background: var(--cartao);
+  color: var(--texto);
+}
+.atalho:hover {
+  border-color: var(--link);
+}
+.atalho strong {
+  display: block;
+}
+.atalho-nota {
+  display: block;
+  color: var(--suave);
+  font-size: 13px;
+}
+.campo-nome {
+  max-width: 320px;
+}
+.form-conta {
+  max-width: 420px;
+}
+.pilula:focus-visible {
+  outline: 2px solid var(--link);
+  outline-offset: 2px;
 }

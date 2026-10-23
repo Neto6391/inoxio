@@ -1,9 +1,9 @@
-import { Card, Flex, Typography } from "antd";
+import { Button, Card, Flex, Typography } from "antd";
 import { type ReactNode, useEffect, useState } from "react";
 import { chamar } from "./api";
 import { dataPorExtenso } from "./formato";
 import { Rodape } from "./Rodape";
-import { Link } from "./rotas";
+import { Link, navegar, temAnterior } from "./rotas";
 
 type Secao = { titulo: string; corpo: ReactNode };
 type Publico = { contato_privacidade: string; versao_termos: string };
@@ -20,19 +20,14 @@ function usePublico(): Publico | null {
   return publico;
 }
 
-function Documento({ titulo, secoes }: { titulo: string; secoes: Secao[] }) {
+type PropsDocumento = { titulo: string; secoes: Secao[]; dentroDoApp?: boolean };
+
+// Logado, o documento abre dentro do app, com o menu e o breadcrumb; sem sessão, sozinho,
+// com o botão Voltar e o logo levando à página inicial.
+function Documento({ titulo, secoes, dentroDoApp = false }: PropsDocumento) {
   const publico = usePublico();
-  return (
-    <div className="landing">
-      <header className="landing-topo">
-        <Link para="/">
-          <span className="marca">
-            <span className="marca-simbolo">I</span>
-            Inóxio
-          </span>
-        </Link>
-      </header>
-      <Card className="documento">
+  const cartao = (
+    <Card className="documento">
         <Typography.Title level={1}>{titulo}</Typography.Title>
         {publico && (
           <Typography.Text type="secondary">
@@ -45,7 +40,21 @@ function Documento({ titulo, secoes }: { titulo: string; secoes: Secao[] }) {
             {secao.corpo}
           </section>
         ))}
-      </Card>
+    </Card>
+  );
+  if (dentroDoApp) return cartao;
+  return (
+    <div className="landing">
+      <header className="landing-topo">
+        <Link para="/">
+          <span className="marca">
+            <span className="marca-simbolo">I</span>
+            Inóxio
+          </span>
+        </Link>
+        <Button onClick={() => (temAnterior() ? window.history.back() : navegar("/"))}>← Voltar</Button>
+      </header>
+      {cartao}
       <Rodape />
     </div>
   );
@@ -77,9 +86,10 @@ function Contato() {
   );
 }
 
-export function Privacidade() {
+export function Privacidade({ dentroDoApp }: { dentroDoApp?: boolean }) {
   return (
     <Documento
+      dentroDoApp={dentroDoApp}
       titulo="Política de Privacidade"
       secoes={[
         {
@@ -100,9 +110,10 @@ export function Privacidade() {
             <Lista
               itens={[
                 <>
-                  <b>Conta:</b> nome de usuário, e-mail (só de quem cria a conta pela página de
-                  cadastro), a senha guardada apenas como hash argon2id, papel (admin ou analista),
-                  datas de criação, de confirmação do e-mail e de aceite destes termos.
+                  <b>Conta:</b> nome de usuário, nome de exibição (se você informar), e-mail (só de
+                  quem cria a conta pela página de cadastro ou o informa em Minha conta), a senha
+                  guardada apenas como hash argon2id, papel (admin ou analista), datas de criação,
+                  de confirmação do e-mail e de aceite destes termos.
                 </>,
                 <>
                   <b>Uso:</b> os indicadores que você investiga (endereços de páginas, domínios, IPs e
@@ -110,7 +121,8 @@ export function Privacidade() {
                 </>,
                 <>
                   <b>Segurança:</b> endereço IP, data e hora de logins (certos e errados), logouts,
-                  cadastros, investigações e ações de administração.
+                  cadastros, investigações, mudanças na própria conta e ações de administração, cada
+                  um ligado à sessão em que aconteceu.
                 </>,
                 <>
                   <b>Cookie:</b> um único cookie de sessão, necessário para manter você conectado.
@@ -126,7 +138,7 @@ export function Privacidade() {
             <Lista
               itens={[
                 "Criar e manter a sua conta e fazer as investigações que você pede: execução do contrato de uso do serviço (art. 7º, V).",
-                "Enviar o e-mail de ativação da conta e, quando você pede, o link para criar uma senha nova: execução do contrato (art. 7º, V).",
+                "Enviar o e-mail de ativação da conta e, quando você pede, o link para criar uma senha nova ou para confirmar um e-mail novo (com um aviso ao e-mail antigo): execução do contrato (art. 7º, V).",
                 "Prevenir fraude e abuso, limitar tentativas de login e manter a trilha de auditoria: legítimo interesse do controlador e proteção dos próprios usuários (art. 7º, IX).",
                 "Gerar estatísticas de uso, agregadas, para o administrador do sistema: legítimo interesse (art. 7º, IX).",
               ]}
@@ -166,8 +178,8 @@ export function Privacidade() {
                 "Conta e investigações: enquanto a conta existir.",
                 "Registros de auditoria (com IP): 90 dias.",
                 "Tentativas de login: 15 minutos, para o bloqueio contra força bruta.",
-                "Sessão: até 30 minutos sem uso ou 8 horas no total.",
-                "Links de ativação (válidos por 24 horas) e de senha nova (1 hora): apagados quando usados; os vencidos saem do banco no próximo pedido de link.",
+                "Sessão: até 1 hora sem uso ou 8 horas no total.",
+                "Links de ativação e de troca de e-mail (válidos por 24 horas) e de senha nova (1 hora): apagados quando usados; os vencidos saem do banco no próximo pedido de link.",
                 "Cópias de segurança do banco: 14 dias. Um dado excluído pode continuar nelas até a cópia vencer.",
               ]}
             />
@@ -181,10 +193,11 @@ export function Privacidade() {
               <Lista
                 itens={[
                   "confirmar e acessar os seus dados: página Minha conta;",
+                  "corrigir o nome de exibição, o e-mail e a senha: página Minha conta;",
                   "levar os seus dados (portabilidade): botão Baixar meus dados, em Minha conta;",
                   "excluir a sua conta e os dados ligados a ela: botão Excluir minha conta, em Minha conta;",
                   <>
-                    corrigir dados, saber com quem compartilhamos e revogar o aceite: <Contato />;
+                    corrigir outros dados, saber com quem compartilhamos e revogar o aceite: <Contato />;
                   </>,
                   "reclamar à Autoridade Nacional de Proteção de Dados (ANPD).",
                 ]}
@@ -224,9 +237,10 @@ export function Privacidade() {
   );
 }
 
-export function Termos() {
+export function Termos({ dentroDoApp }: { dentroDoApp?: boolean }) {
   return (
     <Documento
+      dentroDoApp={dentroDoApp}
       titulo="Termos de Uso"
       secoes={[
         {

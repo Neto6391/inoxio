@@ -30,6 +30,8 @@ DA_SESSAO = (
     "admin_cadastrou",
     "admin_alterou",
     "termos_aceitos",
+    "conta_alterada",
+    "email_troca_pedida",
 )
 FALHAS = ("login_falhou", "login_bloqueado")
 

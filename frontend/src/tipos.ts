@@ -1,6 +1,8 @@
 export type Papel = "admin" | "analista";
 export type Usuario = {
   nome: string;
+  // Como a pessoa quer ser chamada; sem ele, a tela mostra o nome de usuário.
+  nome_exibicao?: string | null;
   papel: Papel;
   onboarding_visto?: boolean;
   termos_pendentes?: boolean;

@@ -1,31 +1,22 @@
-import { Button, Flex, Result, Spin } from "antd";
+import { Button, Flex, Result, Spin, Tooltip } from "antd";
 import { type ReactNode, useEffect, useState } from "react";
 import { chamar, ErroApi, guardarCsrf, SESSAO_EXPIRADA, SESSAO_TROCADA } from "./api";
 import { AceiteTermos } from "./AceiteTermos";
-import { Ativar } from "./Ativar";
+import { Ativar, ConfirmarEmail } from "./Ativar";
 import { EsqueciSenha, RedefinirSenha } from "./Senha";
 import { Conta } from "./Conta";
-import { CreditosLateral, ehCreditos, textoCreditos } from "./Creditos";
+import { dicaCreditos, ehCreditos, textoCreditos } from "./Creditos";
 import { Privacidade, Termos } from "./Documentos";
 import { Auditoria } from "./Auditoria";
 import { VisaoGeral } from "./Estatisticas";
-import {
-  IconeBusca,
-  IconeConta,
-  IconeEscudo,
-  IconeGrafico,
-  IconeLua,
-  IconePainel,
-  IconeRelogio,
-  IconeSol,
-  IconeUsuarios,
-} from "./icones";
+import { IconeLua, IconeRelogio, IconeSol } from "./icones";
 import { Investigacao } from "./Investigacao";
 import { Investigacoes } from "./Investigacoes";
 import { Landing } from "./Landing";
 import { Login } from "./Login";
 import { Onboarding } from "./Onboarding";
 import { Rodape } from "./Rodape";
+import { INICIO, PAGINAS, type Pagina, Trilha, raizDe } from "./navegacao";
 import { Painel } from "./Painel";
 import { Link, navegar, substituir, useCaminho } from "./rotas";
 import { definirTema, useTema } from "./tema";
@@ -37,9 +28,10 @@ type PropsTela = {
   sessao: Sessao;
   creditos: Creditos | null;
   aoExcluirConta: () => void;
+  aoMudarNome: (nome: string | null) => void;
 };
 
-function Tela({ caminho, sessao, creditos, aoExcluirConta }: PropsTela) {
+function Tela({ caminho, sessao, creditos, aoExcluirConta, aoMudarNome }: PropsTela) {
   const investigacao = caminho.match(/^\/investigacoes\/([\w-]+)$/);
   if (investigacao) return <Investigacao id={investigacao[1]} />;
   if (caminho === "/investigacoes") return <Investigacoes />;
@@ -48,8 +40,10 @@ function Tela({ caminho, sessao, creditos, aoExcluirConta }: PropsTela) {
   if (caminho === "/conta") {
     // A chave muda com o aceite: reaceitar os termos nesta tela recarrega o perfil.
     const chave = sessao.usuario.termos_pendentes ? "termos-pendentes" : "termos-aceitos";
-    return <Conta key={chave} aoExcluir={aoExcluirConta} />;
+    return <Conta key={chave} aoExcluir={aoExcluirConta} aoMudarNome={aoMudarNome} />;
   }
+  if (caminho === "/termos") return <Termos dentroDoApp />;
+  if (caminho === "/privacidade") return <Privacidade dentroDoApp />;
   if (caminho === "/usuarios" && sessao.usuario.papel === "admin") {
     return <Usuarios eu={sessao.usuario.nome} />;
   }
@@ -59,19 +53,58 @@ function Tela({ caminho, sessao, creditos, aoExcluirConta }: PropsTela) {
     <Result
       status="404"
       title="Página não encontrada"
-      extra={<Button onClick={() => navegar("/painel")}>Voltar ao painel</Button>}
+      extra={<Button onClick={() => navegar(INICIO)}>Voltar ao início</Button>}
     />
   );
 }
 
-type PropsItem = { para: string; ativo: boolean; icone: ReactNode; children: string };
+type PropsItem = { para: string; ativo: boolean; icone: ReactNode; children: ReactNode; className?: string };
 
-function ItemMenu({ para, ativo, icone, children }: PropsItem) {
+function ItemMenu({ para, ativo, icone, children, className }: PropsItem) {
+  const classes = [className, ativo ? "ativo" : undefined].filter(Boolean).join(" ");
   return (
-    <Link para={para} className={ativo ? "ativo" : undefined}>
+    <Link para={para} className={classes || undefined}>
       {icone}
       {children}
     </Link>
+  );
+}
+
+// O menu sai do mapa das telas: as raízes em cima, e as filhas de uma raiz embaixo dela.
+// A Administração abre na Visão geral e mostra as telas dela enquanto se está nela.
+function Menu({ caminho, admin }: { caminho: string; admin: boolean }) {
+  const doMenu = PAGINAS.filter((pagina) => pagina.icone && (admin || !pagina.admin));
+  const raizAtual = raizDe(caminho);
+  const ativa = (pagina: Pagina) =>
+    pagina.caminho === caminho || (caminho === "/entrar" && pagina.caminho === INICIO) || (pagina.caminho !== INICIO && caminho.startsWith(`${pagina.caminho}/`));
+  const geral = doMenu.filter((pagina) => !pagina.admin);
+  const administracao = doMenu.find((pagina) => pagina.admin && !pagina.pai);
+  const filhas = doMenu.filter((pagina) => pagina.admin && pagina.pai === administracao?.caminho);
+  const aberta = administracao !== undefined && raizAtual === administracao.caminho;
+  return (
+    <nav className="menu" aria-label="Menu principal">
+      {geral.map((pagina) => (
+        <ItemMenu key={pagina.caminho} para={pagina.caminho} icone={pagina.icone} ativo={ativa(pagina)}>
+          {pagina.titulo}
+        </ItemMenu>
+      ))}
+      {administracao && (
+        <div className="menu-grupo" aria-expanded={aberta}>
+          <ItemMenu para={administracao.caminho} icone={administracao.icone} ativo={caminho === administracao.caminho}>
+            <span className="menu-grupo-nome">Administração</span>
+            <span className="menu-seta" aria-hidden="true">
+              {aberta ? "▾" : "▸"}
+            </span>
+          </ItemMenu>
+          {aberta &&
+            filhas.map((pagina) => (
+              <ItemMenu key={pagina.caminho} para={pagina.caminho} icone={pagina.icone} ativo={ativa(pagina)} className="submenu">
+                {pagina.titulo}
+              </ItemMenu>
+            ))}
+        </div>
+      )}
+    </nav>
   );
 }
 
@@ -100,11 +133,18 @@ export function App() {
   const caminho = useCaminho();
   const nome = sessao?.usuario.nome;
 
+  // Com sessão aberta, a página inicial pública não aparece: o logo e o "/" levam ao Início.
+  // A landing e o login só voltam depois de sair ou de a sessão vencer.
+  const naLandingLogado = Boolean(sessao) && caminho === "/";
+  useEffect(() => {
+    if (naLandingLogado) substituir(INICIO);
+  }, [naLandingLogado]);
+
   function entrarCom(nova: Sessao) {
     guardarCsrf(nova.csrf);
     setSessao(nova);
-    // Quem entrou pela tela de login vai para o painel, e o endereço acompanha.
-    if (window.location.pathname === "/entrar") substituir("/painel");
+    // Quem entrou pela tela de login vai para o Início, e o endereço acompanha.
+    if (window.location.pathname === "/entrar") substituir(INICIO);
   }
 
   useEffect(() => {
@@ -160,77 +200,57 @@ export function App() {
     navegar("/");
   }
 
-  if (sessao === undefined) {
+  if (sessao === undefined || naLandingLogado) {
     return (
       <Flex justify="center" className="login">
         <Spin />
       </Flex>
     );
   }
-  // A página inicial, a ativação de conta e a troca de senha são públicas, com ou sem sessão.
-  if (caminho === "/") return <Landing sessao={sessao} />;
+  // A ativação de conta, a troca de senha e a confirmação de e-mail são públicas, com ou
+  // sem sessão. Os documentos, logado, abrem dentro do app.
   if (caminho === "/ativar") return <Ativar />;
+  if (caminho === "/confirmar-email") return <ConfirmarEmail />;
   if (caminho === "/esqueci-senha") return <EsqueciSenha />;
   if (caminho === "/redefinir") return <RedefinirSenha />;
-  if (caminho === "/termos") return <Termos />;
-  if (caminho === "/privacidade") return <Privacidade />;
-  if (sessao === null) return <Login aoEntrar={entrarCom} />;
+  if (sessao === null) {
+    if (caminho === "/") return <Landing sessao={null} />;
+    if (caminho === "/termos") return <Termos />;
+    if (caminho === "/privacidade") return <Privacidade />;
+    return <Login aoEntrar={entrarCom} />;
+  }
 
   const admin = sessao.usuario.papel === "admin";
   return (
     <div className="casca">
       <aside className="lateral">
-        <Link para="/painel">
+        <Link para={INICIO}>
           <span className="marca">
             <span className="marca-simbolo">I</span>
             Inóxio
           </span>
         </Link>
-        <nav className="menu" aria-label="Menu principal">
-          <ItemMenu para="/painel" icone={<IconePainel />} ativo={caminho === "/painel" || caminho === "/entrar"}>
-            Painel
-          </ItemMenu>
-          <ItemMenu para="/investigacoes" icone={<IconeBusca />} ativo={caminho.startsWith("/investigacoes")}>
-            Investigações
-          </ItemMenu>
-          <ItemMenu para="/conta" icone={<IconeConta />} ativo={caminho === "/conta"}>
-            Minha conta
-          </ItemMenu>
-          {admin && <div className="menu-secao">Administração</div>}
-          {admin && (
-            <ItemMenu para="/visao-geral" icone={<IconeGrafico />} ativo={caminho === "/visao-geral"}>
-              Visão geral
-            </ItemMenu>
-          )}
-          {admin && (
-            <ItemMenu para="/usuarios" icone={<IconeUsuarios />} ativo={caminho === "/usuarios"}>
-              Usuários
-            </ItemMenu>
-          )}
-          {admin && (
-            <ItemMenu para="/auditoria" icone={<IconeEscudo />} ativo={caminho === "/auditoria"}>
-              Auditoria
-            </ItemMenu>
-          )}
-        </nav>
-        {creditos && <CreditosLateral creditos={creditos} />}
+        <Menu caminho={caminho} admin={admin} />
       </aside>
       <div className="coluna">
         <header className="topo">
           <span className="topo-espaco" />
           {creditos && (
-            <span className="pilula">
-              <IconeRelogio />
-              {textoCreditos(creditos)}
-            </span>
+            <Tooltip title={dicaCreditos(creditos)}>
+              <span className="pilula" tabIndex={0}>
+                <IconeRelogio />
+                {textoCreditos(creditos)}
+              </span>
+            </Tooltip>
           )}
           <BotaoTema />
           <Link para="/conta" className={caminho === "/conta" ? "quem ativo" : "quem"}>
-            {sessao.usuario.nome} · {sessao.usuario.papel}
+            {sessao.usuario.nome_exibicao ?? sessao.usuario.nome} · {sessao.usuario.papel}
           </Link>
           <Button onClick={sair}>Sair</Button>
         </header>
         <main className="conteudo">
+          <Trilha caminho={caminho} />
           <Tela
             caminho={caminho}
             sessao={sessao}
@@ -239,6 +259,9 @@ export function App() {
               setSessao(null);
               navegar("/");
             }}
+            aoMudarNome={(novo) =>
+              setSessao({ ...sessao, usuario: { ...sessao.usuario, nome_exibicao: novo } })
+            }
           />
         </main>
         <Rodape />

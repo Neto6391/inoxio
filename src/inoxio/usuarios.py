@@ -17,6 +17,7 @@ from inoxio.db import (
     RedefinicaoSenha,
     Sessao,
     TentativaLogin,
+    TrocaEmail,
     Usuario,
     agora,
 )
@@ -34,9 +35,11 @@ COTA_CADASTRO = 10
 VALIDADE_ATIVACAO = timedelta(hours=24)
 # O link de senha nova vale menos: ele dá acesso a uma conta que já existe.
 VALIDADE_REDEFINICAO = timedelta(hours=1)
+VALIDADE_TROCA_EMAIL = timedelta(hours=24)
+NOME_EXIBICAO_MAXIMO = 80
 # Muda quando o texto dos Termos ou da Política mudar: quem aceitou outra versão
 # precisa aceitar de novo.
-VERSAO_TERMOS = "2026-10-22"
+VERSAO_TERMOS = "2026-10-23"
 
 
 class Conflito(Exception):
@@ -185,6 +188,69 @@ def redefinir_senha(db: Session, token: str, senha: str) -> Usuario | None:
     return usuario
 
 
+def definir_nome_exibicao(usuario: Usuario, texto: str) -> None:
+    """Em branco volta a mostrar o nome de usuário."""
+    limpo = " ".join(texto.split())
+    if len(limpo) > NOME_EXIBICAO_MAXIMO:
+        raise ValueError(f"O nome pode ter até {NOME_EXIBICAO_MAXIMO} caracteres.")
+    if any(not caractere.isprintable() for caractere in limpo):
+        raise ValueError("O nome tem caracteres que não aparecem na tela.")
+    usuario.nome_exibicao = limpo or None
+
+
+def trocar_propria_senha(db: Session, usuario: Usuario, nova: str, sessao_mantida: str) -> None:
+    """Quem trocou segue nesta sessão; as outras caem."""
+    usuario.senha_hash = gerar_hash(nova)
+    sessoes.fechar_todas(db, usuario.id, "senha trocada pelo titular", exceto=sessao_mantida)
+
+
+def abrir_troca_email(db: Session, usuario: Usuario, email_novo: str) -> str:
+    """Token de uso único para o link mandado ao e-mail novo; o banco guarda só o hash.
+    Um pedido novo da mesma conta cancela o anterior, e os vencidos de todas saem."""
+    db.execute(
+        delete(TrocaEmail).where(
+            (TrocaEmail.usuario_id == usuario.id) | (TrocaEmail.expira_em < agora())
+        )
+    )
+    token = secrets.token_urlsafe(32)
+    db.add(
+        TrocaEmail(
+            token_hash=_hash(token),
+            usuario_id=usuario.id,
+            email_novo=email_novo,
+            expira_em=agora() + VALIDADE_TROCA_EMAIL,
+        )
+    )
+    return token
+
+
+def troca_email_pendente(db: Session, usuario: Usuario) -> str | None:
+    pedido = db.scalar(
+        select(TrocaEmail).where(
+            TrocaEmail.usuario_id == usuario.id, TrocaEmail.expira_em >= agora()
+        )
+    )
+    return pedido.email_novo if pedido else None
+
+
+def confirmar_troca_email(db: Session, token: str) -> tuple[Usuario, str | None] | None:
+    """Troca o e-mail da conta do token e devolve (conta, e-mail antigo). Token vencido ou
+    desconhecido, conta desativada ou e-mail tomado por outra conta nesse meio-tempo não
+    trocam nada."""
+    pedido = db.get(TrocaEmail, _hash(token)) if token else None
+    if pedido is None or pedido.expira_em < agora():
+        return None
+    usuario = db.get(Usuario, pedido.usuario_id)
+    tomado = db.scalar(select(Usuario.id).where(Usuario.email == pedido.email_novo))
+    if usuario is None or not usuario.ativo or tomado is not None:
+        return None
+    antigo = usuario.email
+    usuario.email = pedido.email_novo
+    usuario.email_confirmado_em = agora()
+    db.execute(delete(TrocaEmail).where(TrocaEmail.usuario_id == usuario.id))
+    return usuario, antigo
+
+
 def alterar(
     db: Session,
     alvo: Usuario,
@@ -269,13 +335,14 @@ def _admins_ativos(db: Session) -> int:
 
 def excluir(db: Session, usuario: Usuario) -> None:
     """Exclusão a pedido do titular (LGPD, art. 18): apaga a conta, as investigações,
-    as sessões, as ativações e os pedidos de senha nova. Os eventos de segurança ficam, sem o nome."""
+    as sessões, as ativações, os pedidos de senha nova e de troca de e-mail. Os eventos de segurança ficam, sem o nome."""
     if usuario.papel == "admin" and usuario.ativo and _admins_ativos(db) <= 1:
         raise Conflito("O último admin ativo não pode excluir a própria conta.")
     db.execute(delete(Investigacao).where(Investigacao.usuario_id == usuario.id))
     db.execute(delete(Sessao).where(Sessao.usuario_id == usuario.id))
     db.execute(delete(Ativacao).where(Ativacao.usuario_id == usuario.id))
     db.execute(delete(RedefinicaoSenha).where(RedefinicaoSenha.usuario_id == usuario.id))
+    db.execute(delete(TrocaEmail).where(TrocaEmail.usuario_id == usuario.id))
     db.execute(delete(TentativaLogin).where(TentativaLogin.nome == usuario.nome))
     db.execute(update(Evento).where(Evento.usuario == usuario.nome).values(usuario=None))
     # O admin que cadastrou ou alterou a conta deixou o nome dela no detalhe:

@@ -28,7 +28,7 @@ test("com sessão mostra o painel com o nome do usuário", async () => {
     "/api/investigacoes": [],
   });
   render(<App />);
-  expect(await screen.findByRole("heading", { name: "Painel" })).toBeInTheDocument();
+  expect(await screen.findByRole("heading", { name: "Início" })).toBeInTheDocument();
   expect(screen.getByText(/ana · analista/)).toBeInTheDocument();
 });
 
@@ -50,7 +50,7 @@ test("Sair com token velho, porque outra aba entrou de novo, encerra a sessão q
     }),
   );
   render(<App />);
-  await screen.findByRole("heading", { name: "Painel" });
+  await screen.findByRole("heading", { name: "Início" });
   csrfAtual = "novo";
   fireEvent.click(screen.getByRole("button", { name: "Sair" }));
   // Depois de sair, a pessoa volta para a página inicial.
@@ -99,6 +99,6 @@ test("quem chega a /entrar já com sessão vai para /painel, e o endereço acomp
     "/api/investigacoes": [],
   });
   render(<App />);
-  expect(await screen.findByRole("heading", { name: "Painel" })).toBeInTheDocument();
+  expect(await screen.findByRole("heading", { name: "Início" })).toBeInTheDocument();
   expect(window.location.pathname).toBe("/painel");
 });
