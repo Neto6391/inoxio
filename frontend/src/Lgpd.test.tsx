@@ -70,7 +70,7 @@ test("Minha conta mostra os dados, oferece o download e exclui com a senha", asy
     </AntApp>,
   );
   expect(await screen.findByText("ana@exemplo.com")).toBeInTheDocument();
-  expect(screen.getByText("versão de 21 de outubro de 2026, em 2026-10-21 10:00 UTC")).toBeInTheDocument();
+  expect(screen.getByText("versão de 21 de outubro de 2026, em 21/10/2026 07:00:00")).toBeInTheDocument();
   expect(screen.getByRole("link", { name: "Baixar meus dados" })).toHaveAttribute("href", "/api/conta/dados");
   const excluir = screen.getByRole("button", { name: "Excluir minha conta" });
   expect(excluir).toBeDisabled();
@@ -117,6 +117,6 @@ test("o rodapé com os termos aparece no app", async () => {
   servidor(ANA);
   navegar("/painel");
   render(<App />);
-  await screen.findByText("Painel");
+  await screen.findByRole("heading", { name: "Painel" });
   expect(screen.getByRole("link", { name: "Política de Privacidade" })).toHaveAttribute("href", "/privacidade");
 });

@@ -9,7 +9,7 @@ export const CORES_VEREDITO: Record<string, string> = {
   inconclusivo: "#8b5cf6",
 };
 
-const NOMES_VEREDITO: Record<string, string> = {
+export const NOMES_VEREDITO: Record<string, string> = {
   malicioso: "Malicioso",
   suspeito: "Suspeito",
   sem_evidencia: "Sem evidência",
@@ -39,8 +39,30 @@ export const NOMES_TIPO: Record<string, string> = {
   url: "URL",
 };
 
+const BRASILIA = new Intl.DateTimeFormat("pt-BR", {
+  timeZone: "America/Sao_Paulo",
+  day: "2-digit",
+  month: "2-digit",
+  year: "numeric",
+  hour: "2-digit",
+  minute: "2-digit",
+  second: "2-digit",
+  hourCycle: "h23",
+});
+
+// O banco guarda UTC sem fuso ("2026-10-23T02:22:15.123456"); a tela mostra
+// o horário de Brasília: "22/10/2026 23:22:15".
 export function quando(iso: string): string {
-  return `${iso.slice(0, 16).replace("T", " ")} UTC`;
+  const semFracao = iso.replace(/(\.\d{3})\d+/, "$1");
+  const utc = /[zZ]|[+-]\d{2}:\d{2}$/.test(semFracao) ? semFracao : `${semFracao}Z`;
+  const data = new Date(utc);
+  return Number.isNaN(data.getTime()) ? iso : BRASILIA.format(data).replace(", ", " ");
+}
+
+// "2026-10-23" (um dia do gráfico, já no calendário de Brasília) vira "23/10".
+export function diaCurto(dia: string): string {
+  const [, mes, data] = dia.split("-");
+  return `${data}/${mes}`;
 }
 
 // A versão dos termos é uma data AAAA-MM-DD; lida em português ela vira "20 de outubro de 2026".

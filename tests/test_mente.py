@@ -13,6 +13,9 @@ VALIDA = {
     "tecnicas_mitre": ["T1110", "T1071.001"],
     "recomendacoes": ["Bloqueie na borda."],
     "confianca": "media",
+    "termos": [
+        {"termo": "Cloudflare", "significado": "Empresa que fica na frente de muitos sites."},
+    ],
 }
 
 
@@ -41,6 +44,19 @@ def test_limites_sao_conferidos_aqui_e_nao_no_provedor():
     assert analisar({}, lambda s, c: VALIDA | {"resumo": "x" * 1201}) is None
     assert analisar({}, lambda s, c: VALIDA | {"recomendacoes": ["r"] * 9}) is None
     assert analisar({}, lambda s, c: VALIDA | {"confianca": "total"}) is None
+    termo = {"termo": "IP", "significado": "Número de um computador na internet."}
+    assert analisar({}, lambda s, c: VALIDA | {"termos": [termo] * 7}) is None
+    assert analisar({}, lambda s, c: VALIDA | {"termos": [termo | {"termo": "x" * 61}]}) is None
+    assert (
+        analisar({}, lambda s, c: VALIDA | {"termos": [termo | {"significado": "x" * 301}]}) is None
+    )
+
+
+def test_o_pedido_e_para_quem_nao_e_da_area():
+    from inoxio.agente.mente import PROMPT
+
+    for trecho in ("não é da área de tecnologia", "termos", "não altere nem conteste o veredito"):
+        assert trecho in PROMPT.lower()
 
 
 def test_carga_grande_demais_vira_none_sem_chamar_o_modelo():
@@ -106,3 +122,13 @@ def test_padrao_e_a_configuracao_aprovada_na_escolha_do_modelo():
         "json_schema",
         "low",
     )
+
+
+def test_analise_que_chama_algo_de_seguro_e_descartada():
+    # Sem evidência não é garantia: a tela nunca diz seguro, limpo ou legítimo.
+    for frase in ("A página parece segura.", "O IP está limpo.", "Tráfego legítimo do Google."):
+        assert analisar({}, lambda s, c, f=frase: VALIDA | {"resumo": f}) is None
+        assert analisar({}, lambda s, c, f=frase: VALIDA | {"recomendacoes": [f]}) is None
+    # "Segurança" como assunto continua permitido.
+    com_assunto = VALIDA | {"recomendacoes": ["Avise a equipe de segurança da empresa."]}
+    assert analisar({}, lambda s, c: com_assunto) == com_assunto

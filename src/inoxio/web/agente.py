@@ -20,6 +20,9 @@ from inoxio.seguranca import limites
 from inoxio.web.autenticacao import ip_do_cliente
 from inoxio.web.dependencias import Contexto, banco, conferir_csrf, sessao_atual, token_csrf
 
+# A página de investigações mostra as mais recentes; o painel, as primeiras delas.
+LISTA = 50
+
 rotas = APIRouter(prefix="/api")
 
 
@@ -43,7 +46,7 @@ def listar(ctx: Contexto = Depends(sessao_atual), db: Session = Depends(banco)):
         select(Investigacao)
         .where(Investigacao.usuario_id == ctx.usuario.id)
         .order_by(Investigacao.criada_em.desc())
-        .limit(10)
+        .limit(LISTA)
     ).all()
     return [_resumo(investigacao) for investigacao in recentes]
 
@@ -140,3 +143,8 @@ def ver(
 @rotas.get("/estatisticas")
 def minhas_estatisticas(ctx: Contexto = Depends(sessao_atual), db: Session = Depends(banco)):
     return estatisticas.do_usuario(db, ctx.usuario.id)
+
+
+@rotas.get("/creditos")
+def meus_creditos(ctx: Contexto = Depends(sessao_atual), db: Session = Depends(banco)):
+    return limites.creditos(db, ctx.usuario.id, ctx.usuario.cota_diaria)

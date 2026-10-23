@@ -42,11 +42,23 @@ export type IpDoDominio = {
   isp?: string;
 };
 
+export type Termo = { termo: string; significado: string };
+
 export type Analise = {
   resumo: string;
   tecnicas_mitre: string[];
   recomendacoes: string[];
   confianca: string;
+  // Análises feitas antes do glossário não têm termos.
+  termos?: Termo[];
+};
+
+// Cota de hoje, que zera à meia-noite de Brasília. Sem cota (admin), cota e restantes vêm nulos.
+export type Creditos = {
+  cota: number | null;
+  usados: number;
+  restantes: number | null;
+  renova_em: string;
 };
 
 export type DetalheInvestigacao = ResumoInvestigacao & {

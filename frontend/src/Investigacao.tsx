@@ -70,7 +70,7 @@ function IpsDoDominio({ evidencia }: { evidencia: Evidencia }) {
   const status = STATUS[evidencia.status] ?? { texto: evidencia.status, cor: "default" };
   const ips = (evidencia.dados.ips as IpDoDominio[] | undefined) ?? [];
   return (
-    <Card size="small" title="IPs do domínio (DNS)" extra={<Tag color={status.cor}>{status.texto}</Tag>}>
+    <Card size="small" title="IPs do site (DNS)" extra={<Tag color={status.cor}>{status.texto}</Tag>}>
       {ips.length === 0 ? (
         <Typography.Text type="secondary">
           {evidencia.status === "falha"
@@ -78,23 +78,34 @@ function IpsDoDominio({ evidencia }: { evidencia: Evidencia }) {
             : "O domínio não aponta para nenhum IP público."}
         </Typography.Text>
       ) : (
-        <Flex vertical gap="small">
-          {ips.map((item) => (
-            <Flex key={item.ip} gap="small" align="center" wrap>
-              <span className="indicador">{item.ip}</span>
-              {item.abuseipdb === "ok" ? (
-                <>
-                  <Tag color={corDaNota(item.score ?? 0)}>AbuseIPDB {item.score}</Tag>
-                  <Typography.Text type="secondary">
-                    {comoTexto(item.relatos)} relatos · {comoTexto(item.pais)} · {comoTexto(item.isp)}
-                  </Typography.Text>
-                </>
-              ) : (
-                <Typography.Text type="secondary">AbuseIPDB indisponível</Typography.Text>
-              )}
-            </Flex>
-          ))}
-        </Flex>
+        <div className="tabela-rolagem">
+          <div className="tabela-ips">
+            <div className="linha-ip cabecalho">
+              <span>IP</span>
+              <span>Nota no AbuseIPDB</span>
+              <span>Relatos</span>
+              <span>Quem opera</span>
+            </div>
+            {ips.map((item) => (
+              <div key={item.ip} className="linha-ip">
+                <span className="indicador">{item.ip}</span>
+                {item.abuseipdb === "ok" ? (
+                  <>
+                    <span>
+                      <Tag color={corDaNota(item.score ?? 0)}>{item.score} de 100</Tag>
+                    </span>
+                    <span>{comoTexto(item.relatos)}</span>
+                    <span>
+                      {comoTexto(item.isp)} · {comoTexto(item.pais)}
+                    </span>
+                  </>
+                ) : (
+                  <Typography.Text type="secondary">AbuseIPDB indisponível</Typography.Text>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
       )}
     </Card>
   );
@@ -120,14 +131,16 @@ export function Investigacao({ id }: { id: string }) {
   const contexto = detalhe.evidencias.filter((evidencia) => evidencia.contexto);
   return (
     <Flex vertical gap="large">
-      <Link para="/painel">← Investigações</Link>
+      <Link para="/investigacoes">← Investigações</Link>
       <Flex vertical gap={4}>
         <Typography.Title level={2} className="titulo-indicador indicador">
           {detalhe.valor}
         </Typography.Title>
         <Flex gap="small" align="center" wrap>
           <Tag>{NOMES_TIPO[detalhe.tipo] ?? detalhe.tipo}</Tag>
-          <Typography.Text type="secondary">{quando(detalhe.criada_em)}</Typography.Text>
+          <Typography.Text type="secondary">
+            Investigada em {quando(detalhe.criada_em)} · horário de Brasília
+          </Typography.Text>
           {detalhe.reaproveitada && <Tag color="blue">reaproveitado de consulta com menos de 24 h</Tag>}
         </Flex>
       </Flex>
@@ -153,6 +166,8 @@ export function Investigacao({ id }: { id: string }) {
           </Flex>
         </Flex>
       </Card>
+
+      <AnaliseIA analise={detalhe.analise} />
 
       <div>
         <Flex justify="space-between" align="baseline" className="espaco">
@@ -188,7 +203,6 @@ export function Investigacao({ id }: { id: string }) {
         </div>
       )}
 
-      <AnaliseIA analise={detalhe.analise} />
     </Flex>
   );
 }

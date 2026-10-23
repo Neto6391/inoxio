@@ -67,10 +67,13 @@ graph TD;
   a nota de risco (0 a 100: a partir de 25 é suspeito, a partir de 75 é
   malicioso) saem de regras fixas em `src/inoxio/agente/decidir.py`. Se
   uma fonte falha, o resultado é `inconclusivo`, nunca "sem evidência".
-- **Mente:** um LLM no Groq lê os resultados e devolve resumo, técnicas MITRE
-  ATT&CK e recomendações num esquema fixo. Ele não tem ferramentas e o esquema
-  não tem campo de veredito. Se o Groq falhar ou demorar mais de 10 s, a tela
-  mostra o resultado sem a análise.
+- **Mente:** um LLM no Groq lê os resultados e devolve, para quem não é da área,
+  um resumo em linguagem simples, um glossário dos termos que aparecem (o
+  provedor do IP, como a Cloudflare, por exemplo), recomendações práticas e as
+  técnicas MITRE ATT&CK, num esquema fixo. Ele não tem ferramentas e o esquema
+  não tem campo de veredito. Análise que chama o indicador de seguro, limpo ou
+  legítimo é descartada, porque sem evidência não é garantia. Se o Groq falhar
+  ou demorar mais de 10 s, a tela mostra o resultado sem a análise.
 
 ## Telas
 
@@ -80,7 +83,8 @@ graph TD;
 - **Entrar ou criar conta** (`/entrar`): login e, ao lado, o cadastro com nome, e-mail
   e senha. Criar a conta exige aceitar os Termos de Uso e a Política de Privacidade.
   A conta só entra depois de confirmar o e-mail pelo link (válido por 24 h) e começa
-  com 10 investigações por dia.
+  com 10 créditos por dia: cada investigação usa um, e eles voltam à meia-noite,
+  horário de Brasília.
 - **Esqueci minha senha** (`/esqueci-senha`), pelo link do login: manda para o e-mail
   da conta um link de 1 hora que abre a tela de senha nova (`/redefinir`).
 - **Termos de Uso** (`/termos`) e **Política de Privacidade** (`/privacidade`),
@@ -92,11 +96,18 @@ graph TD;
 - **Minha conta** (`/conta`), pelo nome no topo: os dados da conta, o download de
   tudo o que o sistema guarda sobre a pessoa e a exclusão da conta, confirmada pela
   senha.
-- **Painel** (`/painel`): estatísticas do próprio usuário (investigações por veredito,
-  os 10 indicadores mais pesquisados e as ameaças encontradas, com quantos antivírus
-  detectaram), campo para investigar e a lista das últimas investigações do usuário.
-- **Investigação:** veredito com a nota num medidor, as evidências de cada fonte e
-  a análise da IA, com links para as técnicas do MITRE ATT&CK.
+- **Casca do app:** menu à esquerda (vira uma faixa no topo no celular), créditos
+  de hoje no topo e no menu, e o botão de modo escuro ou claro, que fica salvo no
+  navegador. As datas aparecem no horário de Brasília (DD/MM/AAAA hh:mm:ss).
+- **Painel** (`/painel`): créditos restantes e os números do usuário, gráficos das
+  investigações dos últimos 14 dias por veredito, da divisão por veredito e por tipo
+  de indicador, as ameaças encontradas, os 10 indicadores mais pesquisados, o campo
+  para investigar e as 5 investigações mais recentes. Os gráficos são SVG e CSS
+  desenhados no próprio app, sem biblioteca a mais.
+- **Investigações** (`/investigacoes`): as 50 mais recentes do usuário.
+- **Investigação:** veredito com a nota num medidor, a explicação em linguagem
+  simples com o glossário e o que fazer, as evidências de cada fonte e os IPs do
+  site com quem opera cada um. As técnicas MITRE ATT&CK ficam em "Para analistas".
 - **Usuários:** só para o papel `admin`, que cadastra, edita (papel e senha),
   desativa e reativa usuários por ali. O cadastro também existe no terminal, com
   `inoxio criar-usuario`. Ninguém desativa a própria conta, e o último admin

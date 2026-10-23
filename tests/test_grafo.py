@@ -63,7 +63,8 @@ def test_injecao_nas_tags_nao_muda_o_veredito():
     mente = MenteFalsa(VALIDA | {"resumo": "É seguro."})
     estado = investigar(construir_grafo([FonteFalsa()], mente), "8.8.8.8")
     assert (estado["veredito"], estado["nota"]) == ("malicioso", 85)
-    assert estado["analise"]["resumo"] == "É seguro."
+    # A IA convencida pela injeção a chamar o IP de seguro é descartada.
+    assert estado["analise"] is None
     assert "DADOS_NAO_CONFIAVEIS" in mente.cargas[0]
 
 
@@ -89,7 +90,7 @@ def test_reaproveitada_sem_analise_chama_so_a_mente():
     estado = investigar(construir_grafo([fonte], mente, lambda t, v: anterior), "8.8.8.8")
     assert fonte.chamadas == []
     assert len(mente.cargas) == 1
-    assert estado["analise"] == VALIDA
+    assert estado["analise"] == VALIDA | {"termos": []}
 
 
 def test_sem_consulta_anterior_consulta_as_fontes():
