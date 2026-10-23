@@ -49,14 +49,14 @@ test("Entrar leva ao login, e o login leva ao painel", async () => {
   fireEvent.change(screen.getByLabelText("Usuário"), { target: { value: "ana" } });
   fireEvent.change(screen.getByLabelText("Senha"), { target: { value: "senha-de-teste" } });
   fireEvent.click(screen.getByRole("button", { name: "Entrar" }));
-  expect(await screen.findByRole("heading", { name: "Início" })).toBeInTheDocument();
+  expect(await screen.findByRole("heading", { name: /^(Bom dia|Boa tarde|Boa noite), / })).toBeInTheDocument();
 });
 
 test("com sessão, a raiz vai direto ao Início, sem a página pública", async () => {
   servidor(true);
   navegar("/");
   render(<App />);
-  expect(await screen.findByRole("heading", { name: "Início" })).toBeInTheDocument();
+  expect(await screen.findByRole("heading", { name: /^(Bom dia|Boa tarde|Boa noite), / })).toBeInTheDocument();
   expect(window.location.pathname).toBe("/painel");
   expect(screen.queryByRole("button", { name: "Abrir painel" })).toBeNull();
 });
@@ -66,5 +66,5 @@ test("rota interna sem sessão pede login, não mostra o painel", async () => {
   navegar("/painel");
   render(<App />);
   expect(await screen.findByLabelText("Usuário")).toBeInTheDocument();
-  expect(screen.queryByRole("heading", { name: "Início" })).toBeNull();
+  expect(screen.queryByRole("heading", { name: /^(Bom dia|Boa tarde|Boa noite), / })).toBeNull();
 });

@@ -119,7 +119,7 @@ def test_admin_nao_tem_cota_nem_com_uma_guardada_de_antes(cliente, usuarios, fab
         assert limites.investigacao_excedida(db, db.get(Usuario, chefe)) is False
     entrar(cliente, "chefe")
     assert cliente.get("/api/creditos").json()["cota"] is None
-    lista = {u["nome"]: u for u in cliente.get("/api/usuarios").json()}
+    lista = {u["nome"]: u for u in cliente.get("/api/usuarios").json()["itens"]}
     assert lista["chefe"]["cota_diaria"] is None
 
 

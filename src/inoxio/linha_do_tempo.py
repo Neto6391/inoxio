@@ -17,7 +17,7 @@ from sqlalchemy.orm import Session
 from inoxio.db import Evento, Sessao, Usuario, agora
 from inoxio.seguranca.limites import FUSO_BRASILIA
 from inoxio.seguranca.sessoes import fim_por_validade
-from inoxio.usuarios import pendente
+from inoxio.usuarios import situacao
 
 # Acontecem dentro de uma sessão; os outros (senha errada, cadastro, link de senha) não.
 DA_SESSAO = (
@@ -34,14 +34,6 @@ DA_SESSAO = (
     "email_troca_pedida",
 )
 FALHAS = ("login_falhou", "login_bloqueado")
-
-
-def situacao(usuario: Usuario) -> str:
-    if usuario.ativo:
-        return "ativa"
-    if pendente(usuario):
-        return "aguardando"
-    return "recusada" if usuario.recusada_em is not None else "desativada"
 
 
 def _por_nome(db: Session, *filtro) -> dict[str, Any]:
@@ -62,7 +54,7 @@ def _abertas(db: Session) -> dict[str, int]:
     return contagem
 
 
-def resumo_por_usuario(db: Session) -> list[dict[str, Any]]:
+def resumo_por_usuario(db: Session, contas: list[Usuario]) -> list[dict[str, Any]]:
     logins = _por_nome(db, Evento.tipo == "login")
     falhas = _por_nome(db, Evento.tipo.in_(FALHAS))
     investigacoes = _por_nome(db, Evento.tipo == "investigacao")
@@ -78,7 +70,7 @@ def resumo_por_usuario(db: Session) -> list[dict[str, Any]]:
             "falhas_de_login": falhas.get(usuario.nome, (0, None))[0],
             "investigacoes": investigacoes.get(usuario.nome, (0, None))[0],
         }
-        for usuario in db.scalars(select(Usuario).order_by(Usuario.nome))
+        for usuario in contas
     ]
 
 

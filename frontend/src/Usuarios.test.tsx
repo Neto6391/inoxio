@@ -3,6 +3,7 @@ import { App as AntApp } from "antd";
 import { afterEach, expect, test, vi } from "vitest";
 import { App } from "./App";
 import { navegar } from "./rotas";
+import { pagina } from "./testes/pagina";
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -26,8 +27,8 @@ function servidor(papel: "admin" | "analista", pedidos: RequestInit[] = []) {
         pedidos.push({ ...pedido, caminho } as RequestInit);
         return json({ nome: "dani", papel: "admin", criado_em: "2026-09-26T20:00:00", ativo: true });
       }
-      if (caminho === "/api/usuarios") {
-        return json([
+      if (caminho.startsWith("/api/usuarios?")) {
+        return json(pagina([
           { nome: "chefe", papel: "admin", criado_em: "2026-09-26T12:00:00", ativo: true, cota_diaria: null },
           { nome: "dani", papel: "analista", criado_em: "2026-09-26T13:00:00", ativo: true, cota_diaria: 10 },
           {
@@ -39,7 +40,7 @@ function servidor(papel: "admin" | "analista", pedidos: RequestInit[] = []) {
             email: "eva@exemplo.test",
             cota_diaria: 10,
           },
-        ]);
+        ]));
       }
       return json([]);
     }),
@@ -50,7 +51,7 @@ test("o menu Usuários só aparece para o admin", async () => {
   servidor("analista");
   navegar("/painel");
   render(<App />);
-  await screen.findByRole("heading", { name: "Início" });
+  await screen.findByRole("heading", { name: /^(Bom dia|Boa tarde|Boa noite), / });
   expect(screen.queryByRole("link", { name: "Usuários" })).toBeNull();
 });
 
@@ -70,7 +71,8 @@ test("admin cadastra usuário sem mandar a confirmação da senha", async () => 
       <App />
     </AntApp>,
   );
-  await screen.findByText("Usuários cadastrados");
+  fireEvent.click(await screen.findByRole("button", { name: "Novo usuário" }));
+  await screen.findByRole("dialog", { name: "Novo usuário" });
   fireEvent.change(screen.getByLabelText("Nome de usuário"), { target: { value: "dani" } });
   fireEvent.change(screen.getByLabelText("Senha"), { target: { value: "senha-bem-longa-1" } });
   fireEvent.change(screen.getByLabelText("Repita a senha"), { target: { value: "senha-bem-longa-1" } });

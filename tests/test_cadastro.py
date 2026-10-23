@@ -165,7 +165,7 @@ def test_sem_smtp_o_cadastro_fica_para_o_admin(fabrica, config, usuarios):
 def test_admin_ve_quem_espera_o_email_e_pode_ativar(cliente, usuarios, caixa):
     cadastrar(cliente)
     entrar(cliente, "chefe")
-    pendente = next(u for u in cliente.get("/api/usuarios").json() if u["nome"] == "dani")
+    pendente = next(u for u in cliente.get("/api/usuarios").json()["itens"] if u["nome"] == "dani")
     assert (pendente["pendente"], pendente["email"]) == (True, "dani@exemplo.com")
     resposta = cliente.patch("/api/usuarios/dani", json={"ativo": True}, headers=csrf(cliente))
     assert resposta.json()["pendente"] is False

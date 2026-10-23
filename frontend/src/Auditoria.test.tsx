@@ -2,6 +2,7 @@ import { fireEvent, render, screen, waitFor, within } from "@testing-library/rea
 import { afterEach, expect, test, vi } from "vitest";
 import { App } from "./App";
 import { navegar } from "./rotas";
+import { pagina } from "./testes/pagina";
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -27,7 +28,7 @@ function servidor(papel: string, pedidos: string[]) {
     "fetch",
     vi.fn(async (caminho: string) => {
       if (caminho === "/api/sessao") return json({ usuario: { nome: "chefe", papel }, csrf: "t" });
-      if (caminho === "/api/auditoria/usuarios") return json(LINHAS);
+      if (caminho.startsWith("/api/auditoria/usuarios?")) return json(pagina(LINHAS));
       if (caminho.startsWith("/api/auditoria/usuarios/")) {
         pedidos.push(caminho);
         return json(SESSOES);
@@ -65,7 +66,7 @@ const LINHAS = [
 ];
 
 const SESSOES = {
-  sessoes: [
+  sessoes: pagina([
     {
       id: "abc123",
       aproximada: false,
@@ -94,7 +95,7 @@ const SESSOES = {
       acoes: 0,
       eventos: [{ quando: "2026-10-20T12:00:00", tipo: "login", ip: "1.2.3.4", detalhe: "" }],
     },
-  ],
+  ], 10),
   fora_de_sessao: [{ quando: "2026-10-22T10:00:00", tipo: "login_falhou", ip: "9.9.9.9", detalhe: "" }],
 };
 
@@ -141,7 +142,7 @@ test("trocar o filtro volta para a página 1", async () => {
     "fetch",
     vi.fn(async (caminho: string) => {
       if (caminho === "/api/sessao") return json({ usuario: { nome: "chefe", papel: "admin" }, csrf: "t" });
-      if (caminho === "/api/auditoria/usuarios") return json(LINHAS);
+      if (caminho.startsWith("/api/auditoria/usuarios?")) return json(pagina(LINHAS));
       pedidos.push(caminho);
       return json({ ...PAGINA, total: 120 });
     }),
@@ -172,7 +173,7 @@ test("o erro some quando a consulta seguinte dá certo", async () => {
     "fetch",
     vi.fn(async (caminho: string) => {
       if (caminho === "/api/sessao") return json({ usuario: { nome: "chefe", papel: "admin" }, csrf: "t" });
-      if (caminho === "/api/auditoria/usuarios") return json(LINHAS);
+      if (caminho.startsWith("/api/auditoria/usuarios?")) return json(pagina(LINHAS));
       if (caminho.startsWith("/api/auditoria?")) {
         return falhar ? json({ erro: "Falhou agora." }, 500) : json({ ...PAGINA, total: 120 });
       }

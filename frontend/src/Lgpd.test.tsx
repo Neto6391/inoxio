@@ -117,6 +117,6 @@ test("o rodapé com os termos aparece no app", async () => {
   servidor(ANA);
   navegar("/painel");
   render(<App />);
-  await screen.findByRole("heading", { name: "Início" });
+  await screen.findByRole("heading", { name: /^(Bom dia|Boa tarde|Boa noite), / });
   expect(screen.getByRole("link", { name: "Política de Privacidade" })).toHaveAttribute("href", "/privacidade");
 });

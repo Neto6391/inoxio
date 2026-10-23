@@ -3,14 +3,13 @@ import {
   App,
   Button,
   Card,
-  Col,
+  Empty,
   Flex,
   Form,
   Input,
   InputNumber,
   List,
   Popconfirm,
-  Row,
   Segmented,
   Skeleton,
   Tag,
@@ -18,9 +17,12 @@ import {
 } from "antd";
 import type { Rule } from "antd/es/form";
 import { useEffect, useState } from "react";
-import { chamar, mensagemDeErro } from "./api";
+import { chamar, ErroApi, mensagemDeErro } from "./api";
+import { type Filtros, FiltrosUsuarios, parametros, SEM_FILTRO } from "./FiltrosUsuarios";
+import { Janela } from "./Janela";
+import { ehPagina, FORA_DO_FORMATO, Paginacao } from "./Paginacao";
 import { quando } from "./formato";
-import type { Papel, UsuarioListado } from "./tipos";
+import type { Pagina, Papel, UsuarioListado } from "./tipos";
 
 type Cadastro = { nome: string; senha: string; confirmacao: string; papel: Papel };
 type Edicao = { papel: Papel; senha?: string; confirmacao?: string; cota?: number | null };
@@ -64,7 +66,7 @@ function FormCadastro({ aoCadastrar }: { aoCadastrar: () => void }) {
   }
 
   return (
-    <Card title="Cadastrar usuário">
+    <>
       {erro && <Alert type="error" showIcon title={erro} className="espaco" />}
       <Form<Cadastro>
         form={formulario}
@@ -104,7 +106,7 @@ function FormCadastro({ aoCadastrar }: { aoCadastrar: () => void }) {
           Cadastrar
         </Button>
       </Form>
-    </Card>
+    </>
   );
 }
 
@@ -160,7 +162,7 @@ function FormEdicao({ alvo, eu, aoTerminar }: PropsEdicao) {
   }
 
   return (
-    <Card title={`Editar ${alvo.nome}`}>
+    <>
       {erro && <Alert type="error" showIcon title={erro} className="espaco" />}
       <Flex gap="small" wrap className="espaco">
         {alvo.cota_diaria !== null && (
@@ -237,24 +239,42 @@ function FormEdicao({ alvo, eu, aoTerminar }: PropsEdicao) {
           <Button onClick={() => aoTerminar(false)}>Cancelar</Button>
         </Flex>
       </Form>
-    </Card>
+    </>
   );
 }
 
 export function Usuarios({ eu }: { eu: string }) {
-  const [usuarios, setUsuarios] = useState<UsuarioListado[] | null>(null);
+  const [pagina, setPagina] = useState<Pagina<UsuarioListado> | null>(null);
+  const [numero, setNumero] = useState(1);
+  const [filtros, setFiltros] = useState<Filtros>(SEM_FILTRO);
+  // Sobe para ler a lista de novo depois de uma mudança.
+  const [releitura, setReleitura] = useState(0);
   const [erroLista, setErroLista] = useState<string | null>(null);
   const [erroAcao, setErroAcao] = useState<string | null>(null);
   const [editando, setEditando] = useState<UsuarioListado | null>(null);
+  const [cadastrando, setCadastrando] = useState(false);
   const { message } = App.useApp();
 
-  function carregar() {
-    chamar<UsuarioListado[]>("/api/usuarios")
-      .then(setUsuarios)
-      .catch((falha) => setErroLista(mensagemDeErro(falha)));
-  }
+  useEffect(() => {
+    let vigente = true;
+    chamar<Pagina<UsuarioListado>>(`/api/usuarios?${parametros(filtros, numero)}`)
+      .then((nova) => {
+        if (!vigente) return;
+        if (!ehPagina<UsuarioListado>(nova)) throw new ErroApi(200, FORA_DO_FORMATO);
+        setPagina(nova);
+        setErroLista(null);
+      })
+      .catch((falha) => {
+        if (vigente) setErroLista(mensagemDeErro(falha));
+      });
+    return () => {
+      vigente = false;
+    };
+  }, [filtros, numero, releitura]);
 
-  useEffect(carregar, []);
+  function carregar() {
+    setReleitura((n) => n + 1);
+  }
 
   async function mudarSituacao(usuario: UsuarioListado, ativo: boolean) {
     setErroAcao(null);
@@ -320,45 +340,47 @@ export function Usuarios({ eu }: { eu: string }) {
   }
 
   return (
-    <Row gutter={[24, 24]}>
-      <Col xs={24}>
-        <Typography.Title level={2}>Usuários</Typography.Title>
-        <Typography.Text type="secondary">
-          Só o admin vê esta tela. Cada usuário vê apenas as próprias investigações; o admin abre
-          qualquer uma.
-        </Typography.Text>
-      </Col>
-      <Col xs={24} md={10}>
-        {editando ? (
-          <FormEdicao
-            key={editando.nome}
-            alvo={editando}
-            eu={eu}
-            aoTerminar={(salvou) => {
-              setEditando(null);
-              if (salvou) carregar();
-            }}
-          />
+    <Flex vertical gap="large">
+      <Flex justify="space-between" align="end" gap="middle" wrap>
+        <div>
+          <Typography.Title level={2}>Usuários</Typography.Title>
+          <Typography.Text type="secondary">
+            Só o admin vê esta tela. Cada usuário vê apenas as próprias investigações; o admin abre
+            qualquer uma.
+          </Typography.Text>
+        </div>
+        <Button type="primary" onClick={() => setCadastrando(true)}>
+          Novo usuário
+        </Button>
+      </Flex>
+      <Card>
+        <FiltrosUsuarios
+          filtros={filtros}
+          aoMudar={(novos) => {
+            setFiltros(novos);
+            setNumero(1);
+          }}
+        />
+        {erroAcao && <Alert type="error" showIcon title={erroAcao} className="espaco-topo" />}
+        {erroLista ? (
+          <Alert type="error" showIcon title={erroLista} className="espaco-topo" />
+        ) : pagina === null ? (
+          <Skeleton active />
+        ) : pagina.itens.length === 0 ? (
+          <Empty description="Nenhum usuário com esses filtros." image={Empty.PRESENTED_IMAGE_SIMPLE} />
         ) : (
-          <FormCadastro aoCadastrar={carregar} />
-        )}
-      </Col>
-      <Col xs={24} md={14}>
-        <Card title="Usuários cadastrados">
-          {erroAcao && <Alert type="error" showIcon title={erroAcao} className="espaco" />}
-          {erroLista ? (
-            <Alert type="error" showIcon title={erroLista} />
-          ) : usuarios === null ? (
-            <Skeleton active />
-          ) : (
+          <>
             <List<UsuarioListado>
-              dataSource={usuarios}
+              dataSource={pagina.itens}
               renderItem={(usuario) => (
                 <List.Item actions={acoes(usuario)}>
                   <List.Item.Meta
                     title={
                       <Flex gap="small" align="center" wrap>
                         <span className={usuario.ativo ? undefined : "inativo"}>{usuario.nome}</span>
+                        {usuario.nome_exibicao && (
+                          <Typography.Text type="secondary">({usuario.nome_exibicao})</Typography.Text>
+                        )}
                         <Tag color={usuario.papel === "admin" ? "gold" : "default"}>{usuario.papel}</Tag>
                         {usuario.pendente && <Tag color="orange">aguardando e-mail</Tag>}
                         {!usuario.ativo && !usuario.pendente && <Tag color="red">desativado</Tag>}
@@ -376,9 +398,33 @@ export function Usuarios({ eu }: { eu: string }) {
                 </List.Item>
               )}
             />
-          )}
-        </Card>
-      </Col>
-    </Row>
+            <Paginacao pagina={pagina} aoMudar={setNumero} rotulo="usuários" />
+          </>
+        )}
+      </Card>
+      {cadastrando && (
+        <Janela titulo="Novo usuário" larga={false} aoFechar={() => setCadastrando(false)}>
+          <FormCadastro
+            aoCadastrar={() => {
+              setCadastrando(false);
+              carregar();
+            }}
+          />
+        </Janela>
+      )}
+      {editando && (
+        <Janela titulo={`Editar ${editando.nome}`} larga={false} aoFechar={() => setEditando(null)}>
+          <FormEdicao
+            key={editando.nome}
+            alvo={editando}
+            eu={eu}
+            aoTerminar={(salvou) => {
+              setEditando(null);
+              if (salvou) carregar();
+            }}
+          />
+        </Janela>
+      )}
+    </Flex>
   );
 }
