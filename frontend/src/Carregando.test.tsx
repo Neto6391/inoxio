@@ -88,7 +88,7 @@ test("ao investigar, o painel mostra o carregamento enquanto as fontes respondem
       return json([]);
     }),
   );
-  navegar("/painel");
+  navegar("/inicio");
   render(<App />);
   fireEvent.change(await screen.findByPlaceholderText(/exemplo.com/), { target: { value: "8.8.8.8" } });
   fireEvent.click(screen.getByRole("button", { name: "Investigar" }));

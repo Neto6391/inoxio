@@ -1,6 +1,7 @@
 import { Button, Flex, Steps, Typography } from "antd";
 import { useEffect, useRef, useState } from "react";
 import { chamar } from "./api";
+import { BotaoFechar } from "./Janela";
 
 const PASSOS = [
   {
@@ -71,9 +72,12 @@ export function Onboarding({ aberto, aoTerminar }: Props) {
           if (evento.key === "Escape") terminar();
         }}
       >
-        <Typography.Title level={4} id="janela-titulo">
-          {PASSOS[passo].titulo}
-        </Typography.Title>
+        <Flex justify="space-between" align="start" gap="small">
+          <Typography.Title level={4} id="janela-titulo">
+            {PASSOS[passo].titulo}
+          </Typography.Title>
+          <BotaoFechar aoFechar={terminar} />
+        </Flex>
         <Steps size="small" current={passo} items={PASSOS.map(() => ({}))} className="espaco" />
         {PASSOS[passo].texto.map((paragrafo) => (
           <Typography.Paragraph key={paragrafo}>{paragrafo}</Typography.Paragraph>

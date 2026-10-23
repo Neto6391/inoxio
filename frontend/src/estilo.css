@@ -866,3 +866,25 @@ a {
 .botao-salvar {
   align-self: flex-start;
 }
+/* O X do canto das janelas */
+.botao-fechar {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 1px solid var(--borda);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--suave);
+  cursor: pointer;
+}
+.botao-fechar:hover {
+  color: var(--texto);
+  background: var(--hover);
+}
+.botao-fechar:focus-visible {
+  outline: 2px solid var(--link);
+  outline-offset: 2px;
+}

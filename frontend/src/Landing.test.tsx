@@ -57,13 +57,13 @@ test("com sessão, a raiz vai direto ao Início, sem a página pública", async 
   navegar("/");
   render(<App />);
   expect(await screen.findByRole("heading", { name: /^(Bom dia|Boa tarde|Boa noite), / })).toBeInTheDocument();
-  expect(window.location.pathname).toBe("/painel");
+  expect(window.location.pathname).toBe("/inicio");
   expect(screen.queryByRole("button", { name: "Abrir painel" })).toBeNull();
 });
 
 test("rota interna sem sessão pede login, não mostra o painel", async () => {
   servidor(false);
-  navegar("/painel");
+  navegar("/inicio");
   render(<App />);
   expect(await screen.findByLabelText("Usuário")).toBeInTheDocument();
   expect(screen.queryByRole("heading", { name: /^(Bom dia|Boa tarde|Boa noite), / })).toBeNull();

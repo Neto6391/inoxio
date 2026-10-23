@@ -118,7 +118,7 @@ graph TD;
   só voltam depois de sair ou de a sessão vencer (1 hora sem uso, ou 8 horas no
   total). As datas aparecem no horário de Brasília (DD/MM/AAAA hh:mm:ss). As telas e
   quem é filho de quem ficam numa lista só, em `frontend/src/navegacao.tsx`.
-- **Início** (`/painel`): boas-vindas pelo nome, créditos restantes e os números do usuário, gráficos das
+- **Início** (`/inicio`; o endereço antigo `/painel` leva a ele): boas-vindas pelo nome, créditos restantes e os números do usuário, gráficos das
   investigações dos últimos 14 dias por veredito, da divisão por veredito e por tipo
   de indicador, as ameaças encontradas, os 10 indicadores mais pesquisados, o campo
   para investigar e as 5 investigações mais recentes. Os gráficos são SVG e CSS

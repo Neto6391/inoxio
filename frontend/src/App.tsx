@@ -36,7 +36,7 @@ function Tela({ caminho, sessao, creditos, aoExcluirConta, aoMudarNome }: PropsT
   if (investigacao) return <Investigacao id={investigacao[1]} />;
   if (caminho === "/investigacoes") return <Investigacoes />;
   // "/entrar" depois do login também leva ao painel.
-  if (caminho === "/painel" || caminho === "/entrar") return <Painel creditos={creditos} nome={sessao.usuario.nome_exibicao ?? sessao.usuario.nome} />;
+  if (caminho === INICIO || caminho === "/entrar") return <Painel creditos={creditos} nome={sessao.usuario.nome_exibicao ?? sessao.usuario.nome} />;
   if (caminho === "/conta") {
     // A chave muda com o aceite: reaceitar os termos nesta tela recarrega o perfil.
     const chave = sessao.usuario.termos_pendentes ? "termos-pendentes" : "termos-aceitos";
@@ -134,8 +134,9 @@ export function App() {
   const nome = sessao?.usuario.nome;
 
   // Com sessão aberta, a página inicial pública não aparece: o logo e o "/" levam ao Início.
-  // A landing e o login só voltam depois de sair ou de a sessão vencer.
-  const naLandingLogado = Boolean(sessao) && caminho === "/";
+  // A landing e o login só voltam depois de sair ou de a sessão vencer. O endereço antigo
+  // do Início (/painel), de favoritos e links, também leva ao novo.
+  const naLandingLogado = Boolean(sessao) && (caminho === "/" || caminho === "/painel");
   useEffect(() => {
     if (naLandingLogado) substituir(INICIO);
   }, [naLandingLogado]);

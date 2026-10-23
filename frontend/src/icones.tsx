@@ -29,6 +29,13 @@ export const IconePainel = () => (
   </Icone>
 );
 
+export const IconeFechar = () => (
+  <Icone>
+    <path d="M18 6 6 18" />
+    <path d="m6 6 12 12" />
+  </Icone>
+);
+
 export const IconeVoltar = () => (
   <Icone>
     <path d="M19 12H5" />

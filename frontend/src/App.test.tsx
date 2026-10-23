@@ -3,7 +3,7 @@ import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { App } from "./App";
 import { navegar } from "./rotas";
 
-beforeEach(() => navegar("/painel"));
+beforeEach(() => navegar("/inicio"));
 afterEach(() => {
   vi.unstubAllGlobals();
   navegar("/");
@@ -92,7 +92,7 @@ test("investigar com token velho faz o app perguntar de novo quem está logado",
   expect(await screen.findByText(/beto · analista/)).toBeInTheDocument();
 });
 
-test("quem chega a /entrar já com sessão vai para /painel, e o endereço acompanha", async () => {
+test("quem chega a /entrar já com sessão vai para /inicio, e o endereço acompanha", async () => {
   navegar("/entrar");
   servidor({
     "/api/sessao": { usuario: { nome: "ana", papel: "analista" }, csrf: "token" },
@@ -100,5 +100,5 @@ test("quem chega a /entrar já com sessão vai para /painel, e o endereço acomp
   });
   render(<App />);
   expect(await screen.findByRole("heading", { name: /^(Bom dia|Boa tarde|Boa noite), / })).toBeInTheDocument();
-  expect(window.location.pathname).toBe("/painel");
+  expect(window.location.pathname).toBe("/inicio");
 });
