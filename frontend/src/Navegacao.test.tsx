@@ -4,6 +4,7 @@ import { afterEach, expect, test, vi } from "vitest";
 import { App } from "./App";
 import { PAGINAS, trilha } from "./navegacao";
 import { navegar } from "./rotas";
+import { pagina } from "./testes/pagina";
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -50,6 +51,7 @@ function servidor(usuario: Record<string, unknown> | null, pedidos: Pedido[] = [
       if (metodo !== "GET") pedidos.push({ caminho, metodo, corpo: pedido.body ? JSON.parse(pedido.body as string) : null });
       if (caminho === "/api/sessao") return json({ usuario, csrf: usuario ? "t" : null });
       if (caminho === "/api/estatisticas/geral") return json(GERAL);
+      if (caminho.startsWith("/api/usuarios?") || caminho.startsWith("/api/auditoria/usuarios?")) return json(pagina([]));
       if (caminho === "/api/publico") return json({ contato_privacidade: "dpo@exemplo.com", versao_termos: "2026-10-23" });
       if (caminho === "/api/conta" && metodo === "PATCH") {
         const corpo = JSON.parse(pedido.body as string);
@@ -88,7 +90,7 @@ test("todo pai do mapa das telas é uma tela do mapa", () => {
 
 test("na administração o breadcrumb começa na Visão geral, sem o Início", async () => {
   abrir("/usuarios");
-  await screen.findByText("Usuários cadastrados");
+  await screen.findByRole("button", { name: "Novo usuário" });
   expect(trilhaNaTela()).toEqual(["Visão geral", "Usuários"]);
   fireEvent.click(within(document.querySelector(".trilha") as HTMLElement).getByRole("link", { name: "Visão geral" }));
   expect(await screen.findByRole("heading", { name: "Visão geral" })).toBeInTheDocument();
@@ -101,16 +103,16 @@ test("Voltar volta para a tela anterior desta aba", async () => {
   const conteudo = document.querySelector(".conteudo") as HTMLElement;
   fireEvent.click(within(conteudo).getByRole("link", { name: /Auditoria/ }));
   await waitFor(() => expect(window.location.pathname).toBe("/auditoria"));
-  fireEvent.click(screen.getByRole("button", { name: "← Voltar" }));
+  fireEvent.click(screen.getByRole("button", { name: "Voltar" }));
   await waitFor(() => expect(window.location.pathname).toBe("/visao-geral"));
 });
 
 test("Voltar volta para a tela de onde se veio, mesmo fora da hierarquia", async () => {
   abrir("/painel");
-  await screen.findByRole("heading", { name: "Início" });
+  await screen.findByRole("heading", { name: /^(Bom dia|Boa tarde|Boa noite), / });
   navegar("/usuarios");
-  await screen.findByText("Usuários cadastrados");
-  fireEvent.click(screen.getByRole("button", { name: "← Voltar" }));
+  await screen.findByRole("button", { name: "Novo usuário" });
+  fireEvent.click(screen.getByRole("button", { name: "Voltar" }));
   await waitFor(() => expect(window.location.pathname).toBe("/painel"));
 });
 
@@ -122,8 +124,8 @@ test("sem tela anterior, Voltar sobe um nível", async () => {
       <App />
     </AntApp>,
   );
-  await screen.findByText("Usuários cadastrados");
-  fireEvent.click(screen.getByRole("button", { name: "← Voltar" }));
+  await screen.findByRole("button", { name: "Novo usuário" });
+  fireEvent.click(screen.getByRole("button", { name: "Voltar" }));
   await waitFor(() => expect(window.location.pathname).toBe("/visao-geral"));
 });
 
@@ -161,7 +163,7 @@ test("logado, o logo e os documentos ficam dentro do app", async () => {
 test("sem sessão, os documentos têm o botão Voltar", async () => {
   abrir("/privacidade", null);
   expect(await screen.findByText("Política de Privacidade", { selector: "h1" })).toBeInTheDocument();
-  expect(screen.getByRole("button", { name: "← Voltar" })).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "Voltar" })).toBeInTheDocument();
   expect(screen.queryByRole("navigation", { name: "Menu principal" })).toBeNull();
 });
 
@@ -169,7 +171,7 @@ test("Minha conta corrige o nome de exibição, e o topo acompanha", async () =>
   const pedidos: Pedido[] = [];
   abrir("/conta", ANA, pedidos);
   const campo = await screen.findByLabelText("Nome de exibição");
-  expect(screen.getByText("analista (só o admin muda)")).toBeInTheDocument();
+  expect(screen.getByText("o papel só o admin muda")).toBeInTheDocument();
   fireEvent.change(campo, { target: { value: "Ana Maria" } });
   fireEvent.click(screen.getByRole("button", { name: "Salvar nome" }));
   await waitFor(() => expect(pedidos).toEqual([{ caminho: "/api/conta", metodo: "PATCH", corpo: { nome_exibicao: "Ana Maria" } }]));
@@ -180,10 +182,13 @@ test("Minha conta troca a senha com a atual e pede o e-mail novo com a senha", a
   const pedidos: Pedido[] = [];
   abrir("/conta", ANA, pedidos);
   await screen.findByLabelText("Nome de exibição");
-  fireEvent.change(screen.getByLabelText("Senha atual"), { target: { value: "senha-antiga-longa" } });
-  fireEvent.change(screen.getByLabelText("Senha nova"), { target: { value: "senha-nova-bem-longa" } });
-  fireEvent.change(screen.getByLabelText("Repita a senha nova"), { target: { value: "senha-nova-bem-longa" } });
+  // A troca da senha abre numa janela.
   fireEvent.click(screen.getByRole("button", { name: "Trocar a senha" }));
+  const senha = await screen.findByRole("dialog", { name: "Trocar a senha" });
+  fireEvent.change(within(senha).getByLabelText("Senha atual"), { target: { value: "senha-antiga-longa" } });
+  fireEvent.change(within(senha).getByLabelText("Senha nova"), { target: { value: "senha-nova-bem-longa" } });
+  fireEvent.change(within(senha).getByLabelText("Repita a senha nova"), { target: { value: "senha-nova-bem-longa" } });
+  fireEvent.click(within(senha).getByRole("button", { name: "Trocar a senha" }));
   await waitFor(() =>
     expect(pedidos[0]).toEqual({
       caminho: "/api/conta/senha",
@@ -191,9 +196,12 @@ test("Minha conta troca a senha com a atual e pede o e-mail novo com a senha", a
       corpo: { atual: "senha-antiga-longa", nova: "senha-nova-bem-longa" },
     }),
   );
-  fireEvent.change(screen.getByLabelText("E-mail novo"), { target: { value: "ana.nova@exemplo.com" } });
-  fireEvent.change(screen.getByLabelText("Sua senha, para confirmar"), { target: { value: "senha-nova-bem-longa" } });
-  fireEvent.click(screen.getByRole("button", { name: "Enviar o link" }));
+  await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+  fireEvent.click(screen.getByRole("button", { name: "Trocar o e-mail" }));
+  const email = await screen.findByRole("dialog", { name: "Trocar o e-mail" });
+  fireEvent.change(within(email).getByLabelText("E-mail novo"), { target: { value: "ana.nova@exemplo.com" } });
+  fireEvent.change(within(email).getByLabelText("Sua senha, para confirmar"), { target: { value: "senha-nova-bem-longa" } });
+  fireEvent.click(within(email).getByRole("button", { name: "Enviar o link" }));
   await waitFor(() =>
     expect(pedidos[1]).toEqual({
       caminho: "/api/conta/email",

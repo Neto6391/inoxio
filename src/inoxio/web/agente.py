@@ -7,13 +7,13 @@ from collections.abc import Iterator
 from contextlib import contextmanager
 from datetime import timedelta
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from inoxio import auditoria, estatisticas
+from inoxio import auditoria, estatisticas, paginacao
 from inoxio.agente.classificar import LIMITE_ENTRADA
 from inoxio.agente.decidir import ROTULOS
 from inoxio.agente.grafo import dados_da_mente
@@ -24,8 +24,7 @@ from inoxio.seguranca import limites
 from inoxio.web.autenticacao import ip_do_cliente
 from inoxio.web.dependencias import Contexto, banco, conferir_csrf, sessao_atual, token_csrf
 
-# A página de investigações mostra as mais recentes; o painel, as primeiras delas.
-LISTA = 50
+INVESTIGACOES_POR_PAGINA = 20
 FOLGA_PENDENTE = timedelta(seconds=30)
 PEDIDOS_DE_EXPLICACAO_POR_HORA = 10
 JANELA_ALHEIA = timedelta(minutes=30)
@@ -48,14 +47,24 @@ def _resumo(investigacao: Investigacao) -> dict:
 
 
 @rotas.get("/investigacoes")
-def listar(ctx: Contexto = Depends(sessao_atual), db: Session = Depends(banco)):
-    recentes = db.scalars(
+def listar(
+    busca: str = Query(default="", max_length=200),
+    pagina: int = 1,
+    ctx: Contexto = Depends(sessao_atual),
+    db: Session = Depends(banco),
+):
+    """As investigações do usuário, da mais nova para a mais antiga; a busca procura no
+    indicador."""
+    filtro = [Investigacao.usuario_id == ctx.usuario.id]
+    termo = busca.strip()
+    if termo:
+        filtro.append(Investigacao.valor.contains(termo, autoescape=True))
+    consulta = (
         select(Investigacao)
-        .where(Investigacao.usuario_id == ctx.usuario.id)
-        .order_by(Investigacao.criada_em.desc())
-        .limit(LISTA)
-    ).all()
-    return [_resumo(investigacao) for investigacao in recentes]
+        .where(*filtro)
+        .order_by(Investigacao.criada_em.desc(), Investigacao.id.desc())
+    )
+    return paginacao.da_consulta(db, consulta, pagina, INVESTIGACOES_POR_PAGINA, _resumo)
 
 
 # A contagem do limite só enxerga investigações já gravadas, e o grafo leva

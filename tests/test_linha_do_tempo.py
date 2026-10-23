@@ -31,7 +31,9 @@ def novo(app):
 def sessoes(admin, nome, **periodo):
     resposta = admin.get(f"/api/auditoria/usuarios/{nome}/sessoes", params=periodo)
     assert resposta.status_code == 200
-    return resposta.json()
+    dados = resposta.json()
+    # As sessões vêm em páginas; aqui os testes olham a primeira.
+    return dados | {"sessoes": dados["sessoes"]["itens"]}
 
 
 def tipos(sessao):
@@ -156,7 +158,9 @@ def test_tabela_por_usuario(app, usuarios, fabrica):
     admin = novo(app)
     entrar(admin, "chefe")
     admin.patch("/api/usuarios/beto", json={"ativo": False}, headers=csrf(admin))
-    linhas = {linha["nome"]: linha for linha in admin.get("/api/auditoria/usuarios").json()}
+    linhas = {
+        linha["nome"]: linha for linha in admin.get("/api/auditoria/usuarios").json()["itens"]
+    }
     assert list(linhas) == ["ana", "beto", "chefe"]
     assert linhas["ana"] | {"ultimo_acesso": None} == {
         "nome": "ana",
@@ -182,3 +186,32 @@ def test_auditoria_por_usuario_e_so_do_admin(app, usuarios):
     admin = novo(app)
     entrar(admin, "chefe")
     assert admin.get("/api/auditoria/usuarios/ninguem/sessoes").status_code == 404
+
+
+def test_sessoes_vem_em_paginas_de_10(app, usuarios, fabrica):
+    base = agora() - timedelta(days=1)
+    with fabrica() as db, db.begin():
+        for n in range(12):
+            db.add(
+                Evento(
+                    tipo="login", usuario="ana", ip="1.2.3.4", quando=base + timedelta(minutes=n)
+                )
+            )
+    admin = novo(app)
+    entrar(admin, "chefe")
+    primeira = admin.get("/api/auditoria/usuarios/ana/sessoes").json()["sessoes"]
+    segunda = admin.get("/api/auditoria/usuarios/ana/sessoes", params={"pagina": 2}).json()[
+        "sessoes"
+    ]
+    assert (primeira["total"], len(primeira["itens"]), len(segunda["itens"])) == (12, 10, 2)
+    assert primeira["itens"][0]["inicio"] > segunda["itens"][0]["inicio"]
+
+
+def test_tabela_por_usuario_usa_os_filtros_da_tela_de_usuarios(app, usuarios):
+    admin = novo(app)
+    entrar(admin, "chefe")
+    resposta = admin.get(
+        "/api/auditoria/usuarios", params={"papel": "analista", "busca": "an"}
+    ).json()
+    assert [linha["nome"] for linha in resposta["itens"]] == ["ana"]
+    assert resposta["total"] == 1

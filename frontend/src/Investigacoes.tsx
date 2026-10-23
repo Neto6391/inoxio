@@ -1,28 +1,51 @@
-import { Alert, Card, Empty, Flex, List, Skeleton, Typography } from "antd";
+import { Alert, Card, Empty, Flex, Input, List, Skeleton, Typography } from "antd";
 import { useEffect, useState } from "react";
-import { chamar, mensagemDeErro } from "./api";
+import { chamar, ErroApi, mensagemDeErro } from "./api";
 import { NOMES_TIPO, quando, TagVeredito } from "./formato";
+import { ehPagina, FORA_DO_FORMATO, Paginacao } from "./Paginacao";
 import { navegar } from "./rotas";
-import type { ResumoInvestigacao } from "./tipos";
+import type { Pagina, ResumoInvestigacao } from "./tipos";
 
-export function ListaInvestigacoes({ limite }: { limite?: number }) {
-  const [itens, setItens] = useState<ResumoInvestigacao[] | null>(null);
+type PropsLista = { limite?: number; busca?: string; paginar?: boolean };
+
+export function ListaInvestigacoes({ limite, busca = "", paginar = false }: PropsLista) {
+  const [pagina, setPagina] = useState<Pagina<ResumoInvestigacao> | null>(null);
+  const [numero, setNumero] = useState(1);
   const [erro, setErro] = useState<string | null>(null);
 
+  // Busca nova volta para a página 1.
+  useEffect(() => setNumero(1), [busca]);
+
   useEffect(() => {
-    chamar<ResumoInvestigacao[]>("/api/investigacoes")
-      .then(setItens)
-      .catch((falha) => setErro(mensagemDeErro(falha)));
-  }, []);
+    let vigente = true;
+    const parametros = new URLSearchParams({ pagina: String(numero) });
+    if (busca.trim()) parametros.set("busca", busca.trim());
+    chamar<Pagina<ResumoInvestigacao>>(`/api/investigacoes?${parametros}`)
+      .then((nova) => {
+        if (!vigente) return;
+        if (!ehPagina<ResumoInvestigacao>(nova)) throw new ErroApi(200, FORA_DO_FORMATO);
+        setPagina(nova);
+        setErro(null);
+      })
+      .catch((falha) => {
+        if (vigente) setErro(mensagemDeErro(falha));
+      });
+    return () => {
+      vigente = false;
+    };
+  }, [numero, busca]);
 
   if (erro) return <Alert type="error" showIcon title={erro} />;
-  if (itens === null) return <Skeleton active paragraph={{ rows: 3 }} />;
-  if (itens.length === 0) {
-    return <Empty description="Nenhuma investigação ainda." image={Empty.PRESENTED_IMAGE_SIMPLE} />;
+  if (pagina === null) return <Skeleton active paragraph={{ rows: 3 }} />;
+  if (pagina.itens.length === 0) {
+    const texto = busca.trim() ? "Nenhuma investigação com essa busca." : "Nenhuma investigação ainda.";
+    return <Empty description={texto} image={Empty.PRESENTED_IMAGE_SIMPLE} />;
   }
+  const itens = limite ? pagina.itens.slice(0, limite) : pagina.itens;
   return (
+    <>
     <List<ResumoInvestigacao>
-      dataSource={limite ? itens.slice(0, limite) : itens}
+      dataSource={itens}
       renderItem={(item) => (
         <List.Item
           className="item-recente"
@@ -36,20 +59,34 @@ export function ListaInvestigacoes({ limite }: { limite?: number }) {
         </List.Item>
       )}
     />
+    {paginar && <Paginacao pagina={pagina} aoMudar={setNumero} rotulo="investigações" />}
+    </>
   );
 }
 
 export function Investigacoes() {
+  const [busca, setBusca] = useState("");
   return (
     <Flex vertical gap="large">
       <div>
         <Typography.Title level={2}>Investigações</Typography.Title>
         <Typography.Text type="secondary">
-          As suas 50 investigações mais recentes, da mais nova para a mais antiga. Horários de Brasília.
+          Todas as suas investigações, da mais nova para a mais antiga, 20 por página. Horários de
+          Brasília.
         </Typography.Text>
       </div>
       <Card>
-        <ListaInvestigacoes />
+        <Input.Search
+          allowClear
+          placeholder="Buscar pelo indicador (domínio, IP, endereço ou hash)"
+          aria-label="Buscar investigação"
+          onSearch={setBusca}
+          onChange={(evento) => {
+            if (!evento.target.value) setBusca("");
+          }}
+          className="filtro-busca espaco"
+        />
+        <ListaInvestigacoes busca={busca} paginar />
       </Card>
     </Flex>
   );

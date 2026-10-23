@@ -2,6 +2,7 @@ import { Button, Card, Flex, Typography } from "antd";
 import { type ReactNode, useEffect, useState } from "react";
 import { chamar } from "./api";
 import { dataPorExtenso } from "./formato";
+import { IconeVoltar } from "./icones";
 import { Rodape } from "./Rodape";
 import { Link, navegar, temAnterior } from "./rotas";
 
@@ -52,7 +53,13 @@ function Documento({ titulo, secoes, dentroDoApp = false }: PropsDocumento) {
             Inóxio
           </span>
         </Link>
-        <Button onClick={() => (temAnterior() ? window.history.back() : navegar("/"))}>← Voltar</Button>
+        <Button
+          className="botao-voltar"
+          icon={<IconeVoltar />}
+          onClick={() => (temAnterior() ? window.history.back() : navegar("/"))}
+        >
+          Voltar
+        </Button>
       </header>
       {cartao}
       <Rodape />

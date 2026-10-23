@@ -2,7 +2,15 @@
 // só, para o menu e o caminho nunca discordarem sobre quem é filho de quem.
 import { Breadcrumb, Button, Flex } from "antd";
 import type { ReactNode } from "react";
-import { IconeBusca, IconeConta, IconeEscudo, IconeGrafico, IconePainel, IconeUsuarios } from "./icones";
+import {
+  IconeBusca,
+  IconeConta,
+  IconeEscudo,
+  IconeGrafico,
+  IconePainel,
+  IconeUsuarios,
+  IconeVoltar,
+} from "./icones";
 import { Link, navegar, temAnterior } from "./rotas";
 
 export type Pagina = {
@@ -84,8 +92,8 @@ export function Trilha({ caminho }: { caminho: string }) {
   return (
     <Flex align="center" gap="middle" className="trilha" wrap>
       {!naRaiz && (
-        <Button size="small" onClick={() => voltar(caminho)}>
-          ← Voltar
+        <Button className="botao-voltar" icon={<IconeVoltar />} onClick={() => voltar(caminho)}>
+          Voltar
         </Button>
       )}
       <Breadcrumb items={itens} />

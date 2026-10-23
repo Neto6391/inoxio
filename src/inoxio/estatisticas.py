@@ -10,15 +10,14 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from inoxio.db import Evento, Investigacao, Usuario, agora
-from inoxio.linha_do_tempo import situacao
 from inoxio.seguranca.limites import FUSO_BRASILIA, inicio_do_dia
+from inoxio.usuarios import SITUACOES, situacao
 
 TOP = 10
 DIAS_DO_GRAFICO = 14
 JANELA_USO = timedelta(days=30)
 AMEACAS = ("malicioso", "suspeito")
 SITES = ("dominio", "url")
-SITUACOES = ("ativa", "desativada", "aguardando", "recusada")
 
 
 def _deteccoes(evidencias: list[dict[str, Any]]) -> int:

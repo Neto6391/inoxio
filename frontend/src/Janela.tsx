@@ -1,11 +1,11 @@
 import { Button, Flex, Typography } from "antd";
 import { type ReactNode, useEffect, useRef } from "react";
 
-type Props = { titulo: string; aoFechar: () => void; children: ReactNode };
+type Props = { titulo: string; aoFechar: () => void; children: ReactNode; larga?: boolean };
 
 // Janela própria em vez do Modal do antd: para travar a rolagem ele injeta um
 // <style> sem nonce, e a CSP bloqueia. Aqui a trava é uma classe no <body>.
-export function Janela({ titulo, aoFechar, children }: Props) {
+export function Janela({ titulo, aoFechar, children, larga = true }: Props) {
   const janela = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -23,7 +23,7 @@ export function Janela({ titulo, aoFechar, children }: Props) {
     >
       <div
         ref={janela}
-        className="janela janela-larga"
+        className={larga ? "janela janela-larga" : "janela"}
         role="dialog"
         aria-modal="true"
         aria-labelledby="janela-larga-titulo"

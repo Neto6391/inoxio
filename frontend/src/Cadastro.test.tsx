@@ -4,6 +4,7 @@ import { StrictMode } from "react";
 import { afterEach, expect, test, vi } from "vitest";
 import { App } from "./App";
 import { navegar } from "./rotas";
+import { pagina } from "./testes/pagina";
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -88,7 +89,7 @@ test("admin vê quem espera o e-mail, ativa e muda a cota", async () => {
         pedidos.push({ caminho, corpo: JSON.parse(pedido.body as string) });
         return json(lista[1]);
       }
-      return json(lista);
+      return json(pagina(lista));
     }),
   );
   navegar("/usuarios");

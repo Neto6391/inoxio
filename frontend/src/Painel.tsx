@@ -8,7 +8,15 @@ import { ListaInvestigacoes } from "./Investigacoes";
 import { Link, navegar } from "./rotas";
 import type { Creditos } from "./tipos";
 
-export function Painel({ creditos }: { creditos: Creditos | null }) {
+function saudacao(agora = new Date()): string {
+  const hora = Number(
+    new Intl.DateTimeFormat("pt-BR", { hour: "numeric", hourCycle: "h23", timeZone: "America/Sao_Paulo" }).format(agora),
+  );
+  if (hora < 12) return "Bom dia";
+  return hora < 18 ? "Boa tarde" : "Boa noite";
+}
+
+export function Painel({ creditos, nome }: { creditos: Creditos | null; nome: string }) {
   const [erro, setErro] = useState<string | null>(null);
   const [ocupado, setOcupado] = useState(false);
   const semCreditos = acabaram(creditos);
@@ -33,10 +41,12 @@ export function Painel({ creditos }: { creditos: Creditos | null }) {
   return (
     <Flex vertical gap="large">
       <div>
-        <Typography.Title level={2}>Início</Typography.Title>
+        <Typography.Title level={2}>
+          {saudacao()}, {nome}!
+        </Typography.Title>
         <Typography.Text type="secondary">
-          Suas investigações e o que elas encontraram. O veredito sai de regras fixas sobre o
-          VirusTotal e o AbuseIPDB.
+          Boas-vindas ao Inóxio. Aqui estão as suas investigações e o que elas encontraram; o
+          veredito sai de regras fixas sobre o VirusTotal e o AbuseIPDB.
         </Typography.Text>
       </div>
       <Card title="Investigar indicador">

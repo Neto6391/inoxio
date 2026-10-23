@@ -8,6 +8,7 @@ export type Usuario = {
   termos_pendentes?: boolean;
 };
 export type UsuarioListado = Usuario & {
+  nome_exibicao: string | null;
   criado_em: string;
   ativo: boolean;
   email: string | null;
@@ -79,3 +80,6 @@ export type DetalheInvestigacao = ResumoInvestigacao & {
   // Falso quando o admin abre a investigação de outra pessoa: só a dona pede de novo.
   minha?: boolean;
 };
+
+// O envelope de toda lista paginada da API.
+export type Pagina<T> = { total: number; pagina: number; por_pagina: number; itens: T[] };

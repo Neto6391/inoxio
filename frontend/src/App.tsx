@@ -36,7 +36,7 @@ function Tela({ caminho, sessao, creditos, aoExcluirConta, aoMudarNome }: PropsT
   if (investigacao) return <Investigacao id={investigacao[1]} />;
   if (caminho === "/investigacoes") return <Investigacoes />;
   // "/entrar" depois do login também leva ao painel.
-  if (caminho === "/painel" || caminho === "/entrar") return <Painel creditos={creditos} />;
+  if (caminho === "/painel" || caminho === "/entrar") return <Painel creditos={creditos} nome={sessao.usuario.nome_exibicao ?? sessao.usuario.nome} />;
   if (caminho === "/conta") {
     // A chave muda com o aceite: reaceitar os termos nesta tela recarrega o perfil.
     const chave = sessao.usuario.termos_pendentes ? "termos-pendentes" : "termos-aceitos";

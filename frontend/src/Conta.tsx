@@ -1,7 +1,23 @@
-import { Alert, App, Button, Card, Descriptions, Flex, Form, Input, Popconfirm, Skeleton, Typography } from "antd";
+import {
+  Alert,
+  App,
+  Button,
+  Card,
+  Col,
+  Descriptions,
+  Flex,
+  Form,
+  Input,
+  Popconfirm,
+  Row,
+  Skeleton,
+  Tag,
+  Typography,
+} from "antd";
 import { useEffect, useState } from "react";
 import { chamar, mensagemDeErro } from "./api";
 import { dataPorExtenso, quando } from "./formato";
+import { Janela } from "./Janela";
 
 type Perfil = {
   nome: string;
@@ -38,31 +54,37 @@ function NomeDeExibicao({ perfil, aoSalvar }: { perfil: Perfil; aoSalvar: (novo:
   }
 
   return (
-    <Flex vertical gap="small">
-      {erro && <Alert type="error" showIcon title={erro} />}
-      <Flex gap="small" wrap>
-        <Input
-          aria-label="Nome de exibição"
-          placeholder={perfil.nome}
-          maxLength={80}
-          value={nome}
-          onChange={(evento) => setNome(evento.target.value)}
-          className="campo-nome"
-        />
-        <Button onClick={salvar} loading={salvando} disabled={nome.trim() === (perfil.nome_exibicao ?? "")}>
-          Salvar nome
-        </Button>
-      </Flex>
-      <Typography.Text type="secondary">
-        Aparece no topo da tela. Para entrar, continua valendo o usuário {perfil.nome}.
+    <Flex vertical gap={8}>
+      <label htmlFor="nome-exibicao" className="rotulo-campo">
+        Nome de exibição
+      </label>
+      <Input
+        id="nome-exibicao"
+        placeholder={perfil.nome}
+        maxLength={80}
+        value={nome}
+        onChange={(evento) => setNome(evento.target.value)}
+      />
+      <Typography.Text type="secondary" className="nota-campo">
+        Como você quer ser chamado no Inóxio. Para entrar, continua valendo o usuário {perfil.nome}.
       </Typography.Text>
+      {erro && <Alert type="error" showIcon title={erro} />}
+      <Button
+        type="primary"
+        onClick={salvar}
+        loading={salvando}
+        disabled={nome.trim() === (perfil.nome_exibicao ?? "")}
+        className="botao-salvar"
+      >
+        Salvar nome
+      </Button>
     </Flex>
   );
 }
 
 type FormSenha = { atual: string; nova: string; confirmacao: string };
 
-function TrocarSenha() {
+function TrocarSenha({ aoTerminar }: { aoTerminar: () => void }) {
   const [formulario] = Form.useForm<FormSenha>();
   const [erro, setErro] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
@@ -75,6 +97,7 @@ function TrocarSenha() {
       await chamar("/api/conta/senha", { metodo: "POST", corpo: { atual, nova } });
       formulario.resetFields();
       message.success("Senha trocada. As outras sessões foram encerradas.");
+      aoTerminar();
     } catch (falha) {
       setErro(mensagemDeErro(falha));
     } finally {
@@ -83,9 +106,9 @@ function TrocarSenha() {
   }
 
   return (
-    <Card title="Trocar a senha">
+    <>
       {erro && <Alert type="error" showIcon title={erro} className="espaco" />}
-      <Form<FormSenha> form={formulario} layout="vertical" requiredMark={false} onFinish={trocar} className="form-conta">
+      <Form<FormSenha> form={formulario} layout="vertical" requiredMark={false} onFinish={trocar}>
         <Form.Item label="Senha atual" name="atual" rules={[{ required: true, message: "Informe a senha atual" }]}>
           <Input.Password autoComplete="current-password" />
         </Form.Item>
@@ -116,17 +139,20 @@ function TrocarSenha() {
         <Typography.Paragraph type="secondary">
           Você continua nesta sessão; as abertas em outros navegadores caem.
         </Typography.Paragraph>
-        <Button type="primary" htmlType="submit" loading={enviando}>
-          Trocar a senha
-        </Button>
+        <Flex gap="small">
+          <Button type="primary" htmlType="submit" loading={enviando}>
+            Trocar a senha
+          </Button>
+          <Button onClick={aoTerminar}>Cancelar</Button>
+        </Flex>
       </Form>
-    </Card>
+    </>
   );
 }
 
 type FormEmail = { email: string; senha: string };
 
-function TrocarEmail({ perfil, aoPedir }: { perfil: Perfil; aoPedir: (email: string) => void }) {
+function TrocarEmail({ aoPedir, aoTerminar }: { aoPedir: (email: string) => void; aoTerminar: () => void }) {
   const [formulario] = Form.useForm<FormEmail>();
   const [erro, setErro] = useState<string | null>(null);
   const [aviso, setAviso] = useState<string | null>(null);
@@ -151,19 +177,20 @@ function TrocarEmail({ perfil, aoPedir }: { perfil: Perfil; aoPedir: (email: str
     }
   }
 
+  if (aviso) {
+    return (
+      <Flex vertical gap="middle">
+        <Alert type="success" showIcon title={aviso} />
+        <Button type="primary" onClick={aoTerminar} className="botao-salvar">
+          Entendi
+        </Button>
+      </Flex>
+    );
+  }
   return (
-    <Card title={perfil.email ? "Trocar o e-mail" : "Informar um e-mail"}>
+    <>
       {erro && <Alert type="error" showIcon title={erro} className="espaco" />}
-      {aviso && <Alert type="success" showIcon title={aviso} className="espaco" />}
-      {perfil.email_pendente && !aviso && (
-        <Alert
-          type="info"
-          showIcon
-          className="espaco"
-          title={`Esperando a confirmação de ${perfil.email_pendente}: abra o link que mandamos para ele.`}
-        />
-      )}
-      <Form<FormEmail> form={formulario} layout="vertical" requiredMark={false} onFinish={pedir} className="form-conta">
+      <Form<FormEmail> form={formulario} layout="vertical" requiredMark={false} onFinish={pedir}>
         <Form.Item
           label="E-mail novo"
           name="email"
@@ -181,12 +208,21 @@ function TrocarEmail({ perfil, aoPedir }: { perfil: Perfil; aoPedir: (email: str
           Mandamos um link ao e-mail novo, e ele só passa a valer depois do clique. O e-mail atual
           recebe um aviso.
         </Typography.Paragraph>
-        <Button type="primary" htmlType="submit" loading={enviando}>
-          Enviar o link
-        </Button>
+        <Flex gap="small">
+          <Button type="primary" htmlType="submit" loading={enviando}>
+            Enviar o link
+          </Button>
+          <Button onClick={aoTerminar}>Cancelar</Button>
+        </Flex>
       </Form>
-    </Card>
+    </>
   );
+}
+
+function iniciais(texto: string): string {
+  const partes = texto.trim().split(/\s+/).filter(Boolean);
+  const letras = partes.length > 1 ? partes[0][0] + partes[partes.length - 1][0] : texto.slice(0, 2);
+  return letras.toUpperCase();
 }
 
 type PropsConta = { aoExcluir: () => void; aoMudarNome: (nome: string | null) => void };
@@ -197,6 +233,7 @@ export function Conta({ aoExcluir, aoMudarNome }: PropsConta) {
   const [senha, setSenha] = useState("");
   const [erroExclusao, setErroExclusao] = useState<string | null>(null);
   const [excluindo, setExcluindo] = useState(false);
+  const [janela, setJanela] = useState<"email" | "senha" | null>(null);
 
   useEffect(() => {
     chamar<Perfil>("/api/conta")
@@ -220,10 +257,8 @@ export function Conta({ aoExcluir, aoMudarNome }: PropsConta) {
   if (erro) return <Alert type="error" showIcon title={erro} />;
   if (!perfil) return <Skeleton active />;
 
+  const nomeNaTela = perfil.nome_exibicao ?? perfil.nome;
   const itens = [
-    { key: "nome", label: "Usuário (para entrar)", children: perfil.nome },
-    { key: "email", label: "E-mail", children: perfil.email ?? "—" },
-    { key: "papel", label: "Papel", children: `${perfil.papel} (só o admin muda)` },
     { key: "criado", label: "Conta criada em", children: perfil.criado_em ? quando(perfil.criado_em) : "—" },
     { key: "cota", label: "Cota diária", children: perfil.cota_diaria ? `${perfil.cota_diaria} investigações` : "sem cota diária" },
     {
@@ -243,58 +278,127 @@ export function Conta({ aoExcluir, aoMudarNome }: PropsConta) {
           Os seus dados e os seus direitos pela LGPD: ver, corrigir, levar e excluir.
         </Typography.Text>
       </div>
-      <Card title="Seus dados">
-        <Flex vertical gap="middle">
-          <NomeDeExibicao
-            perfil={perfil}
-            aoSalvar={(novo) => {
-              setPerfil({ ...perfil, ...novo });
-              aoMudarNome(novo.nome_exibicao);
-            }}
+      <Row gutter={[24, 24]}>
+        <Col xs={24} lg={9}>
+          <Card className="cartao-perfil">
+            <Flex vertical gap="large">
+              <Flex align="center" gap="middle">
+                <span className="avatar" aria-hidden="true">
+                  {iniciais(nomeNaTela)}
+                </span>
+                <div className="perfil-identidade">
+                  <Typography.Title level={4} className="sem-margem">
+                    {nomeNaTela}
+                  </Typography.Title>
+                  <Typography.Text type="secondary">Usuário para entrar: {perfil.nome}</Typography.Text>
+                  <div>
+                    <Tag color={perfil.papel === "admin" ? "gold" : "default"}>{perfil.papel}</Tag>
+                    <Typography.Text type="secondary" className="nota-campo">
+                      o papel só o admin muda
+                    </Typography.Text>
+                  </div>
+                </div>
+              </Flex>
+              <NomeDeExibicao
+                perfil={perfil}
+                aoSalvar={(novo) => {
+                  setPerfil({ ...perfil, ...novo });
+                  aoMudarNome(novo.nome_exibicao);
+                }}
+              />
+            </Flex>
+          </Card>
+        </Col>
+        <Col xs={24} lg={15}>
+          <Flex vertical gap="large">
+            <Card title="E-mail">
+              <Flex justify="space-between" align="center" gap="middle" wrap>
+                <div>
+                  <Typography.Text strong>{perfil.email ?? "Nenhum e-mail cadastrado"}</Typography.Text>
+                  <div>
+                    <Typography.Text type="secondary" className="nota-campo">
+                      {perfil.email_confirmado_em
+                        ? `Confirmado em ${quando(perfil.email_confirmado_em)}. Serve para recuperar a senha.`
+                        : "Serve para recuperar a senha."}
+                    </Typography.Text>
+                  </div>
+                </div>
+                <Button onClick={() => setJanela("email")}>{perfil.email ? "Trocar o e-mail" : "Informar um e-mail"}</Button>
+              </Flex>
+              {perfil.email_pendente && (
+                <Alert
+                  type="info"
+                  showIcon
+                  className="espaco-topo"
+                  title={`Esperando a confirmação de ${perfil.email_pendente}: abra o link que mandamos para ele.`}
+                />
+              )}
+            </Card>
+            <Card title="Senha">
+              <Flex justify="space-between" align="center" gap="middle" wrap>
+                <Typography.Text type="secondary">
+                  Pedimos a senha atual. Você continua nesta sessão; as dos outros navegadores caem.
+                </Typography.Text>
+                <Button onClick={() => setJanela("senha")}>Trocar a senha</Button>
+              </Flex>
+            </Card>
+            <Card title="Seus dados">
+              <Descriptions column={1} size="small" items={itens} />
+              <Flex justify="space-between" align="center" gap="middle" wrap className="espaco-topo">
+                <Typography.Text type="secondary">
+                  Um arquivo JSON com a sua conta, as suas investigações e os seus registros de segurança.
+                </Typography.Text>
+                <Button href="/api/conta/dados" download>
+                  Baixar meus dados
+                </Button>
+              </Flex>
+            </Card>
+            <Card title="Excluir minha conta" className="cartao-perigo">
+              <Typography.Paragraph>
+                Apaga a conta, as investigações e as sessões abertas. Os registros de segurança ficam
+                pelo prazo da Política de Privacidade, sem o seu nome. As cópias de segurança do banco
+                vencem em até 14 dias. Não dá para desfazer.
+              </Typography.Paragraph>
+              {erroExclusao && <Alert type="error" showIcon title={erroExclusao} className="espaco" />}
+              <Flex gap="small" wrap>
+                <Input.Password
+                  placeholder="Sua senha, para confirmar"
+                  autoComplete="current-password"
+                  value={senha}
+                  onChange={(evento) => setSenha(evento.target.value)}
+                  className="campo-senha"
+                />
+                <Popconfirm
+                  title="Excluir a sua conta?"
+                  description="Não dá para desfazer."
+                  okText="Excluir"
+                  okButtonProps={{ danger: true }}
+                  cancelText="Cancelar"
+                  onConfirm={excluir}
+                  disabled={!senha}
+                >
+                  <Button danger disabled={!senha} loading={excluindo}>
+                    Excluir minha conta
+                  </Button>
+                </Popconfirm>
+              </Flex>
+            </Card>
+          </Flex>
+        </Col>
+      </Row>
+      {janela === "email" && (
+        <Janela titulo={perfil.email ? "Trocar o e-mail" : "Informar um e-mail"} larga={false} aoFechar={() => setJanela(null)}>
+          <TrocarEmail
+            aoPedir={(email) => setPerfil({ ...perfil, email_pendente: email })}
+            aoTerminar={() => setJanela(null)}
           />
-          <Descriptions column={1} size="small" items={itens} />
-        </Flex>
-      </Card>
-      <TrocarEmail perfil={perfil} aoPedir={(email) => setPerfil({ ...perfil, email_pendente: email })} />
-      <TrocarSenha />
-      <Card title="Baixar meus dados">
-        <Typography.Paragraph>
-          Um arquivo JSON com a sua conta, as suas investigações e os seus registros de segurança.
-        </Typography.Paragraph>
-        <Button href="/api/conta/dados" download>
-          Baixar meus dados
-        </Button>
-      </Card>
-      <Card title="Excluir minha conta" className="cartao-perigo">
-        <Typography.Paragraph>
-          Apaga a conta, as investigações e as sessões abertas. Os registros de segurança ficam pelo
-          prazo da Política de Privacidade, sem o seu nome. As cópias de segurança do banco vencem
-          em até 14 dias. Não dá para desfazer.
-        </Typography.Paragraph>
-        {erroExclusao && <Alert type="error" showIcon title={erroExclusao} className="espaco" />}
-        <Flex gap="small" wrap>
-          <Input.Password
-            placeholder="Sua senha, para confirmar"
-            autoComplete="current-password"
-            value={senha}
-            onChange={(evento) => setSenha(evento.target.value)}
-            className="campo-senha"
-          />
-          <Popconfirm
-            title="Excluir a sua conta?"
-            description="Não dá para desfazer."
-            okText="Excluir"
-            okButtonProps={{ danger: true }}
-            cancelText="Cancelar"
-            onConfirm={excluir}
-            disabled={!senha}
-          >
-            <Button danger disabled={!senha} loading={excluindo}>
-              Excluir minha conta
-            </Button>
-          </Popconfirm>
-        </Flex>
-      </Card>
+        </Janela>
+      )}
+      {janela === "senha" && (
+        <Janela titulo="Trocar a senha" larga={false} aoFechar={() => setJanela(null)}>
+          <TrocarSenha aoTerminar={() => setJanela(null)} />
+        </Janela>
+      )}
     </Flex>
   );
 }

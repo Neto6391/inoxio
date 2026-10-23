@@ -106,8 +106,8 @@ def test_lista_so_as_investigacoes_do_proprio_usuario(cliente, usuarios, app):
     investigar(cliente, "8.8.8.8")
     outro = TestClient(app, base_url="https://testserver")
     entrar(outro, "beto")
-    assert outro.get("/api/investigacoes").json() == []
-    assert len(cliente.get("/api/investigacoes").json()) == 1
+    assert outro.get("/api/investigacoes").json()["itens"] == []
+    assert cliente.get("/api/investigacoes").json()["total"] == 1
 
 
 def test_investigacao_de_outro_usuario_e_404(cliente, usuarios, app):
@@ -188,7 +188,7 @@ def test_segunda_investigacao_simultanea_do_mesmo_usuario_e_recusada(fabrica, co
     )
 
 
-def test_lista_traz_as_50_mais_recentes(cliente, usuarios, fabrica):
+def test_lista_vem_em_paginas_da_mais_nova_para_a_mais_antiga(cliente, usuarios, fabrica):
     from datetime import timedelta
 
     from inoxio.db import agora
@@ -207,5 +207,19 @@ def test_lista_traz_as_50_mais_recentes(cliente, usuarios, fabrica):
                 )
             )
     entrar(cliente, "ana")
-    lista = cliente.get("/api/investigacoes").json()
-    assert [item["valor"] for item in lista] == [f"8.8.8.{n}" for n in range(50)]
+    primeira = cliente.get("/api/investigacoes").json()
+    assert (primeira["total"], primeira["pagina"], primeira["por_pagina"]) == (55, 1, 20)
+    assert [item["valor"] for item in primeira["itens"]] == [f"8.8.8.{n}" for n in range(20)]
+    ultima = cliente.get("/api/investigacoes", params={"pagina": 3}).json()
+    assert [item["valor"] for item in ultima["itens"]] == [f"8.8.8.{n}" for n in range(40, 55)]
+    # A busca procura no indicador; "%" e "_" valem como texto, não como curinga.
+    busca = cliente.get("/api/investigacoes", params={"busca": "8.8.8.5"}).json()
+    assert sorted(item["valor"] for item in busca["itens"]) == [
+        "8.8.8.5",
+        "8.8.8.50",
+        "8.8.8.51",
+        "8.8.8.52",
+        "8.8.8.53",
+        "8.8.8.54",
+    ]
+    assert cliente.get("/api/investigacoes", params={"busca": "%"}).json()["total"] == 0

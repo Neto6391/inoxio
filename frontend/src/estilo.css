@@ -815,3 +815,50 @@ a {
   outline: 2px solid var(--link);
   outline-offset: 2px;
 }
+/* Botão Voltar, filtros e Minha conta */
+.botao-voltar.ant-btn {
+  height: 38px;
+  padding: 0 16px;
+  border-radius: 999px;
+  font-weight: 500;
+}
+.trilha .ant-breadcrumb {
+  font-size: 14px;
+}
+.filtros {
+  margin-bottom: 8px;
+}
+.filtro-busca {
+  max-width: 360px;
+}
+.filtro-select {
+  min-width: 180px;
+}
+.avatar {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: var(--fundo-destaque);
+  color: var(--ativo-texto);
+  font-size: 20px;
+  font-weight: 700;
+}
+.perfil-identidade {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.rotulo-campo {
+  color: var(--texto);
+  font-weight: 500;
+}
+.nota-campo {
+  font-size: 13px;
+}
+.botao-salvar {
+  align-self: flex-start;
+}

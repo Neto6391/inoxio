@@ -38,11 +38,17 @@ function servidor(papel = "analista", extras: Record<string, unknown> = {}) {
     "fetch",
     vi.fn(async (caminho: string) => {
       if (caminho === "/api/sessao") return json({ usuario: { nome: "ana", papel }, csrf: "t" });
-      if (caminho in extras) return json(extras[caminho]);
+      const semBusca = caminho.split("?")[0];
+      if (semBusca in extras) {
+        // Listas viram o envelope de página que a API devolve.
+        const dados = extras[semBusca];
+        return json(Array.isArray(dados) ? { total: dados.length, pagina: 1, por_pagina: 20, itens: dados } : dados);
+      }
       if (caminho === "/api/estatisticas") return json(ESTATISTICAS);
       if (caminho === "/api/creditos") return json(CREDITOS);
-      if (caminho === "/api/investigacoes") {
-        return json([{ id: "a1", tipo: "ip", valor: "8.8.8.8", veredito: "sem_evidencia", criada_em: "2026-10-23T02:22:15.5" }]);
+      if (caminho.startsWith("/api/investigacoes?")) {
+        const itens = [{ id: "a1", tipo: "ip", valor: "8.8.8.8", veredito: "sem_evidencia", criada_em: "2026-10-23T02:22:15.5" }];
+        return json({ total: 1, pagina: 1, por_pagina: 20, itens });
       }
       return json([]);
     }),

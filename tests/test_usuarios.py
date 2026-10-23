@@ -27,7 +27,7 @@ def test_sem_sessao_e_401(cliente, usuarios):
 
 def test_admin_lista_sem_expor_hash(cliente, usuarios):
     entrar(cliente, "chefe")
-    lista = cliente.get("/api/usuarios").json()
+    lista = cliente.get("/api/usuarios").json()["itens"]
     assert [usuario["nome"] for usuario in lista] == ["ana", "beto", "chefe"]
     assert set(lista[0]) == {
         "nome",
@@ -246,3 +246,31 @@ def test_sessao_de_conta_desativada_direto_no_banco_nao_vale(cliente, usuarios, 
     with fabrica() as db, db.begin():
         db.scalar(select(Usuario).where(Usuario.nome == "ana")).ativo = False
     assert cliente.get("/api/investigacoes").status_code == 401
+
+
+def test_lista_de_usuarios_filtra_e_pagina(cliente, usuarios, fabrica):
+    with fabrica() as db, db.begin():
+        for n in range(25):
+            usuarios_mod.criar(db, f"conta{n:02d}", "analista", NOVA, email=f"c{n}@exemplo.com")
+        db.scalar(select(Usuario).where(Usuario.nome == "beto")).ativo = False
+        db.scalar(select(Usuario).where(Usuario.nome == "ana")).nome_exibicao = "Ana Maria"
+    entrar(cliente, "chefe")
+    pagina = cliente.get("/api/usuarios").json()
+    assert (pagina["total"], len(pagina["itens"]), pagina["por_pagina"]) == (28, 20, 20)
+    segunda = cliente.get("/api/usuarios", params={"pagina": 2}).json()
+    assert len(segunda["itens"]) == 8
+
+    def nomes(**filtro):
+        return [u["nome"] for u in cliente.get("/api/usuarios", params=filtro).json()["itens"]]
+
+    assert nomes(busca="MARIA") == ["ana"]
+    assert nomes(busca="c7@exemplo") == ["conta07"]
+    assert nomes(papel="admin") == ["chefe"]
+    assert nomes(situacao="desativada") == ["beto"]
+    assert nomes(situacao="ativa", busca="conta2") == [
+        "conta20",
+        "conta21",
+        "conta22",
+        "conta23",
+        "conta24",
+    ]

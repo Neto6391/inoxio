@@ -135,6 +135,40 @@ def ativar(db: Session, token: str) -> Usuario | None:
     return usuario
 
 
+SITUACOES = ("ativa", "desativada", "aguardando", "recusada")
+
+
+def situacao(usuario: Usuario) -> str:
+    if usuario.ativo:
+        return "ativa"
+    if pendente(usuario):
+        return "aguardando"
+    return "recusada" if usuario.recusada_em is not None else "desativada"
+
+
+def filtrar(
+    db: Session, busca: str = "", papel: str | None = None, situacao_: str | None = None
+) -> list[Usuario]:
+    """As contas em ordem de nome, filtradas como nas telas de Usuários e de Auditoria.
+    A busca procura no usuário, no nome de exibição e no e-mail, sem diferenciar
+    maiúsculas."""
+    termo = busca.strip().casefold()
+    contas = db.scalars(select(Usuario).order_by(Usuario.nome)).all()
+    return [
+        conta
+        for conta in contas
+        if (not papel or conta.papel == papel)
+        and (not situacao_ or situacao(conta) == situacao_)
+        and (
+            not termo
+            or any(
+                termo in (campo or "").casefold()
+                for campo in (conta.nome, conta.nome_exibicao, conta.email)
+            )
+        )
+    ]
+
+
 def pendente(usuario: Usuario) -> bool:
     """Espera a confirmação do e-mail. Conta recusada pelo admin não espera mais nada."""
     return (

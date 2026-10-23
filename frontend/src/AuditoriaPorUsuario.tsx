@@ -1,9 +1,12 @@
-import { Alert, Button, Card, Empty, Flex, Input, Skeleton, Tag, Timeline, Typography } from "antd";
+import { Alert, Button, Card, Empty, Flex, Input, Pagination, Skeleton, Tag, Timeline, Typography } from "antd";
 import { useEffect, useState } from "react";
-import { chamar, mensagemDeErro } from "./api";
+import { chamar, ErroApi, mensagemDeErro } from "./api";
 import { nomeDoEvento } from "./Auditoria";
+import { type Filtros, FiltrosUsuarios, parametros, SEM_FILTRO } from "./FiltrosUsuarios";
 import { quando } from "./formato";
 import { Janela } from "./Janela";
+import { ehPagina, FORA_DO_FORMATO, Paginacao } from "./Paginacao";
+import type { Pagina } from "./tipos";
 
 type Situacao = "ativa" | "desativada" | "aguardando" | "recusada";
 type Linha = {
@@ -30,7 +33,10 @@ type SessaoAuditada = {
   acoes: number;
   eventos: EventoDaSessao[];
 };
-type Sessoes = { sessoes: SessaoAuditada[]; fora_de_sessao: EventoDaSessao[] };
+type Sessoes = { sessoes: Pagina<SessaoAuditada>; fora_de_sessao: EventoDaSessao[] };
+
+// Os eventos de fora de sessão vêm todos (90 dias, poucos); a página é da tela.
+const FORA_POR_PAGINA = 10;
 
 export const SITUACOES: Record<Situacao, { texto: string; cor: string }> = {
   ativa: { texto: "ativa", cor: "green" },
@@ -40,22 +46,45 @@ export const SITUACOES: Record<Situacao, { texto: string; cor: string }> = {
 };
 
 export function AuditoriaPorUsuario() {
-  const [linhas, setLinhas] = useState<Linha[] | null>(null);
+  const [pagina, setPagina] = useState<Pagina<Linha> | null>(null);
+  const [numero, setNumero] = useState(1);
+  const [filtros, setFiltros] = useState<Filtros>(SEM_FILTRO);
   const [erro, setErro] = useState<string | null>(null);
   const [aberto, setAberto] = useState<string | null>(null);
 
   useEffect(() => {
-    chamar<Linha[]>("/api/auditoria/usuarios")
-      .then(setLinhas)
-      .catch((falha) => setErro(mensagemDeErro(falha)));
-  }, []);
+    let vigente = true;
+    chamar<Pagina<Linha>>(`/api/auditoria/usuarios?${parametros(filtros, numero)}`)
+      .then((nova) => {
+        if (!vigente) return;
+        if (!ehPagina<Linha>(nova)) throw new ErroApi(200, FORA_DO_FORMATO);
+        setPagina(nova);
+        setErro(null);
+      })
+      .catch((falha) => {
+        if (vigente) setErro(mensagemDeErro(falha));
+      });
+    return () => {
+      vigente = false;
+    };
+  }, [filtros, numero]);
 
+  const linhas = pagina?.itens ?? null;
   return (
     <Card title="Usuários">
+      <FiltrosUsuarios
+        filtros={filtros}
+        aoMudar={(novos) => {
+          setFiltros(novos);
+          setNumero(1);
+        }}
+      />
       {erro ? (
-        <Alert type="error" showIcon title={erro} />
+        <Alert type="error" showIcon title={erro} className="espaco-topo" />
       ) : linhas === null ? (
         <Skeleton active />
+      ) : linhas.length === 0 ? (
+        <Empty description="Nenhum usuário com esses filtros." image={Empty.PRESENTED_IMAGE_SIMPLE} />
       ) : (
         // Tabela própria em vez da <Table> do antd: ela injeta um <style> sem nonce.
         <div className="tabela-rolagem">
@@ -100,6 +129,7 @@ export function AuditoriaPorUsuario() {
           </table>
         </div>
       )}
+      {pagina && <Paginacao pagina={pagina} aoMudar={setNumero} rotulo="usuários" />}
       {aberto && (
         <Janela titulo={`Sessões de ${aberto}`} aoFechar={() => setAberto(null)}>
           <SessoesDoUsuario nome={aberto} />
@@ -159,12 +189,21 @@ function SessoesDoUsuario({ nome }: { nome: string }) {
   const [ate, setAte] = useState("");
   const [periodo, setPeriodo] = useState({ de: "", ate: "" });
   const [escolhida, setEscolhida] = useState<string | null>(null);
+  const [numero, setNumero] = useState(1);
+  const [numeroFora, setNumeroFora] = useState(1);
+
+  function filtrar(novo: { de: string; ate: string }) {
+    setPeriodo(novo);
+    setNumero(1);
+    setNumeroFora(1);
+  }
 
   useEffect(() => {
     let vigente = true;
     const parametros = new URLSearchParams();
     if (periodo.de) parametros.set("de", periodo.de);
     if (periodo.ate) parametros.set("ate", periodo.ate);
+    if (numero > 1) parametros.set("pagina", String(numero));
     const busca = parametros.size ? `?${parametros}` : "";
     chamar<Sessoes>(`/api/auditoria/usuarios/${encodeURIComponent(nome)}/sessoes${busca}`)
       .then((novos) => {
@@ -178,7 +217,7 @@ function SessoesDoUsuario({ nome }: { nome: string }) {
     return () => {
       vigente = false;
     };
-  }, [nome, periodo]);
+  }, [nome, periodo, numero]);
 
   const invertido = de && ate && de > ate;
   return (
@@ -192,14 +231,14 @@ function SessoesDoUsuario({ nome }: { nome: string }) {
           <span>Até</span>
           <Input type="date" value={ate} onChange={(evento) => setAte(evento.target.value)} />
         </label>
-        <Button type="primary" disabled={Boolean(invertido)} onClick={() => setPeriodo({ de, ate })}>
+        <Button type="primary" disabled={Boolean(invertido)} onClick={() => filtrar({ de, ate })}>
           Filtrar
         </Button>
         <Button
           onClick={() => {
             setDe("");
             setAte("");
-            setPeriodo({ de: "", ate: "" });
+            filtrar({ de: "", ate: "" });
           }}
         >
           Limpar
@@ -213,15 +252,15 @@ function SessoesDoUsuario({ nome }: { nome: string }) {
       ) : (
         <>
           <Typography.Text type="secondary">
-            {dados.sessoes.length} {dados.sessoes.length === 1 ? "sessão" : "sessões"}
+            {dados.sessoes.total} {dados.sessoes.total === 1 ? "sessão" : "sessões"}
             {periodo.de || periodo.ate ? " no período" : " nos últimos 90 dias"}. Clique numa sessão para ver
             a linha do tempo.
           </Typography.Text>
-          {dados.sessoes.length === 0 ? (
+          {dados.sessoes.itens.length === 0 ? (
             <Empty description="Nenhuma sessão no período." image={Empty.PRESENTED_IMAGE_SIMPLE} />
           ) : (
             <Flex vertical gap={8}>
-              {dados.sessoes.map((sessao) => {
+              {dados.sessoes.itens.map((sessao) => {
                 const aberta = escolhida === sessao.id;
                 return (
                   <div key={sessao.id} className={aberta ? "sessao sessao-escolhida" : "sessao"}>
@@ -258,10 +297,13 @@ function SessoesDoUsuario({ nome }: { nome: string }) {
               })}
             </Flex>
           )}
+          <Paginacao pagina={dados.sessoes} aoMudar={setNumero} rotulo="sessões" />
           {dados.fora_de_sessao.length > 0 && (
             <Card size="small" title="Fora de sessão (senha errada, cadastro, link de senha)">
               <Flex vertical gap={8}>
-                {dados.fora_de_sessao.map((evento, indice) => (
+                {dados.fora_de_sessao
+                  .slice((numeroFora - 1) * FORA_POR_PAGINA, numeroFora * FORA_POR_PAGINA)
+                  .map((evento, indice) => (
                   <Flex key={`${evento.quando}-${indice}`} gap="small" align="center" wrap>
                     <Typography.Text type="secondary">{quando(evento.quando)}</Typography.Text>
                     <Tag color={nomeDoEvento(evento.tipo).cor}>{nomeDoEvento(evento.tipo).texto}</Tag>
@@ -270,6 +312,18 @@ function SessoesDoUsuario({ nome }: { nome: string }) {
                   </Flex>
                 ))}
               </Flex>
+              {dados.fora_de_sessao.length > FORA_POR_PAGINA && (
+                <Flex justify="end" className="espaco-topo">
+                  <Pagination
+                    size="small"
+                    current={numeroFora}
+                    pageSize={FORA_POR_PAGINA}
+                    total={dados.fora_de_sessao.length}
+                    showSizeChanger={false}
+                    onChange={setNumeroFora}
+                  />
+                </Flex>
+              )}
             </Card>
           )}
         </>
