@@ -27,7 +27,7 @@ import { Login } from "./Login";
 import { Onboarding } from "./Onboarding";
 import { Rodape } from "./Rodape";
 import { Painel } from "./Painel";
-import { Link, navegar, useCaminho } from "./rotas";
+import { Link, navegar, substituir, useCaminho } from "./rotas";
 import { definirTema, useTema } from "./tema";
 import type { Creditos, RespostaSessao, Sessao } from "./tipos";
 import { Usuarios } from "./Usuarios";
@@ -103,6 +103,8 @@ export function App() {
   function entrarCom(nova: Sessao) {
     guardarCsrf(nova.csrf);
     setSessao(nova);
+    // Quem entrou pela tela de login vai para o painel, e o endereço acompanha.
+    if (window.location.pathname === "/entrar") substituir("/painel");
   }
 
   useEffect(() => {

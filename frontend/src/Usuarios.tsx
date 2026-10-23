@@ -108,19 +108,26 @@ function FormCadastro({ aoCadastrar }: { aoCadastrar: () => void }) {
   );
 }
 
-type PropsEdicao = { alvo: UsuarioListado; aoTerminar: (salvou: boolean) => void };
+type PropsEdicao = { alvo: UsuarioListado; eu: string; aoTerminar: (salvou: boolean) => void };
 
-function FormEdicao({ alvo, aoTerminar }: PropsEdicao) {
+function textoCota(cota: number | null): string {
+  return cota === null ? "sem cota diária" : `cota ${cota}/dia`;
+}
+
+function FormEdicao({ alvo, eu, aoTerminar }: PropsEdicao) {
+  const proprio = alvo.nome === eu;
   const [erro, setErro] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
   const { message } = App.useApp();
 
   async function salvar({ papel, senha, cota }: Edicao) {
     // Só vai o que mudou: senha em branco mantém a atual.
-    const corpo: { papel?: Papel; senha?: string; cota_diaria?: number } = {};
+    const corpo: { papel?: Papel; senha?: string; cota_diaria?: number | null } = {};
     if (papel !== alvo.papel) corpo.papel = papel;
     if (senha) corpo.senha = senha;
-    if (cota && cota !== alvo.cota_diaria) corpo.cota_diaria = cota;
+    // Campo apagado tira a cota: o servidor entende null como "sem cota".
+    const novaCota = cota ?? null;
+    if (novaCota !== alvo.cota_diaria) corpo.cota_diaria = novaCota;
     if (Object.keys(corpo).length === 0) {
       aoTerminar(false);
       return;
@@ -147,20 +154,28 @@ function FormEdicao({ alvo, aoTerminar }: PropsEdicao) {
         initialValues={{ papel: alvo.papel, cota: alvo.cota_diaria }}
         onFinish={salvar}
       >
-        <Form.Item label="Papel" name="papel">
-          <Segmented<Papel> options={OPCOES_PAPEL} />
+        <Form.Item
+          label="Papel"
+          name="papel"
+          extra={proprio ? "O próprio papel só outro admin muda." : undefined}
+        >
+          <Segmented<Papel> options={OPCOES_PAPEL} disabled={proprio} />
         </Form.Item>
         <Form.Item
           label="Cota diária"
           name="cota"
-          extra={alvo.cota_diaria ? undefined : "Sem cota diária hoje; só o limite de 20 por hora."}
+          extra="Apague o número para tirar a cota. Sem cota, vale só o limite por hora."
         >
           <InputNumber min={1} max={10000} placeholder="sem cota" />
         </Form.Item>
         <Form.Item
           label="Nova senha"
           name="senha"
-          extra="Deixe em branco para manter a atual. Trocar a senha encerra as sessões abertas dele."
+          extra={
+            proprio
+              ? "Deixe em branco para manter a atual. Você continua nesta sessão; as outras caem."
+              : "Deixe em branco para manter a atual. Trocar a senha encerra as sessões abertas dele."
+          }
           rules={[{ min: 12, message: "Pelo menos 12 caracteres" }]}
         >
           <Input.Password autoComplete="new-password" />
@@ -199,7 +214,8 @@ export function Usuarios({ eu }: { eu: string }) {
     try {
       const caminho = `/api/usuarios/${encodeURIComponent(usuario.nome)}`;
       await chamar(caminho, { metodo: "PATCH", corpo: { ativo } });
-      message.success(`Usuário ${usuario.nome} ${ativo ? "reativado" : "desativado"}.`);
+      const feito = ativo ? "ativado" : usuario.pendente ? "recusado" : "desativado";
+      message.success(`Usuário ${usuario.nome} ${feito}.`);
       carregar();
     } catch (falha) {
       setErroAcao(mensagemDeErro(falha));
@@ -213,7 +229,25 @@ export function Usuarios({ eu }: { eu: string }) {
       </Button>,
     ];
     if (usuario.nome === eu) return botoes;
-    if (usuario.ativo) {
+    if (usuario.pendente) {
+      botoes.push(
+        <Button key="ativar" size="small" onClick={() => mudarSituacao(usuario, true)}>
+          Ativar
+        </Button>,
+        <Popconfirm
+          key="recusar"
+          title={`Recusar ${usuario.nome}?`}
+          description="O link do e-mail deixa de valer. Dá para reativar depois."
+          okText="Recusar"
+          cancelText="Cancelar"
+          onConfirm={() => mudarSituacao(usuario, false)}
+        >
+          <Button size="small" danger>
+            Recusar
+          </Button>
+        </Popconfirm>,
+      );
+    } else if (usuario.ativo) {
       botoes.push(
         <Popconfirm
           key="desativar"
@@ -231,7 +265,7 @@ export function Usuarios({ eu }: { eu: string }) {
     } else {
       botoes.push(
         <Button key="reativar" size="small" onClick={() => mudarSituacao(usuario, true)}>
-          {usuario.pendente ? "Ativar" : "Reativar"}
+          Reativar
         </Button>,
       );
     }
@@ -252,6 +286,7 @@ export function Usuarios({ eu }: { eu: string }) {
           <FormEdicao
             key={editando.nome}
             alvo={editando}
+            eu={eu}
             aoTerminar={(salvou) => {
               setEditando(null);
               if (salvou) carregar();
@@ -283,7 +318,11 @@ export function Usuarios({ eu }: { eu: string }) {
                         {usuario.nome === eu && <Tag color="blue">você</Tag>}
                       </Flex>
                     }
-                    description={[usuario.email, `desde ${quando(usuario.criado_em)}`]
+                    description={[
+                      usuario.email,
+                      textoCota(usuario.cota_diaria),
+                      `desde ${quando(usuario.criado_em)}`,
+                    ]
                       .filter(Boolean)
                       .join(" · ")}
                   />

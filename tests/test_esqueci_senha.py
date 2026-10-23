@@ -207,6 +207,13 @@ def test_todo_tipo_de_evento_registrado_aparece_no_filtro_da_auditoria():
     assert usados <= set(TIPOS_EVENTO), usados - set(TIPOS_EVENTO)
 
 
+def test_todo_tipo_de_evento_tem_nome_na_tela_da_auditoria():
+    # A tela tira as etiquetas da lista do servidor; sem nome, a etiqueta sai crua.
+    tela = Path(__file__).parents[1] / "frontend" / "src" / "Auditoria.tsx"
+    nomes = set(re.findall(r"^  (\w+): \{ texto:", tela.read_text(encoding="utf-8"), re.M))
+    assert set(TIPOS_EVENTO) <= nomes, set(TIPOS_EVENTO) - nomes
+
+
 def test_a_funcao_recusa_a_senha_curta_antes_de_apagar_o_link(usuarios, fabrica):
     # A rota também não grava nada no erro; aqui quem chama grava, e o link precisa ficar.
     com_email(fabrica, "ana", "ana@exemplo.com")

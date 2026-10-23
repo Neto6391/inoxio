@@ -7,7 +7,7 @@ export function ehCreditos(dados: unknown): dados is Creditos {
 
 export function textoCreditos(creditos: Creditos): string {
   return creditos.cota === null
-    ? "Sem limite de créditos"
+    ? `Sem cota diária · até ${creditos.por_hora} por hora`
     : `${creditos.restantes} de ${creditos.cota} créditos`;
 }
 
@@ -31,8 +31,10 @@ export function CreditosLateral({ creditos }: { creditos: Creditos }) {
       <div className="numero-nota">Créditos de hoje</div>
       {creditos.cota === null ? (
         <>
-          <div className="numero-valor">Sem limite</div>
-          <div className="numero-nota">{creditos.usados} usados hoje.</div>
+          <div className="numero-valor">Sem cota diária</div>
+          <div className="numero-nota">
+            {creditos.usados} usados hoje. Até {creditos.por_hora} por hora.
+          </div>
         </>
       ) : (
         <>
@@ -53,8 +55,10 @@ export function NumeroCreditos({ creditos }: { creditos: Creditos }) {
   if (creditos.cota === null) {
     return (
       <>
-        <div className="numero-valor">Sem limite</div>
-        <div className="numero-nota">{creditos.usados} usados hoje</div>
+        <div className="numero-valor">Sem cota diária</div>
+        <div className="numero-nota">
+          {creditos.usados} usados hoje · até {creditos.por_hora} por hora
+        </div>
       </>
     );
   }

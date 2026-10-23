@@ -61,3 +61,14 @@ def test_arquivos_do_react_saem_com_o_tipo_certo(config, cliente):
     (ativos / "app.css").write_text("body{}", encoding="utf-8")
     assert cliente.get("/assets/app.js").headers["content-type"].startswith("text/javascript")
     assert cliente.get("/assets/app.css").headers["content-type"].startswith("text/css")
+
+
+def test_a_api_diz_qual_frontend_esta_publicado(cliente, config):
+    indice = Path(config.frontend_dir) / "index.html"
+    indice.write_text('<meta name="versao" content="__VERSAO__"><div id="raiz"></div>', "utf-8")
+    versao = re.search(r'name="versao" content="([0-9a-f]{12})"', cliente.get("/").text).group(1)
+    assert cliente.get("/api/sessao").headers["x-inoxio-versao"] == versao
+    # Um deploy troca o index.html: a aba antiga passa a ver outra versão.
+    indice.write_text('<meta name="versao" content="__VERSAO__"><div id="r2"></div>', "utf-8")
+    assert cliente.get("/api/sessao").headers["x-inoxio-versao"] not in (versao, None)
+    assert "x-inoxio-versao" not in cliente.get("/").headers

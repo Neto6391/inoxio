@@ -91,3 +91,14 @@ test("investigar com token velho faz o app perguntar de novo quem está logado",
   fireEvent.click(screen.getByRole("button", { name: "Investigar" }));
   expect(await screen.findByText(/beto · analista/)).toBeInTheDocument();
 });
+
+test("quem chega a /entrar já com sessão vai para /painel, e o endereço acompanha", async () => {
+  navegar("/entrar");
+  servidor({
+    "/api/sessao": { usuario: { nome: "ana", papel: "analista" }, csrf: "token" },
+    "/api/investigacoes": [],
+  });
+  render(<App />);
+  expect(await screen.findByRole("heading", { name: "Painel" })).toBeInTheDocument();
+  expect(window.location.pathname).toBe("/painel");
+});

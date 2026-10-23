@@ -49,6 +49,8 @@ class Usuario(Base):
     # Só quem se cadastrou sozinho tem e-mail; a conta fica inativa até ele ser confirmado.
     email: Mapped[str | None] = mapped_column(String(254), nullable=True)
     email_confirmado_em: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    # O admin barrou a conta antes da confirmação: o link do e-mail não a ativa mais.
+    recusada_em: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     # Investigações por dia; nulo é sem cota além do limite por hora.
     cota_diaria: Mapped[int | None] = mapped_column(Integer, nullable=True)
     onboarding_visto: Mapped[bool] = mapped_column(Boolean, default=False, server_default="0")
@@ -143,6 +145,7 @@ _COLUNAS_NOVAS = {
         "ativo": "BOOLEAN NOT NULL DEFAULT 1",
         "email": "VARCHAR(254)",
         "email_confirmado_em": "DATETIME",
+        "recusada_em": "DATETIME",
         "cota_diaria": "INTEGER",
         "onboarding_visto": "BOOLEAN NOT NULL DEFAULT 0",
         "termos_versao": "VARCHAR(16)",

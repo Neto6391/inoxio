@@ -18,7 +18,7 @@ from inoxio.agente.classificar import LIMITE_ENTRADA
 from inoxio.agente.decidir import ROTULOS
 from inoxio.agente.grafo import dados_da_mente
 from inoxio.agente.mente import para_exibir
-from inoxio.db import Evento, Investigacao, agora
+from inoxio.db import Evento, Investigacao, Usuario, agora
 from inoxio.explicador import PRAZO
 from inoxio.seguranca import limites
 from inoxio.web.autenticacao import ip_do_cliente
@@ -28,6 +28,7 @@ from inoxio.web.dependencias import Contexto, banco, conferir_csrf, sessao_atual
 LISTA = 50
 FOLGA_PENDENTE = timedelta(seconds=30)
 PEDIDOS_DE_EXPLICACAO_POR_HORA = 10
+JANELA_ALHEIA = timedelta(minutes=30)
 
 rotas = APIRouter(prefix="/api")
 
@@ -145,16 +146,8 @@ def ver(
     alheia = investigacao is not None and investigacao.usuario_id != ctx.usuario.id
     if investigacao is None or (alheia and ctx.usuario.papel != "admin"):
         raise HTTPException(status_code=404)
-    # O admin abrindo a investigação de outra pessoa fica registrado.
     if alheia:
-        auditoria.registrar(
-            db,
-            "investigacao_alheia",
-            ip_do_cliente(request),
-            ctx.usuario.nome,
-            investigacao.valor[:200],
-        )
-        db.commit()
+        _registrar_abertura_alheia(db, request, ctx, investigacao)
     return _resumo(investigacao) | {
         "nota": investigacao.nota,
         "rotulo": ROTULOS[investigacao.veredito],
@@ -162,7 +155,35 @@ def ver(
         "analise": para_exibir(investigacao.analise),
         "analise_estado": _estado_da_analise(investigacao),
         "reaproveitada": investigacao.reaproveitada,
+        # Só a dona pede a explicação de novo; o admin que abre a de outra pessoa, não.
+        "minha": not alheia,
     }
+
+
+def _registrar_abertura_alheia(
+    db: Session, request: Request, ctx: Contexto, investigacao: Investigacao
+) -> None:
+    """O admin abrindo a investigação de outra pessoa fica registrado, com a dona e o id:
+    o mesmo indicador pode ter sido investigado por várias contas. A tela consulta de novo
+    a cada 3 s enquanto a IA escreve; dentro de JANELA_ALHEIA a mesma abertura conta uma vez."""
+    dona = db.get(Usuario, investigacao.usuario_id)
+    detalhe = f"{investigacao.valor[:200]} (de {dona.nome if dona else '?'}, {investigacao.id})"
+    repetida = db.scalar(
+        select(func.count())
+        .select_from(Evento)
+        .where(
+            Evento.tipo == "investigacao_alheia",
+            Evento.usuario == ctx.usuario.nome,
+            Evento.detalhe == detalhe,
+            Evento.quando >= agora() - JANELA_ALHEIA,
+        )
+    )
+    if repetida:
+        return
+    auditoria.registrar(
+        db, "investigacao_alheia", ip_do_cliente(request), ctx.usuario.nome, detalhe
+    )
+    db.commit()
 
 
 @rotas.post("/investigacoes/{id_}/explicar", status_code=202)

@@ -62,6 +62,8 @@ export type Creditos = {
   usados: number;
   restantes: number | null;
   renova_em: string;
+  // Vale mesmo sem cota diária.
+  por_hora: number;
 };
 
 export type DetalheInvestigacao = ResumoInvestigacao & {
@@ -72,4 +74,6 @@ export type DetalheInvestigacao = ResumoInvestigacao & {
   // pendente: a IA ainda escreve a explicação, que chega em segundo plano.
   analise_estado?: "pendente" | "pronta" | "indisponivel";
   reaproveitada: boolean;
+  // Falso quando o admin abre a investigação de outra pessoa: só a dona pede de novo.
+  minha?: boolean;
 };

@@ -146,3 +146,25 @@ def test_pagina_publica_informa_o_contato(fabrica, config):
         "contato_privacidade": "privacidade@exemplo.com",
         "versao_termos": VERSAO_TERMOS,
     }
+
+
+def test_excluir_tira_o_nome_das_aberturas_alheias(app, cliente, usuarios, fabrica):
+    entrar(cliente, "chefe")
+    for nome in ("dani", "dan"):
+        corpo = {"nome": nome, "senha": SENHA, "papel": "analista"}
+        cliente.post("/api/usuarios", json=corpo, headers=csrf(cliente))
+        investigar(fabrica, nome, "8.8.8.8")
+    with fabrica() as db:
+        ids = {i.usuario_id: i.id for i in db.scalars(select(Investigacao))}
+    for nome in ("dani", "dan"):
+        assert cliente.get(f"/api/investigacoes/{ids[id_de(fabrica, nome)]}").status_code == 200
+    id_dani = ids[id_de(fabrica, "dani")]
+    titular = TestClient(app, base_url="https://testserver")
+    entrar(titular, "dan")
+    titular.post("/api/conta/excluir", json={"senha": SENHA}, headers=csrf(titular))
+    with fabrica() as db:
+        detalhes = db.scalars(
+            select(Evento.detalhe).where(Evento.tipo == "investigacao_alheia").order_by(Evento.id)
+        ).all()
+    assert detalhes[0] == f"8.8.8.8 (de dani, {id_dani})"
+    assert detalhes[1].startswith("8.8.8.8 (de conta excluída, ")

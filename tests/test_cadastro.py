@@ -5,7 +5,7 @@ from ajudantes import SENHA, CaixaDeSaida, csrf, entrar
 from fastapi.testclient import TestClient
 from sqlalchemy import select
 
-from inoxio.db import Ativacao, Usuario, agora
+from inoxio.db import Ativacao, Evento, Usuario, agora
 from inoxio.seguranca import limites
 from inoxio.web.app import criar_app
 
@@ -214,3 +214,29 @@ def test_cadastro_guarda_a_versao_aceita(cliente, usuarios, fabrica):
     novo = usuario(fabrica, "dani")
     assert novo.termos_versao == VERSAO_TERMOS
     assert novo.termos_aceitos_em is not None
+
+
+def test_admin_recusa_conta_pendente_e_o_link_nao_a_ativa(app, cliente, usuarios, caixa, fabrica):
+    cadastrar(cliente)
+    token = caixa.token()
+    admin = TestClient(app, base_url="https://testserver")
+    entrar(admin, "chefe")
+    resposta = admin.patch("/api/usuarios/dani", json={"ativo": False}, headers=csrf(admin))
+    assert (resposta.json()["pendente"], resposta.json()["ativo"]) == (False, False)
+    assert cliente.post("/api/ativar", json={"token": token}).status_code == 400
+    # Um cadastro novo com o mesmo e-mail não manda outro link.
+    cadastrar(cliente, nome="outro")
+    assert len(caixa.mensagens) == 1
+    assert entrar(cliente, "dani", NOVA).status_code == 401
+    # O admin pode voltar atrás: reativar vale como confirmação.
+    admin.patch("/api/usuarios/dani", json={"ativo": True}, headers=csrf(admin))
+    assert entrar(cliente, "dani", NOVA).status_code == 200
+    assert usuario(fabrica, "dani").recusada_em is None
+
+
+def test_cadastro_com_email_existente_fica_em_nome_da_dona(cliente, usuarios, fabrica):
+    cadastrar(cliente)
+    cadastrar(cliente, nome="chefe", email="dani@exemplo.com")
+    with fabrica() as db:
+        nomes = [e.usuario for e in db.scalars(select(Evento).where(Evento.tipo == "cadastro"))]
+    assert nomes == ["dani", "dani"]

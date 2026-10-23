@@ -70,9 +70,37 @@ def test_admin_abrindo_investigacao_alheia_fica_registrado(app, cliente, usuario
     admin = TestClient(app, base_url="https://testserver")
     entrar(admin, "chefe")
     admin.get(f"/api/investigacoes/{id_}")
+    # A tela consulta de novo enquanto a IA escreve: a mesma abertura conta uma vez.
+    admin.get(f"/api/investigacoes/{id_}")
     assert eventos(fabrica, "investigacao_alheia") == [
-        ("investigacao_alheia", "chefe", "testclient", "8.8.8.8")
+        ("investigacao_alheia", "chefe", "testclient", f"8.8.8.8 (de ana, {id_})")
     ]
+
+
+def test_abertura_alheia_volta_a_contar_depois_da_janela(app, cliente, usuarios, fabrica):
+    entrar(cliente, "ana")
+    id_ = cliente.post(
+        "/api/investigacoes", json={"entrada": "8.8.8.8"}, headers=csrf(cliente)
+    ).json()["id"]
+    admin = TestClient(app, base_url="https://testserver")
+    entrar(admin, "chefe")
+    admin.get(f"/api/investigacoes/{id_}")
+    with fabrica() as db, db.begin():
+        for evento in db.scalars(select(Evento).where(Evento.tipo == "investigacao_alheia")):
+            evento.quando = agora() - timedelta(minutes=31)
+    admin.get(f"/api/investigacoes/{id_}")
+    assert len(eventos(fabrica, "investigacao_alheia")) == 2
+
+
+def test_so_a_dona_ve_a_investigacao_como_sua(app, cliente, usuarios):
+    entrar(cliente, "ana")
+    id_ = cliente.post(
+        "/api/investigacoes", json={"entrada": "8.8.8.8"}, headers=csrf(cliente)
+    ).json()["id"]
+    assert cliente.get(f"/api/investigacoes/{id_}").json()["minha"] is True
+    admin = TestClient(app, base_url="https://testserver")
+    entrar(admin, "chefe")
+    assert admin.get(f"/api/investigacoes/{id_}").json()["minha"] is False
 
 
 def test_acoes_do_admin_ficam_registradas_sem_a_senha(cliente, usuarios, fabrica):
@@ -129,3 +157,10 @@ def test_eventos_de_mais_de_90_dias_sao_apagados(cliente, usuarios, fabrica):
         )
     entrar(cliente, "ana", SENHA)
     assert all(usuario != "velho" for _, usuario, _, _ in eventos(fabrica))
+
+
+def test_paginacao_absurda_nao_derruba_a_auditoria(cliente, usuarios):
+    entrar(cliente, "chefe")
+    resposta = cliente.get("/api/auditoria", params={"pagina": 10**19})
+    assert resposta.status_code == 200
+    assert resposta.json()["itens"] == []

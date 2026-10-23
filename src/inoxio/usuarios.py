@@ -117,14 +117,14 @@ def ativar(db: Session, token: str) -> Usuario | None:
     """Ativa a conta pendente do token. Token vencido ou desconhecido não ativa nada.
 
     O link é de uso único porque só conta que ainda espera o e-mail é ativada: depois
-    da primeira vez o e-mail está confirmado, e uma conta desativada pelo admin não
-    volta por aqui.
+    da primeira vez o e-mail está confirmado, e uma conta desativada ou recusada pelo
+    admin não volta por aqui.
     """
     ativacao = db.get(Ativacao, _hash(token)) if token else None
     if ativacao is None or ativacao.expira_em < agora():
         return None
     usuario = db.get(Usuario, ativacao.usuario_id)
-    if usuario is None or usuario.email_confirmado_em is not None:
+    if usuario is None or not pendente(usuario):
         return None
     usuario.ativo = True
     usuario.email_confirmado_em = agora()
@@ -133,7 +133,12 @@ def ativar(db: Session, token: str) -> Usuario | None:
 
 
 def pendente(usuario: Usuario) -> bool:
-    return usuario.email is not None and usuario.email_confirmado_em is None
+    """Espera a confirmação do e-mail. Conta recusada pelo admin não espera mais nada."""
+    return (
+        usuario.email is not None
+        and usuario.email_confirmado_em is None
+        and usuario.recusada_em is None
+    )
 
 
 def pode_redefinir(usuario: Usuario | None) -> bool:
@@ -189,15 +194,24 @@ def alterar(
     senha: str | None = None,
     ativo: bool | None = None,
     cota_diaria: int | None = None,
+    sem_cota: bool = False,
+    sessao_mantida: str | None = None,
 ) -> None:
-    """Muda papel, senha, cota ou situação. Senha nova ou desativação derruba as sessões."""
+    """Muda papel, senha, cota ou situação. Senha nova ou desativação derruba as sessões,
+    menos a `sessao_mantida` (o hash do token): o admin que troca a própria senha segue
+    dentro. `sem_cota` tira a cota diária; `cota_diaria=None` só deixa como está."""
     if papel is not None:
         _conferir_papel(papel)
     if cota_diaria is not None and not 1 <= cota_diaria <= 10_000:
         raise ValueError("A cota diária precisa ficar entre 1 e 10.000 investigações.")
+    if sem_cota and cota_diaria is not None:
+        raise ValueError("Informe a cota ou peça para tirá-la, não as duas coisas.")
     novo_hash = gerar_hash(senha) if senha is not None else None
     if ativo is False and alvo.id == quem_altera.id:
         raise Conflito("Você não pode desativar a própria conta.")
+    if papel is not None and papel != alvo.papel and alvo.id == quem_altera.id:
+        # Trocar o próprio papel tranca o admin do lado de fora, como desativar a conta.
+        raise Conflito("Você não pode mudar o próprio papel. Peça a outro admin.")
     deixa_de_ser_admin = (
         alvo.papel == "admin"
         and alvo.ativo
@@ -210,14 +224,22 @@ def alterar(
     if novo_hash is not None:
         alvo.senha_hash = novo_hash
     if ativo is not None:
-        alvo.ativo = ativo
-        # Ativar pela tela também vale como confirmação para quem ainda esperava o e-mail.
-        if ativo and pendente(alvo):
+        # Ativar pela tela também vale como confirmação para quem ainda esperava o e-mail,
+        # ou para a conta que o admin tinha recusado.
+        if ativo and (pendente(alvo) or alvo.recusada_em is not None):
             alvo.email_confirmado_em = agora()
+            alvo.recusada_em = None
+        # Desativar quem ainda esperava o e-mail é recusar: o link e um cadastro novo
+        # com o mesmo e-mail não a ativam mais.
+        if not ativo and pendente(alvo):
+            alvo.recusada_em = agora()
+        alvo.ativo = ativo
     if cota_diaria is not None:
         alvo.cota_diaria = cota_diaria
+    if sem_cota:
+        alvo.cota_diaria = None
     if novo_hash is not None or ativo is False:
-        sessoes.fechar_todas(db, alvo.id)
+        sessoes.fechar_todas(db, alvo.id, exceto=sessao_mantida)
 
 
 def _admins_ativos(db: Session) -> int:
@@ -247,4 +269,9 @@ def excluir(db: Session, usuario: Usuario) -> None:
     ):
         if (evento.detalhe or "").startswith(prefixos):
             evento.detalhe = "conta excluída" + evento.detalhe[len(usuario.nome) :]
+    # O admin que abriu uma investigação dela deixou "indicador (de nome, id)".
+    for evento in db.scalars(select(Evento).where(Evento.tipo == "investigacao_alheia")):
+        dela = f"(de {usuario.nome}, "
+        if dela in (evento.detalhe or ""):
+            evento.detalhe = evento.detalhe.replace(dela, "(de conta excluída, ")
     db.delete(usuario)

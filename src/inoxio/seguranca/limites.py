@@ -92,4 +92,5 @@ def creditos(db: Session, usuario_id: str, cota_diaria: int | None) -> dict[str,
         "usados": usados,
         "restantes": None if cota_diaria is None else max(cota_diaria - usados, 0),
         "renova_em": (inicio + timedelta(days=1)).isoformat(),
+        "por_hora": INVESTIGACOES_POR_HORA,
     }
