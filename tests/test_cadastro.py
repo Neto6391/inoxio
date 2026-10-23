@@ -95,12 +95,43 @@ def test_link_antigo_nao_reativa_conta_desativada_pelo_admin(app, cliente, usuar
     assert entrar(cliente, "dani", NOVA).status_code == 401
 
 
-def test_email_ja_cadastrado_responde_igual_e_nao_cria_nada(cliente, usuarios, caixa, fabrica):
+def test_email_ja_confirmado_responde_igual_e_nao_cria_nem_envia(cliente, usuarios, caixa, fabrica):
     primeira = cadastrar(cliente)
+    assert cliente.post("/api/ativar", json={"token": caixa.token()}).status_code == 200
     segunda = cadastrar(cliente, nome="outro", email="DANI@exemplo.com")
     assert segunda.status_code == 202
     assert segunda.json() == primeira.json()
     assert usuario(fabrica, "outro") is None
+    assert len(caixa.mensagens) == 1
+
+
+def test_cadastro_repetido_de_conta_pendente_reenvia_o_link(cliente, usuarios, caixa, fabrica):
+    # Quem se cadastrou e perdeu o e-mail (ou se cadastrou com o envio desligado)
+    # recebe um link novo; a resposta continua igual à de um cadastro novo.
+    primeira = cadastrar(cliente)
+    antigo = caixa.token()
+    segunda = cadastrar(
+        cliente, nome="outro", email="DANI@exemplo.com", senha="outra-senha-qualquer"
+    )
+    assert segunda.json() == primeira.json()
+    assert usuario(fabrica, "outro") is None
+    assert len(caixa.mensagens) == 2
+    destino, _, texto = caixa.mensagens[1]
+    assert destino == "dani@exemplo.com" and "dani" in texto
+    # Só o link mais novo vale.
+    assert cliente.post("/api/ativar", json={"token": antigo}).status_code == 400
+    assert cliente.post("/api/ativar", json={"token": caixa.token()}).status_code == 200
+    # A senha é a do primeiro cadastro: o segundo não troca nada na conta.
+    assert entrar(cliente, "dani", NOVA).status_code == 200
+
+
+def test_conta_confirmada_e_desativada_pelo_admin_nao_recebe_link(app, cliente, usuarios, caixa):
+    cadastrar(cliente)
+    assert cliente.post("/api/ativar", json={"token": caixa.token()}).status_code == 200
+    admin = TestClient(app, base_url="https://testserver")
+    entrar(admin, "chefe")
+    admin.patch("/api/usuarios/dani", json={"ativo": False}, headers=csrf(admin))
+    cadastrar(cliente, nome="outro")
     assert len(caixa.mensagens) == 1
 
 
