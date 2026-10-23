@@ -88,7 +88,9 @@ def _hash(token: str) -> str:
 
 
 def abrir_ativacao(db: Session, usuario: Usuario) -> str:
-    """Token de uso único para o link do e-mail; o banco guarda só o hash."""
+    """Token de uso único para o link do e-mail; o banco guarda só o hash.
+    Um link novo cancela os anteriores da mesma conta."""
+    db.execute(delete(Ativacao).where(Ativacao.usuario_id == usuario.id))
     token = secrets.token_urlsafe(32)
     db.add(
         Ativacao(

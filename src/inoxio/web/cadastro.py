@@ -68,9 +68,22 @@ def cadastrar(
         "para ativar a sua conta."
     }
     # E-mail já cadastrado responde igual a um cadastro novo: a tela não revela quem tem conta.
-    if db.scalar(select(Usuario.id).where(Usuario.email == email)):
-        auditoria.registrar(db, "cadastro", ip, pedido.nome, "e-mail já cadastrado")
+    # Se a conta ainda espera a confirmação, o dono do e-mail recebe um link novo.
+    existente = db.scalar(select(Usuario).where(Usuario.email == email))
+    if existente:
+        reenviar = enviar is not None and usuarios.pendente(existente)
+        token = usuarios.abrir_ativacao(db, existente) if reenviar else None
+        detalhe = "e-mail já cadastrado, link reenviado" if token else "e-mail já cadastrado"
+        auditoria.registrar(db, "cadastro", ip, pedido.nome, detalhe)
         db.commit()
+        if token:
+            link = f"{request.app.state.config.url_publica}/ativar#{token}"
+            tarefas.add_task(
+                enviar,
+                existente.email,
+                "Ative sua conta no Inóxio",
+                _texto_do_email(existente.nome, link),
+            )
         return resposta
     try:
         usuario = usuarios.criar(
