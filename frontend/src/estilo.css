@@ -682,3 +682,6 @@ a {
 .rosca-rotulo {
   fill: var(--suave);
 }
+.sem-margem {
+  margin-bottom: 0 !important;
+}

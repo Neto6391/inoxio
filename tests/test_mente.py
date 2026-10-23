@@ -128,7 +128,8 @@ def test_frase_que_chama_algo_de_seguro_sai_e_o_resto_fica():
     # Sem evidência não é garantia: a tela nunca diz seguro, limpo, legítimo ou confiável.
     resumo = (
         "O site www.crunchyroll.com usa a Cloudflare. Ele parece seguro; "
-        "não há motivo para suspeitar. O IP 104.18.34.202 tem 1 relato."
+        "não há motivo para suspeitar. Até agora, não há motivo para preocupação. "
+        "Se o IP fosse de um provedor como a Amazon, apareceria. O IP 104.18.34.202 tem 1 relato."
     )
     recomendacoes = [
         "Confira o endereço.",
@@ -157,5 +158,30 @@ def test_as_instrucoes_sao_as_aprovadas_na_medicao():
 
     from inoxio.agente.mente import PROMPT
 
-    esperado = "95dbe848a077ea91eb6eb0d455ab698d258af99507b841b572f9c7a13df12733"
+    esperado = "626ab0f2df85723feb024e38f9cb516225cb2f8bfd199742ce99f489facf1a92"
     assert hashlib.sha256(PROMPT.encode()).hexdigest() == esperado
+
+
+class RecusaDeEsquema(Exception):
+    """Imita o BadRequestError do Groq quando o JSON gerado não segue o esquema."""
+
+    status_code = 400
+
+    def __init__(self):
+        super().__init__("Error code: 400 - Generated JSON does not match the expected schema.")
+
+
+def test_recusa_de_esquema_e_separada_das_outras_falhas():
+    from inoxio.agente.mente import tentar_analisar
+
+    def recusa(sistema, carga):
+        raise RecusaDeEsquema()
+
+    class Outra400(Exception):
+        status_code = 400
+
+    def outra(sistema, carga):
+        raise Outra400("Error code: 400 - model not found")
+
+    assert tentar_analisar({}, recusa) == ("esquema", None)
+    assert tentar_analisar({}, outra) == ("falha", None)

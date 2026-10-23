@@ -4,6 +4,7 @@ import { AnaliseIA } from "./AnaliseIA";
 import { Carregando } from "./Carregando";
 import { chamar, mensagemDeErro } from "./api";
 import { CORES_VEREDITO, comoTexto, corDaNota, NOMES_TIPO, quando } from "./formato";
+import { provedoresDe } from "./provedores";
 import { Link } from "./rotas";
 import type { DetalheInvestigacao, Evidencia, IpDoDominio } from "./tipos";
 
@@ -118,6 +119,34 @@ const CONSULTAS = 40;
 
 type PropsInvestigacao = { id: string; intervalo?: number; consultas?: number };
 
+// O ISP vem do AbuseIPDB: dos IPs do site (contexto) e, numa investigação de IP, da própria fonte.
+function ispsDe(evidencias: Evidencia[]): string[] {
+  return evidencias.flatMap((evidencia) => {
+    const dados = evidencia.dados ?? {};
+    const ips = (dados.ips as IpDoDominio[] | undefined) ?? [];
+    return [...ips.map((ip) => ip.isp ?? ""), typeof dados.isp === "string" ? dados.isp : ""];
+  });
+}
+
+function QuemOpera({ evidencias }: { evidencias: Evidencia[] }) {
+  const provedores = provedoresDe(ispsDe(evidencias));
+  if (provedores.length === 0) return null;
+  return (
+    <Card title="Quem opera estes IPs" size="small">
+      <Flex vertical gap="middle">
+        {provedores.map((provedor) => (
+          <div key={provedor.nome}>
+            <Typography.Text strong>{provedor.nome}</Typography.Text>
+            <Typography.Paragraph type="secondary" className="sem-margem">
+              {provedor.texto}
+            </Typography.Paragraph>
+          </div>
+        ))}
+      </Flex>
+    </Card>
+  );
+}
+
 export function Investigacao({ id, intervalo = INTERVALO_MS, consultas = CONSULTAS }: PropsInvestigacao) {
   const [detalhe, setDetalhe] = useState<DetalheInvestigacao | null>(null);
   const [erro, setErro] = useState<string | null>(null);
@@ -196,6 +225,8 @@ export function Investigacao({ id, intervalo = INTERVALO_MS, consultas = CONSULT
       ) : (
         <AnaliseIA analise={detalhe.analise} />
       )}
+
+      <QuemOpera evidencias={detalhe.evidencias} />
 
       <div>
         <Flex justify="space-between" align="baseline" className="espaco">
