@@ -1,6 +1,7 @@
 import { Card, Col, Descriptions, Flex, Progress, Result, Row, Skeleton, Tag, Typography } from "antd";
 import { type CSSProperties, useEffect, useState } from "react";
 import { AnaliseIA } from "./AnaliseIA";
+import { Carregando } from "./Carregando";
 import { chamar, mensagemDeErro } from "./api";
 import { CORES_VEREDITO, comoTexto, corDaNota, NOMES_TIPO, quando } from "./formato";
 import { Link } from "./rotas";
@@ -111,15 +112,35 @@ function IpsDoDominio({ evidencia }: { evidencia: Evidencia }) {
   );
 }
 
-export function Investigacao({ id }: { id: string }) {
+// O servidor desiste da explicação em 90 s mais 30 de folga; a tela pergunta por 2 min.
+const INTERVALO_MS = 3000;
+const CONSULTAS = 40;
+
+type PropsInvestigacao = { id: string; intervalo?: number; consultas?: number };
+
+export function Investigacao({ id, intervalo = INTERVALO_MS, consultas = CONSULTAS }: PropsInvestigacao) {
   const [detalhe, setDetalhe] = useState<DetalheInvestigacao | null>(null);
   const [erro, setErro] = useState<string | null>(null);
+  const [feitas, setFeitas] = useState(0);
 
   useEffect(() => {
     chamar<DetalheInvestigacao>(`/api/investigacoes/${id}`)
       .then(setDetalhe)
       .catch((falha) => setErro(mensagemDeErro(falha)));
   }, [id]);
+
+  // Enquanto a IA escreve, pergunta de novo de tempos em tempos.
+  const esperando = detalhe?.analise_estado === "pendente" && feitas < consultas;
+  useEffect(() => {
+    if (!esperando) return;
+    const espera = window.setTimeout(() => {
+      chamar<DetalheInvestigacao>(`/api/investigacoes/${id}`)
+        .then(setDetalhe)
+        .catch(() => undefined)
+        .finally(() => setFeitas((n) => n + 1));
+    }, intervalo);
+    return () => window.clearTimeout(espera);
+  }, [esperando, feitas, id, intervalo]);
 
   if (erro) {
     return <Result status="warning" title={erro} extra={<Link para="/painel">Voltar ao painel</Link>} />;
@@ -167,7 +188,14 @@ export function Investigacao({ id }: { id: string }) {
         </Flex>
       </Card>
 
-      <AnaliseIA analise={detalhe.analise} />
+      {esperando ? (
+        <Carregando
+          titulo="Escrevendo a explicação em linguagem simples"
+          descricao="A IA está lendo as evidências. O veredito acima já está pronto; a explicação aparece aqui em instantes."
+        />
+      ) : (
+        <AnaliseIA analise={detalhe.analise} />
+      )}
 
       <div>
         <Flex justify="space-between" align="baseline" className="espaco">

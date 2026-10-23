@@ -115,6 +115,9 @@ class Investigacao(Base):
     nota: Mapped[int | None] = mapped_column(Integer, nullable=True)
     evidencias: Mapped[list[Any]] = mapped_column(JSON, default=list)
     analise: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
+    # pendente (a IA ainda escreve), pronta ou indisponivel. Nulo nas investigações
+    # anteriores à explicação em segundo plano.
+    analise_estado: Mapped[str | None] = mapped_column(String(16), nullable=True)
     reaproveitada: Mapped[bool] = mapped_column(Boolean, default=False)
     criada_em: Mapped[datetime] = mapped_column(DateTime, default=agora, index=True)
 
@@ -134,22 +137,29 @@ def criar_fabrica(url: str) -> sessionmaker:
 # O create_all não acrescenta coluna em tabela que já existe. Bancos criados antes
 # de cada coluna ganham a coluna aqui; quem já existia continua ativo.
 _COLUNAS_NOVAS = {
-    "ativo": "BOOLEAN NOT NULL DEFAULT 1",
-    "email": "VARCHAR(254)",
-    "email_confirmado_em": "DATETIME",
-    "cota_diaria": "INTEGER",
-    "onboarding_visto": "BOOLEAN NOT NULL DEFAULT 0",
-    "termos_versao": "VARCHAR(16)",
-    "termos_aceitos_em": "DATETIME",
+    "usuarios": {
+        "ativo": "BOOLEAN NOT NULL DEFAULT 1",
+        "email": "VARCHAR(254)",
+        "email_confirmado_em": "DATETIME",
+        "cota_diaria": "INTEGER",
+        "onboarding_visto": "BOOLEAN NOT NULL DEFAULT 0",
+        "termos_versao": "VARCHAR(16)",
+        "termos_aceitos_em": "DATETIME",
+    },
+    "investigacoes": {
+        "analise_estado": "VARCHAR(16)",
+    },
 }
 
 
 def _migrar(motor: Engine) -> None:
-    colunas = {coluna["name"] for coluna in inspect(motor).get_columns("usuarios")}
+    inspetor = inspect(motor)
     with motor.begin() as conexao:
-        for coluna, tipo in _COLUNAS_NOVAS.items():
-            if coluna not in colunas:
-                conexao.execute(text(f"ALTER TABLE usuarios ADD COLUMN {coluna} {tipo}"))
+        for tabela, novas in _COLUNAS_NOVAS.items():
+            colunas = {coluna["name"] for coluna in inspetor.get_columns(tabela)}
+            for coluna, tipo in novas.items():
+                if coluna not in colunas:
+                    conexao.execute(text(f"ALTER TABLE {tabela} ADD COLUMN {coluna} {tipo}"))
         # Índice à parte: o SQLite não aceita UNIQUE em ALTER TABLE ADD COLUMN.
         conexao.execute(
             text("CREATE UNIQUE INDEX IF NOT EXISTS ix_usuarios_email ON usuarios (email)")

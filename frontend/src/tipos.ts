@@ -66,5 +66,7 @@ export type DetalheInvestigacao = ResumoInvestigacao & {
   rotulo: string;
   evidencias: Evidencia[];
   analise: Analise | null;
+  // pendente: a IA ainda escreve a explicação, que chega em segundo plano.
+  analise_estado?: "pendente" | "pronta" | "indisponivel";
   reaproveitada: boolean;
 };

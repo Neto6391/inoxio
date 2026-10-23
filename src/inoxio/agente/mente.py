@@ -85,19 +85,31 @@ PROMPT = (
 )
 
 
-def analisar(dados: dict[str, Any], invocar: Invocar | None) -> dict[str, Any] | None:
-    """Pede a análise. Qualquer falha devolve None, e a tela segue sem ela."""
+def tentar_analisar(
+    dados: dict[str, Any], invocar: Invocar | None
+) -> tuple[str, dict[str, Any] | None]:
+    """("pronta", análise); ("limite", None) se o provedor recusou por limite de
+    requisições, o que vale tentar de novo; ou ("falha", None), que não vale."""
     if invocar is None:
-        return None
+        return "falha", None
     try:
         resposta = invocar(PROMPT, montar_carga(dados))
         bruto = resposta.model_dump() if isinstance(resposta, BaseModel) else resposta
         analise = AnaliseMente.model_validate(bruto).model_dump()
-    except Exception:
-        # Timeout, limite do provedor, JSON inválido ou fora dos limites: sem análise.
+    except Exception as erro:
+        if getattr(erro, "status_code", None) == 429:
+            log.warning("mente_limite_do_provedor")
+            return "limite", None
+        # Timeout, JSON inválido ou fora dos limites: sem análise.
         log.warning("mente_indisponivel", exc_info=True)
-        return None
-    return _sem_garantia(analise)
+        return "falha", None
+    limpa = _sem_garantia(analise)
+    return ("pronta", limpa) if limpa else ("falha", None)
+
+
+def analisar(dados: dict[str, Any], invocar: Invocar | None) -> dict[str, Any] | None:
+    """Pede a análise. Qualquer falha devolve None, e a tela segue sem ela."""
+    return tentar_analisar(dados, invocar)[1]
 
 
 def _sem_frases_proibidas(texto: str) -> str:

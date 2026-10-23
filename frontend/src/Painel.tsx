@@ -1,6 +1,7 @@
 import { Alert, Button, Card, Flex, Form, Input, Typography } from "antd";
 import { useState } from "react";
 import { chamar, ErroApi, mensagemDeErro, SESSAO_TROCADA } from "./api";
+import { Carregando } from "./Carregando";
 import { acabaram } from "./Creditos";
 import { MinhasEstatisticas } from "./Estatisticas";
 import { ListaInvestigacoes } from "./Investigacoes";
@@ -72,6 +73,13 @@ export function Painel({ creditos }: { creditos: Creditos | null }) {
           mesmo indicador investigado nas últimas 24 h volta na hora, com o resultado já consultado.
         </Typography.Paragraph>
       </Card>
+      {ocupado && (
+        <Carregando
+          titulo="Consultando as fontes"
+          descricao="VirusTotal e AbuseIPDB costumam responder em poucos segundos. A explicação da IA vem logo depois, na página do resultado."
+          linhas={2}
+        />
+      )}
       <MinhasEstatisticas creditos={creditos} />
       <Card title="Investigações recentes" extra={<Link para="/investigacoes">Ver todas</Link>}>
         <ListaInvestigacoes limite={5} />
