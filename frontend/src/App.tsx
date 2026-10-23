@@ -95,6 +95,8 @@ export function App() {
   // undefined: ainda perguntando ao servidor; null: sem sessão.
   const [sessao, setSessao] = useState<Sessao | null | undefined>(undefined);
   const [creditos, setCreditos] = useState<Creditos | null>(null);
+  // Sobe quando os créditos devem ser lidos de novo sem mudar de tela.
+  const [releitura, setReleitura] = useState(0);
   const caminho = useCaminho();
   const nome = sessao?.usuario.nome;
 
@@ -127,7 +129,17 @@ export function App() {
     chamar<unknown>("/api/creditos")
       .then((dados) => setCreditos(ehCreditos(dados) ? dados : null))
       .catch(() => setCreditos(null));
-  }, [nome, caminho]);
+  }, [nome, caminho, releitura]);
+
+  // Créditos esgotados voltam à meia-noite de Brasília; com a tela aberta, lê de novo
+  // nessa hora (o servidor manda o instante em UTC, sem fuso).
+  useEffect(() => {
+    if (!creditos || creditos.restantes !== 0) return;
+    const renova = Date.parse(/[zZ]$/.test(creditos.renova_em) ? creditos.renova_em : `${creditos.renova_em}Z`);
+    if (Number.isNaN(renova)) return;
+    const espera = window.setTimeout(() => setReleitura((n) => n + 1), Math.max(0, renova - Date.now()) + 1000);
+    return () => window.clearTimeout(espera);
+  }, [creditos]);
 
   async function sair() {
     try {

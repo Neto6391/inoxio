@@ -110,13 +110,39 @@ def test_senha_curta_e_recusada_sem_gastar_o_link(cliente, usuarios, caixa, fabr
     assert redefinir(cliente, token).status_code == 200
 
 
-def test_pedido_novo_cancela_o_link_anterior(cliente, usuarios, caixa, fabrica):
+def test_pedido_de_outra_pessoa_nao_derruba_o_link_que_a_dona_pediu(
+    cliente, usuarios, caixa, fabrica
+):
+    # Qualquer um pode pedir com o e-mail da ana; isso não pode invalidar o link dela.
     com_email(fabrica, "ana", "ana@exemplo.com")
     pedir(cliente)
-    antigo = caixa.token("/redefinir#")
+    o_da_ana = caixa.token("/redefinir#")
     pedir(cliente)
-    assert redefinir(cliente, antigo).status_code == 400
-    assert redefinir(cliente, caixa.token("/redefinir#")).status_code == 200
+    assert redefinir(cliente, o_da_ana).status_code == 200
+    # Trocada a senha, nenhum outro link da conta vale mais.
+    assert redefinir(cliente, caixa.token("/redefinir#")).status_code == 400
+
+
+def test_no_maximo_tres_emails_por_conta_por_hora_de_ips_diferentes(
+    config, usuarios, caixa, fabrica
+):
+    from fastapi.testclient import TestClient
+
+    from inoxio.config import Config
+
+    app = criar_app(
+        Config(proxies_confiaveis="*", frontend_dir=config.frontend_dir),
+        fabrica=fabrica,
+        enviar_email=caixa,
+    )
+    com_email(fabrica, "ana", "ana@exemplo.com")
+    for n in range(5):
+        # Um IP diferente por pedido: o limite por IP não segura, o da conta segura.
+        outro = TestClient(
+            app, base_url="https://testserver", headers={"X-Forwarded-For": f"198.51.100.{n}"}
+        )
+        assert pedir(outro).status_code == 202
+    assert len(caixa.mensagens) == 3
 
 
 def test_limite_de_pedidos_por_ip(cliente, usuarios, caixa, fabrica):

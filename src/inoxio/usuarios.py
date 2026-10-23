@@ -148,13 +148,11 @@ def pode_redefinir(usuario: Usuario | None) -> bool:
 
 
 def abrir_redefinicao(db: Session, usuario: Usuario) -> str:
-    """Token de uso único para o link de senha nova. Um pedido novo cancela os anteriores,
-    e os vencidos de todas as contas saem do banco."""
-    db.execute(
-        delete(RedefinicaoSenha).where(
-            (RedefinicaoSenha.usuario_id == usuario.id) | (RedefinicaoSenha.expira_em < agora())
-        )
-    )
+    """Token de uso único para o link de senha nova. Os links anteriores da conta continuam
+    valendo até vencer ou até a senha ser trocada: qualquer um pode pedir com o e-mail de
+    outra pessoa, e isso não pode derrubar o link que a dona pediu. Os vencidos de todas
+    as contas saem do banco."""
+    db.execute(delete(RedefinicaoSenha).where(RedefinicaoSenha.expira_em < agora()))
     token = secrets.token_urlsafe(32)
     db.add(
         RedefinicaoSenha(

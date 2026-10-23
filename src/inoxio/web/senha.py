@@ -7,17 +7,19 @@ from datetime import timedelta
 from fastapi import APIRouter, BackgroundTasks, Depends, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from inoxio import auditoria, usuarios
-from inoxio.db import Usuario
+from inoxio.db import Evento, Usuario, agora
 from inoxio.web.autenticacao import ip_do_cliente
 from inoxio.web.dependencias import banco
 
 rotas = APIRouter(prefix="/api/senha")
 
 PEDIDOS_POR_IP = 5
+# Por conta, de qualquer IP: ninguém enche a caixa de outra pessoa trocando de endereço.
+EMAILS_POR_CONTA = 3
 JANELA_PEDIDOS = timedelta(hours=1)
 LINK_INVALIDO = "Link inválido ou vencido. Peça outro em Esqueci minha senha."
 
@@ -37,6 +39,19 @@ def _texto_do_email(nome: str, link: str) -> str:
         "Recebemos um pedido para criar uma senha nova para a sua conta no Inóxio. "
         f"Abra o link abaixo na próxima hora:\n\n{link}\n\n"
         "Se não foi você, ignore esta mensagem: a senha atual continua valendo.\n"
+    )
+
+
+def _emails_recentes(db: Session, nome: str) -> int:
+    """Links mandados para a conta na última hora (o evento leva o nome só quando há envio)."""
+    return db.scalar(
+        select(func.count())
+        .select_from(Evento)
+        .where(
+            Evento.tipo == "senha_pedida",
+            Evento.usuario == nome,
+            Evento.quando >= agora() - JANELA_PEDIDOS,
+        )
     )
 
 
@@ -61,7 +76,11 @@ def esqueci(
     }
     usuario = db.scalar(select(Usuario).where(Usuario.email == email))
     token = None
-    if enviar and usuarios.pode_redefinir(usuario):
+    if (
+        enviar
+        and usuarios.pode_redefinir(usuario)
+        and _emails_recentes(db, usuario.nome) < EMAILS_POR_CONTA
+    ):
         token = usuarios.abrir_redefinicao(db, usuario)
     # O e-mail digitado não entra na auditoria: pode ser de quem nunca teve conta.
     auditoria.registrar(db, "senha_pedida", ip, usuario.nome if token else None)
