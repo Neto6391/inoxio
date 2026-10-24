@@ -1,19 +1,16 @@
-"""Aplicação web: API JSON em /api e o frontend React em todo o resto."""
+"""Aplicação web: a API JSON em /api. O React é servido pela borda (infra/borda/nginx.conf)."""
 
 from __future__ import annotations
 
 import logging
-import mimetypes
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from http import HTTPStatus
-from pathlib import Path
 
 import httpx
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse, PlainTextResponse
-from fastapi.staticfiles import StaticFiles
 from langgraph.graph.state import CompiledStateGraph
 from sqlalchemy.orm import sessionmaker
 from starlette.exceptions import HTTPException as StarletteHTTPException
@@ -33,14 +30,12 @@ from inoxio.investigacoes.ia.mente import criar_invocar
 from inoxio.plataforma.banco import criar_fabrica
 from inoxio.plataforma.config import Config
 from inoxio.plataforma.correio import Enviar, criar_envio
-from inoxio.web import spa
 
 log = logging.getLogger("inoxio")
 
-# No Windows, o mimetypes lê o registro e pode servir .js como text/plain; com o
-# nosniff, o navegador recusa o script e a tela fica em branco. Fixa os tipos aqui.
-mimetypes.add_type("text/javascript", ".js")
-mimetypes.add_type("text/css", ".css")
+# O app só responde JSON (e o texto da saúde): nada nele carrega script, estilo ou imagem.
+# A política da página do React, com o nonce, fica na borda.
+POLITICA = "default-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'"
 
 MENSAGENS = {
     400: "Requisição inválida.",
@@ -69,7 +64,6 @@ def criar_app(
     explicador: Explicador | None = None,
 ) -> FastAPI:
     config = config or Config.do_ambiente()
-    frontend = Path(config.frontend_dir)
     # Um cliente HTTP para todas as consultas às fontes, fechado quando o app para.
     cliente_http = httpx.Client()
 
@@ -97,39 +91,25 @@ def criar_app(
         auditoria,
     ):
         app.include_router(modulo.rotas)
-    _rotas_da_casca(app, frontend)
+    _saude(app)
     # Só a borda declara o IP real; por isso o uvicorn roda com --no-proxy-headers.
     app.add_middleware(ProxyHeadersMiddleware, trusted_hosts=config.proxies_confiaveis)
-    _cabecalhos_de_seguranca(app, frontend)
+    _cabecalhos_de_seguranca(app)
     _respostas_de_erro(app)
     return app
 
 
-def _rotas_da_casca(app: FastAPI, frontend: Path) -> None:
-    """A saúde, o 404 em JSON para a API e o React em todo o resto."""
-    app.mount("/assets", StaticFiles(directory=frontend / "assets", check_dir=False), "assets")
-
+def _saude(app: FastAPI) -> None:
     @app.api_route("/saude", methods=["GET", "HEAD"], response_class=PlainTextResponse)
     def saude() -> str:
         return "ok"
 
-    @app.api_route("/api/{_resto:path}", methods=["GET", "HEAD"])
-    def api_inexistente(_resto: str):
-        return JSONResponse({"erro": MENSAGENS[404]}, status_code=404)
 
-    @app.api_route("/{_caminho:path}", methods=["GET", "HEAD"])
-    def frontend_react(_caminho: str):
-        # Qualquer outra rota é do React; ele decide o que mostrar.
-        return spa.pagina(frontend)
-
-
-def _cabecalhos_de_seguranca(app: FastAPI, frontend: Path) -> None:
+def _cabecalhos_de_seguranca(app: FastAPI) -> None:
     @app.middleware("http")
     async def cabecalhos_de_seguranca(request: Request, chamar):
         resposta = await chamar(request)
-        resposta.headers.setdefault("Content-Security-Policy", spa.politica())
-        if request.url.path.startswith("/api/"):
-            resposta.headers[spa.CABECALHO_VERSAO] = spa.versao(frontend)
+        resposta.headers["Content-Security-Policy"] = POLITICA
         resposta.headers["X-Content-Type-Options"] = "nosniff"
         resposta.headers["Referrer-Policy"] = "no-referrer"
         return resposta

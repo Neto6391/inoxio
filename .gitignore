@@ -28,6 +28,7 @@ infra/observabilidade/plugins/
 
 # Ensaio local da borda
 infra/ensaio-local/webroot/
+infra/ensaio-local/frontend/
 
 # Python
 __pycache__/

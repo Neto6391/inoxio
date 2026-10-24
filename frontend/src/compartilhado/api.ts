@@ -15,7 +15,7 @@ export class ErroApi extends Error {
 
 let tokenCsrf = "";
 
-// A versão que esta aba carregou, posta pelo servidor no index.html. No Vite de
+// A versão que esta aba carregou, posta pela borda no index.html. No Vite de
 // desenvolvimento o marcador fica cru e a comparação não vale.
 function versaoDaPagina(): string | null {
   const valor = document.querySelector('meta[name="versao"]')?.getAttribute("content") ?? null;

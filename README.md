@@ -196,7 +196,7 @@ src/inoxio/
   auditoria/      a trilha de eventos e a linha do tempo de cada usuário
   plataforma/     o que não é regra de negócio: configuração, banco, e-mail,
                   paginação, horário de Brasília e endereço de origem
-  web/            a montagem do app, dependências de acesso e entrega do React
+  web/            a montagem do app e as dependências de acesso
 frontend/src/
   app/            a casca: rotas, mapa das telas, menu, topo, tema e a sessão
   compartilhado/  API, tipos, formatos, ícones, janela, paginação e carregamento
@@ -233,7 +233,7 @@ falha se ele for removido.
 | A entrada é validada por tipo (IP público, hash, domínio) antes de qualquer uso; o valor usado nas consultas é o normalizado, sem zona IPv6 (`%...`) nem IPv4 embutido em NAT64; de um endereço de site sai só o host, e só de `http`/`https` | `classificar_entrada` em `src/inoxio/investigacoes/classificar.py` | `test_classificar.py::test_entradas_recusadas`, `test_grafo.py::test_argumento_da_consulta_vem_do_classificar` |
 | SQL só por SQLAlchemy, sempre parametrizado; não há SQL montado com texto em `src/` | `src/inoxio/plataforma/banco.py`, os `modelos.py` de cada contexto e as consultas em `src/inoxio/` | `test_grafo.py::test_entrada_rejeitada_nao_consulta_nada` (a entrada `' OR 1=1--` é recusada antes do banco) |
 | O app não executa processo nem shell | todo `src/inoxio/` | `test_arquitetura.py::test_nenhum_argumento_shell`, `::test_app_nao_executa_processo` |
-| O React nunca injeta HTML, e a CSP só aceita script próprio e estilo com nonce novo a cada resposta | `src/inoxio/web/spa.py`, `frontend/src/main.tsx` | `frontend/src/arquitetura.test.ts` ("o React nunca injeta HTML"), `test_cabecalhos.py::test_pagina_do_react_leva_nonce_novo_no_cabecalho_e_na_meta` |
+| O React nunca injeta HTML, e a CSP só aceita script próprio e estilo com nonce novo a cada resposta | a borda (`infra/borda/nginx.conf`), `frontend/src/main.tsx` | `frontend/src/arquitetura.test.ts` ("o React nunca injeta HTML"), `infra/ensaio-local/testar.sh` ("nonce novo a cada resposta") |
 | Texto vindo das fontes vai para a IA marcado como não confiável; a IA não tem ferramentas e não decide o veredito | `src/inoxio/investigacoes/ia/`, `src/inoxio/investigacoes/decidir.py` | `test_grafo.py::test_injecao_nas_tags_nao_muda_o_veredito`, `test_arquitetura.py::test_mente_nao_tem_tools_nem_campo_de_veredito` |
 
 ### A07 Authentication Failures
@@ -262,8 +262,12 @@ VPS na Hostinger com Ubuntu Server 24.04.4 LTS.
 - **Borda:** Nginx 1.30 (`infra/borda/`) nas portas 80 e 443. A porta 80 só
   atende o desafio do Let's Encrypt e redireciona o resto para HTTPS com `301`.
   Na 443, o Nginx lê o nome pedido no TLS sem abrir a conexão: o acesso pelo IP
-  é terminado nele e repassado ao app; qualquer outro nome segue para o outro
-  sistema da máquina.
+  é terminado nele; qualquer outro nome segue para o outro sistema da máquina.
+- **Frontend:** a borda serve o React direto do disco (`/home/inoxio/frontend/atual`,
+  montado só para leitura). A cada resposta da página ela põe um nonce novo no
+  cabeçalho CSP e na meta tag que o antd lê, e marca a versão publicada (o SHA do
+  commit) na página e nas respostas da API (`X-Inoxio-Versao`); a aba aberta antes
+  de um deploy recarrega na navegação seguinte. Só `/api/` e `/saude` chegam ao app.
 - **Limite de requisições:** a borda aceita até 10 requisições por segundo por
   IP (com folga de 40) e 10 tentativas de login por minuto (folga de 5). Acima
   disso responde `429` em JSON, antes de chegar ao app.
@@ -334,8 +338,8 @@ Na VPS, a chave do CI está presa a um único comando no `authorized_keys`
 O script `infra/implantacao/implantar` recusa o que não for um SHA de 40
 hexadecimais e o pacote que tiver link, arquivo especial ou mais de 100 MB
 descompactado, faz o checkout do commit, instala as
-dependências com `uv sync --frozen`, troca o frontend, reinicia o serviço e
-confere o `/saude`. Se o app não responder, volta para a versão anterior.
+dependências com `uv sync --frozen`, troca o link do frontend (a borda passa a
+servir o novo na hora, sem recarregar), reinicia o serviço e confere o `/saude`. Se o app não responder, volta para a versão anterior.
 
 A chave privada e o `known_hosts` ficam nos Secrets do environment `producao`
 (`INOXIO_SSH_KEY`, `INOXIO_SSH_KNOWN_HOSTS`). O workflow tem permissão só de
@@ -356,13 +360,14 @@ Precisa de Python 3.12 com [uv](https://docs.astral.sh/uv/) e Node 22.
 uv sync
 cp .env.example .env        # preencha as três chaves
 uv run inoxio criar-usuario seu_nome --papel admin
-(cd frontend && npm ci && npm run build)
 uv run --env-file .env uvicorn inoxio.web.app:criar_app --factory
+(cd frontend && npm ci && npm run dev)
 ```
 
-O app abre em <http://127.0.0.1:8000>. Sem as chaves ele funciona, mas toda
-investigação sai `inconclusivo`. Para mexer no frontend com recarga automática,
-rode `npm run dev` em `frontend/`: o Vite repassa `/api` para o uvicorn.
+O app abre em <http://127.0.0.1:5173>: o Vite serve o React e repassa `/api` para o
+uvicorn. Sem as chaves ele funciona, mas toda investigação sai `inconclusivo`. Em
+produção quem serve o React é a borda; o ensaio dela (`infra/ensaio-local/testar.sh`)
+confere a página, o nonce e a versão.
 
 Testes: `uv run pytest` e, em `frontend/`, `npm test`.
 

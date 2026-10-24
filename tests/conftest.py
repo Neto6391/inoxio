@@ -7,8 +7,6 @@ from inoxio.plataforma.banco import criar_fabrica
 from inoxio.plataforma.config import Config
 from inoxio.web.app import criar_app
 
-INDEX = '<!doctype html><meta name="csp-nonce" content="__CSP_NONCE__"><div id="raiz"></div>'
-
 
 @pytest.fixture
 def fabrica():
@@ -16,10 +14,8 @@ def fabrica():
 
 
 @pytest.fixture
-def config(tmp_path):
-    # Um index.html mínimo no lugar do build do Vite: os testes não dependem do Node.
-    (tmp_path / "index.html").write_text(INDEX, encoding="utf-8")
-    return Config(frontend_dir=str(tmp_path))
+def config():
+    return Config()
 
 
 @pytest.fixture
