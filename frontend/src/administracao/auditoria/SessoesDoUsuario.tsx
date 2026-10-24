@@ -5,7 +5,7 @@ import { Carregando } from "../../compartilhado/Carregando";
 import { quando } from "../../compartilhado/formato";
 import { ehPagina, FORA_DO_FORMATO, Paginacao } from "../../compartilhado/Paginacao";
 import type { Pagina } from "../../compartilhado/tipos";
-import { type EventoDaSessao, nomeDoEvento, type SessaoAuditada } from "./eventos";
+import { etiquetaDoEvento, type EventoDaSessao, type SessaoAuditada } from "./eventos";
 import { fimDaSessao, LinhaDoTempo } from "./LinhaDoTempo";
 
 // As sessões e os eventos de fora de sessão vêm em páginas próprias, de 5 em 5.
@@ -179,7 +179,7 @@ function ForaDeSessao({ pagina, esperando, numero, aoMudar }: PropsDaLista<Event
           {pagina.itens.map((evento, indice) => (
             <Flex key={`${evento.quando}-${indice}`} gap="small" align="center" wrap>
               <Typography.Text type="secondary">{quando(evento.quando)}</Typography.Text>
-              <Tag color={nomeDoEvento(evento.tipo).cor}>{nomeDoEvento(evento.tipo).texto}</Tag>
+              <Tag color={etiquetaDoEvento(evento).cor}>{etiquetaDoEvento(evento).texto}</Tag>
               <span className="indicador evento-ip">{evento.ip}</span>
               {evento.detalhe && <span className="indicador evento-detalhe">{evento.detalhe}</span>}
             </Flex>

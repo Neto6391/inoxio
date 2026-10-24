@@ -14,11 +14,12 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from inoxio.auditoria.modelos import Evento
+from inoxio.auditoria.trilha import NOMES_EVENTO
 from inoxio.contas.modelos import Sessao, Usuario
 from inoxio.contas.regras import situacao
 from inoxio.contas.sessoes import fim_por_validade
 from inoxio.plataforma.banco import agora
-from inoxio.plataforma.horario import FUSO_BRASILIA
+from inoxio.plataforma.horario import FUSO_BRASILIA, iso
 
 # Acontecem dentro de uma sessão; os outros (senha errada, cadastro, link de senha) não.
 DA_SESSAO = (
@@ -67,7 +68,7 @@ def resumo_por_usuario(db: Session, contas: list[Usuario]) -> list[dict[str, Any
             "nome": usuario.nome,
             "papel": usuario.papel,
             "situacao": situacao(usuario),
-            "ultimo_acesso": _data(logins.get(usuario.nome, (0, None))[1]),
+            "ultimo_acesso": iso(logins.get(usuario.nome, (0, None))[1]),
             "sessoes": logins.get(usuario.nome, (0, None))[0],
             "abertas": abertas.get(usuario.id, 0),
             "falhas_de_login": falhas.get(usuario.nome, (0, None))[0],
@@ -75,10 +76,6 @@ def resumo_por_usuario(db: Session, contas: list[Usuario]) -> list[dict[str, Any
         }
         for usuario in contas
     ]
-
-
-def _data(momento: datetime | None) -> str | None:
-    return momento.isoformat() if momento else None
 
 
 def _em_utc(dia: date) -> datetime:
@@ -90,6 +87,7 @@ def _evento(evento: Evento) -> dict[str, Any]:
     return {
         "quando": evento.quando.isoformat(),
         "tipo": evento.tipo,
+        "nome": NOMES_EVENTO.get(evento.tipo, evento.tipo),
         "ip": evento.ip,
         "detalhe": evento.detalhe,
     }

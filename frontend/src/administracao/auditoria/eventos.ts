@@ -1,33 +1,27 @@
-// O nome de cada tipo de evento; um teste do servidor confere que todo tipo registrado
-// (TIPOS_EVENTO) tem nome aqui.
-export const NOMES_EVENTO: Record<string, { texto: string; cor: string }> = {
-  login: { texto: "entrou", cor: "green" },
-  login_falhou: { texto: "senha errada", cor: "orange" },
-  login_bloqueado: { texto: "login bloqueado", cor: "red" },
-  logout: { texto: "saiu", cor: "default" },
-  cadastro: { texto: "cadastro", cor: "blue" },
-  ativacao: { texto: "ativação", cor: "blue" },
-  investigacao: { texto: "investigação", cor: "purple" },
-  investigacao_alheia: { texto: "abriu investigação de outro", cor: "gold" },
-  admin_cadastrou: { texto: "admin cadastrou", cor: "gold" },
-  admin_alterou: { texto: "admin alterou", cor: "gold" },
-  backup: { texto: "backup", cor: "cyan" },
-  termos_aceitos: { texto: "aceitou os termos", cor: "blue" },
-  conta_excluida: { texto: "conta excluída", cor: "red" },
-  senha_pedida: { texto: "pediu senha nova", cor: "default" },
-  senha_redefinida: { texto: "trocou a senha", cor: "default" },
-  explicacao_pedida: { texto: "pediu a explicação de novo", cor: "purple" },
-  sessao_encerrada: { texto: "sessão encerrada", cor: "default" },
-  conta_alterada: { texto: "mudou a própria conta", cor: "blue" },
-  email_troca_pedida: { texto: "pediu troca de e-mail", cor: "default" },
-  email_trocado: { texto: "trocou o e-mail", cor: "blue" },
+// A cor da etiqueta de cada tipo de evento; o nome vem do servidor, junto com o evento.
+const CORES_EVENTO: Record<string, string> = {
+  login: "green",
+  login_falhou: "orange",
+  login_bloqueado: "red",
+  cadastro: "blue",
+  ativacao: "blue",
+  investigacao: "purple",
+  investigacao_alheia: "gold",
+  admin_cadastrou: "gold",
+  admin_alterou: "gold",
+  backup: "cyan",
+  termos_aceitos: "blue",
+  conta_excluida: "red",
+  explicacao_pedida: "purple",
+  conta_alterada: "blue",
+  email_trocado: "blue",
 };
 
-export function nomeDoEvento(tipo: string) {
-  return NOMES_EVENTO[tipo] ?? { texto: tipo, cor: "default" };
+export function etiquetaDoEvento(evento: EventoDaSessao) {
+  return { texto: evento.nome ?? evento.tipo, cor: CORES_EVENTO[evento.tipo] ?? "default" };
 }
 
-export type EventoDaSessao = { quando: string; tipo: string; ip: string; detalhe: string };
+export type EventoDaSessao = { quando: string; tipo: string; nome?: string; ip: string; detalhe: string };
 
 export type SessaoAuditada = {
   id: string;

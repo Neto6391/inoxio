@@ -97,9 +97,17 @@ def criar_app(
         auditoria,
     ):
         app.include_router(modulo.rotas)
-    app.mount("/assets", StaticFiles(directory=frontend / "assets", check_dir=False), "assets")
+    _rotas_da_casca(app, frontend)
     # Só a borda declara o IP real; por isso o uvicorn roda com --no-proxy-headers.
     app.add_middleware(ProxyHeadersMiddleware, trusted_hosts=config.proxies_confiaveis)
+    _cabecalhos_de_seguranca(app, frontend)
+    _respostas_de_erro(app)
+    return app
+
+
+def _rotas_da_casca(app: FastAPI, frontend: Path) -> None:
+    """A saúde, o 404 em JSON para a API e o React em todo o resto."""
+    app.mount("/assets", StaticFiles(directory=frontend / "assets", check_dir=False), "assets")
 
     @app.api_route("/saude", methods=["GET", "HEAD"], response_class=PlainTextResponse)
     def saude() -> str:
@@ -114,6 +122,8 @@ def criar_app(
         # Qualquer outra rota é do React; ele decide o que mostrar.
         return spa.pagina(frontend)
 
+
+def _cabecalhos_de_seguranca(app: FastAPI, frontend: Path) -> None:
     @app.middleware("http")
     async def cabecalhos_de_seguranca(request: Request, chamar):
         resposta = await chamar(request)
@@ -123,6 +133,10 @@ def criar_app(
         resposta.headers["X-Content-Type-Options"] = "nosniff"
         resposta.headers["Referrer-Policy"] = "no-referrer"
         return resposta
+
+
+def _respostas_de_erro(app: FastAPI) -> None:
+    """Todo erro sai em JSON, com a mensagem no campo "erro" e sem detalhe interno."""
 
     @app.exception_handler(StarletteHTTPException)
     async def erro_http(request: Request, erro: StarletteHTTPException):
@@ -139,5 +153,3 @@ def criar_app(
         log.error("erro_nao_tratado", exc_info=erro)
         mensagem = "Erro interno. O detalhe ficou registrado no servidor."
         return JSONResponse({"erro": mensagem}, status_code=500)
-
-    return app

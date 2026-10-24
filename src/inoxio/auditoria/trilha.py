@@ -39,34 +39,47 @@ def registrar(
     )
 
 
-def contar(db: Session, tipo: str, ip: str, janela: timedelta) -> int:
+def _contar(db: Session, janela: timedelta, *filtros) -> int:
     return db.scalar(
-        select(func.count())
-        .select_from(Evento)
-        .where(Evento.tipo == tipo, Evento.ip == origem(ip), Evento.quando >= agora() - janela)
+        select(func.count()).select_from(Evento).where(Evento.quando >= agora() - janela, *filtros)
     )
 
 
-# Todo tipo de evento que o sistema registra; a tela da Auditoria dá nome a cada um.
-TIPOS_EVENTO = (
-    "login",
-    "login_falhou",
-    "login_bloqueado",
-    "logout",
-    "cadastro",
-    "ativacao",
-    "investigacao",
-    "investigacao_alheia",
-    "admin_cadastrou",
-    "admin_alterou",
-    "backup",
-    "termos_aceitos",
-    "conta_excluida",
-    "senha_pedida",
-    "senha_redefinida",
-    "explicacao_pedida",
-    "sessao_encerrada",
-    "conta_alterada",
-    "email_troca_pedida",
-    "email_trocado",
-)
+def contar_do_ip(db: Session, tipo: str, ip: str, janela: timedelta) -> int:
+    """Eventos de um tipo vindos de um endereço: os limites por IP."""
+    return _contar(db, janela, Evento.tipo == tipo, Evento.ip == origem(ip))
+
+
+def contar_da_conta(
+    db: Session, tipo: str, usuario: str, janela: timedelta, detalhe: str | None = None
+) -> int:
+    """Eventos de um tipo de uma conta, de qualquer IP: os limites por conta."""
+    filtros = [Evento.tipo == tipo, Evento.usuario == usuario]
+    if detalhe is not None:
+        filtros.append(Evento.detalhe == detalhe)
+    return _contar(db, janela, *filtros)
+
+
+# Todo tipo de evento que o sistema registra, com o nome que a tela da Auditoria mostra.
+NOMES_EVENTO = {
+    "login": "entrou",
+    "login_falhou": "senha errada",
+    "login_bloqueado": "login bloqueado",
+    "logout": "saiu",
+    "cadastro": "cadastro",
+    "ativacao": "ativação",
+    "investigacao": "investigação",
+    "investigacao_alheia": "abriu investigação de outro",
+    "admin_cadastrou": "admin cadastrou",
+    "admin_alterou": "admin alterou",
+    "backup": "backup",
+    "termos_aceitos": "aceitou os termos",
+    "conta_excluida": "conta excluída",
+    "senha_pedida": "pediu senha nova",
+    "senha_redefinida": "trocou a senha",
+    "explicacao_pedida": "pediu a explicação de novo",
+    "sessao_encerrada": "sessão encerrada",
+    "conta_alterada": "mudou a própria conta",
+    "email_troca_pedida": "pediu troca de e-mail",
+    "email_trocado": "trocou o e-mail",
+}

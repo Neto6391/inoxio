@@ -96,11 +96,9 @@ def do_usuario(db: Session, usuario_id: str) -> dict[str, Any]:
     }
 
 
-def geral(db: Session) -> dict[str, Any]:
-    contas = db.scalars(select(Usuario).order_by(Usuario.nome)).all()
-    situacoes = Counter(situacao(usuario) for usuario in contas)
+def _sem_uso(db: Session, ativas: list[Usuario]) -> list[str]:
+    """Contas ativas que, no período, não entraram nem investigaram nenhuma vez."""
     desde = agora() - JANELA_USO
-    # Usou no período: entrou ou investigou pelo menos uma vez.
     nomes_que_usaram = set(
         db.scalars(
             select(Evento.usuario).where(
@@ -111,22 +109,19 @@ def geral(db: Session) -> dict[str, Any]:
     ids_que_investigaram = set(
         db.scalars(select(Investigacao.usuario_id).where(Investigacao.criada_em >= desde))
     )
-    ativas = [usuario for usuario in contas if usuario.ativo]
-    sem_uso = [
+    return [
         usuario.nome
         for usuario in ativas
         if usuario.nome not in nomes_que_usaram and usuario.id not in ids_que_investigaram
     ]
-    total = db.scalar(select(func.count()).select_from(Investigacao))
-    sites = db.scalar(
-        select(func.count(func.distinct(Investigacao.valor))).where(Investigacao.tipo.in_(SITES))
-    )
-    indicadores = db.scalar(select(func.count(func.distinct(Investigacao.valor))))
-    ameacas = db.scalar(
-        select(func.count(func.distinct(Investigacao.valor))).where(
-            Investigacao.veredito.in_(AMEACAS)
-        )
-    )
+
+
+def _distintos(db: Session, *filtros) -> int:
+    """Quantos indicadores diferentes foram investigados, com os filtros dados."""
+    return db.scalar(select(func.count(func.distinct(Investigacao.valor))).where(*filtros))
+
+
+def _quem_mais_pesquisa(db: Session) -> list[dict[str, Any]]:
     ranking = db.execute(
         select(Usuario.nome, func.count(Investigacao.id).label("investigacoes"))
         .join(Investigacao, Investigacao.usuario_id == Usuario.id)
@@ -134,15 +129,23 @@ def geral(db: Session) -> dict[str, Any]:
         .order_by(func.count(Investigacao.id).desc(), Usuario.nome)
         .limit(TOP)
     ).all()
+    return [{"nome": nome, "investigacoes": quantas} for nome, quantas in ranking]
+
+
+def geral(db: Session) -> dict[str, Any]:
+    contas = db.scalars(select(Usuario).order_by(Usuario.nome)).all()
+    situacoes = Counter(situacao(usuario) for usuario in contas)
+    ativas = [usuario for usuario in contas if usuario.ativo]
+    sem_uso = _sem_uso(db, ativas)
     return {
         "contas": len(contas),
         # Toda situação aparece, mesmo com zero: a tela não precisa adivinhar a lista.
         "situacoes": {nome: situacoes.get(nome, 0) for nome in SITUACOES},
         "usaram_30_dias": len(ativas) - len(sem_uso),
         "sem_uso_30_dias": sem_uso,
-        "investigacoes": total,
-        "sites_distintos": sites,
-        "indicadores_distintos": indicadores,
-        "ameacas_distintas": ameacas,
-        "top_usuarios": [{"nome": nome, "investigacoes": quantas} for nome, quantas in ranking],
+        "investigacoes": db.scalar(select(func.count()).select_from(Investigacao)),
+        "sites_distintos": _distintos(db, Investigacao.tipo.in_(SITES)),
+        "indicadores_distintos": _distintos(db),
+        "ameacas_distintas": _distintos(db, Investigacao.veredito.in_(AMEACAS)),
+        "top_usuarios": _quem_mais_pesquisa(db),
     }

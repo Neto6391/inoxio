@@ -8,7 +8,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy import func, select
 
 from inoxio.auditoria.modelos import Evento
-from inoxio.auditoria.trilha import TIPOS_EVENTO
+from inoxio.auditoria.trilha import NOMES_EVENTO
 from inoxio.contas import credenciais
 from inoxio.contas.modelos import Ativacao, RedefinicaoSenha, Usuario
 from inoxio.plataforma.banco import agora
@@ -200,23 +200,15 @@ def test_excluir_a_conta_apaga_o_pedido_de_senha(cliente, usuarios, caixa, fabri
     assert contar(fabrica, RedefinicaoSenha) == 0
 
 
-def test_todo_tipo_de_evento_registrado_aparece_no_filtro_da_auditoria():
-    # Uma lista só: tipo registrado fora de TIPOS_EVENTO some do filtro do admin.
+def test_todo_tipo_de_evento_registrado_tem_nome_na_auditoria():
+    # Uma lista só: tipo registrado fora de NOMES_EVENTO aparece cru na tela do admin.
     fonte = Path(__file__).parents[1] / "src" / "inoxio"
     usados = set()
     for arquivo in fonte.rglob("*.py"):
         texto = arquivo.read_text(encoding="utf-8")
         usados |= set(re.findall(r'trilha\.registrar\(\s*db,\s*"(\w+)"', texto))
     assert len(usados) >= 10
-    assert usados <= set(TIPOS_EVENTO), usados - set(TIPOS_EVENTO)
-
-
-def test_todo_tipo_de_evento_tem_nome_na_tela_da_auditoria():
-    # A tela tira as etiquetas da lista do servidor; sem nome, a etiqueta sai crua.
-    frontend = Path(__file__).parents[1] / "frontend" / "src"
-    tela = frontend / "administracao" / "auditoria" / "eventos.ts"
-    nomes = set(re.findall(r"^  (\w+): \{ texto:", tela.read_text(encoding="utf-8"), re.M))
-    assert set(TIPOS_EVENTO) <= nomes, set(TIPOS_EVENTO) - nomes
+    assert usados <= set(NOMES_EVENTO), usados - set(NOMES_EVENTO)
 
 
 def test_a_funcao_recusa_a_senha_curta_antes_de_apagar_o_link(usuarios, fabrica):

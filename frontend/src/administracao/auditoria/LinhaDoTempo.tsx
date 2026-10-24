@@ -1,6 +1,6 @@
 import { Flex, Tag, Timeline, Typography } from "antd";
 import { quando } from "../../compartilhado/formato";
-import { type EventoDaSessao, nomeDoEvento, type SessaoAuditada } from "./eventos";
+import { type EventoDaSessao, etiquetaDoEvento, type SessaoAuditada } from "./eventos";
 
 export function hora(iso: string): string {
   return quando(iso).slice(11);
@@ -13,7 +13,7 @@ export function fimDaSessao(sessao: SessaoAuditada): string {
 }
 
 function ItemDaLinha({ evento }: { evento: EventoDaSessao }) {
-  const nome = nomeDoEvento(evento.tipo);
+  const nome = etiquetaDoEvento(evento);
   return (
     <Flex vertical gap={2}>
       <Flex gap="small" align="center" wrap>
