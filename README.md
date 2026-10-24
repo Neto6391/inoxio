@@ -354,20 +354,45 @@ leitura no repositório e usa as Actions fixadas por SHA.
 
 ## Rodando localmente
 
-Precisa de Python 3.12 com [uv](https://docs.astral.sh/uv/) e Node 22.
+Precisa de Python 3.12 com [uv](https://docs.astral.sh/uv/) e Node 22. Os comandos
+valem no Linux, no macOS e no PowerShell do Windows.
+
+**1. Configuração.** Na pasta do projeto:
 
 ```bash
 uv sync
-cp .env.example .env        # preencha as três chaves
-uv run inoxio criar-usuario seu_nome --papel admin
-uv run --env-file .env uvicorn inoxio.web.app:criar_app --factory
-(cd frontend && npm ci && npm run dev)
+cp .env.example .env
 ```
 
-O app abre em <http://127.0.0.1:5173>: o Vite serve o React e repassa `/api` para o
-uvicorn. Sem as chaves ele funciona, mas toda investigação sai `inconclusivo`. Em
-produção quem serve o React é a borda; o ensaio dela (`infra/ensaio-local/testar.sh`)
-confere a página, o nonce e a versão.
+Abra o `.env` e preencha as chaves que tiver: o próprio arquivo diz onde criar cada
+uma (as três têm plano gratuito). Nenhuma é obrigatória para o app subir; sem elas,
+toda investigação sai `Inconclusivo`.
+
+**2. O primeiro usuário.** O comando pede a senha duas vezes (mínimo de 12 caracteres):
+
+```bash
+uv run --env-file .env inoxio criar-usuario seu_nome --papel admin
+```
+
+**3. A API.** Num terminal, deixe rodando:
+
+```bash
+uv run --env-file .env uvicorn inoxio.web.app:criar_app --factory
+```
+
+**4. A tela.** Em outro terminal, na pasta `frontend`:
+
+```bash
+npm ci
+npm run dev
+```
+
+Abra <http://localhost:5173> e entre com o usuário do passo 2. O Vite serve o React
+e repassa `/api` para o uvicorn da porta 8000. Use `localhost`, não `127.0.0.1`: em
+algumas máquinas o Vite escuta só no endereço IPv6 do `localhost`.
+
+Em produção quem serve o React é a borda; o ensaio dela
+(`infra/ensaio-local/testar.sh`) confere a página, o nonce e a versão.
 
 Testes: `uv run pytest` e, em `frontend/`, `npm test`.
 
