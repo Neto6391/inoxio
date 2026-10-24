@@ -9,16 +9,26 @@ from datetime import timedelta
 from fastapi import APIRouter, BackgroundTasks, Depends, Request, Response
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from inoxio.auditoria import trilha
 from inoxio.auditoria.modelos import Evento
-from inoxio.contas import credenciais, exclusao, perfil, regras, sessoes, tentativas, troca_de_email
+from inoxio.contas import (
+    credenciais,
+    emails,
+    exclusao,
+    perfil,
+    regras,
+    sessoes,
+    tentativas,
+    troca_de_email,
+)
 from inoxio.contas.modelos import Usuario
 from inoxio.investigacoes import cota
 from inoxio.investigacoes.modelos import Investigacao
 from inoxio.plataforma.banco import agora
+from inoxio.plataforma.horario import iso
 from inoxio.web.dependencias import (
     Contexto,
     banco,
@@ -58,11 +68,8 @@ SENHA_ERRADA = "Senha atual incorreta."
 
 # Por conta: ninguém usa uma sessão aberta para encher a caixa de outra pessoa.
 TROCAS_DE_EMAIL_POR_HORA = 3
+UMA_HORA = timedelta(hours=1)
 LINK_INVALIDO = "Link inválido ou vencido. Peça a troca de novo em Minha conta."
-
-
-def _data(valor) -> str | None:
-    return valor.isoformat() if valor else None
 
 
 def _perfil(usuario: Usuario) -> dict:
@@ -71,11 +78,11 @@ def _perfil(usuario: Usuario) -> dict:
         "nome_exibicao": usuario.nome_exibicao,
         "email": usuario.email,
         "papel": usuario.papel,
-        "criado_em": _data(usuario.criado_em),
-        "email_confirmado_em": _data(usuario.email_confirmado_em),
+        "criado_em": iso(usuario.criado_em),
+        "email_confirmado_em": iso(usuario.email_confirmado_em),
         "cota_diaria": cota.cota_de(usuario),
         "termos_versao": usuario.termos_versao,
-        "termos_aceitos_em": _data(usuario.termos_aceitos_em),
+        "termos_aceitos_em": iso(usuario.termos_aceitos_em),
     }
 
 
@@ -143,16 +150,17 @@ def trocar_senha(
     return Response(status_code=204)
 
 
-def _pedidos_de_troca(db: Session, nome: str) -> int:
-    return db.scalar(
-        select(func.count())
-        .select_from(Evento)
-        .where(
-            Evento.tipo == "email_troca_pedida",
-            Evento.usuario == nome,
-            Evento.quando >= agora() - timedelta(hours=1),
-        )
+def _mandar_links_da_troca(
+    request: Request, tarefas: BackgroundTasks, usuario: Usuario, email: str, token: str
+) -> None:
+    """O link vai para o e-mail novo; o atual, se houver, recebe só o aviso."""
+    enviar = request.app.state.enviar_email
+    confirmar = emails.confirmar_email_novo(
+        usuario.nome, emails.link(request, "confirmar-email", token)
     )
+    emails.agendar(tarefas, enviar, email, confirmar)
+    if usuario.email:
+        emails.agendar(tarefas, enviar, usuario.email, emails.aviso_de_troca_de_email(usuario.nome))
 
 
 @rotas.post("/email", status_code=202)
@@ -177,7 +185,10 @@ def pedir_troca_de_email(
         return JSONResponse({"erro": str(erro)}, status_code=400)
     if email == ctx.usuario.email:
         return JSONResponse({"erro": "Esse já é o seu e-mail."}, status_code=400)
-    if _pedidos_de_troca(db, ctx.usuario.nome) >= TROCAS_DE_EMAIL_POR_HORA:
+    if (
+        trilha.contar_da_conta(db, "email_troca_pedida", ctx.usuario.nome, UMA_HORA)
+        >= TROCAS_DE_EMAIL_POR_HORA
+    ):
         return JSONResponse({"erro": "Muitos pedidos de troca. Tente mais tarde."}, 429)
     # E-mail de outra conta: mesma resposta e nenhum envio, para não revelar quem tem conta.
     tomado = db.scalar(select(Usuario.id).where(Usuario.email == email))
@@ -185,24 +196,7 @@ def pedir_troca_de_email(
     _registrar(db, request, ctx, "email_troca_pedida", "")
     db.commit()
     if token:
-        link = f"{request.app.state.config.url_publica}/confirmar-email#{token}"
-        tarefas.add_task(
-            enviar,
-            email,
-            "Confirme o seu novo e-mail no Inóxio",
-            f"Olá, {ctx.usuario.nome}.\n\nPara usar este e-mail na sua conta do Inóxio, abra o "
-            f"link abaixo nas próximas 24 horas:\n\n{link}\n\n"
-            "Se não foi você, ignore esta mensagem: nada muda.\n",
-        )
-        if ctx.usuario.email:
-            tarefas.add_task(
-                enviar,
-                ctx.usuario.email,
-                "Pedido de troca do e-mail da sua conta no Inóxio",
-                f"Olá, {ctx.usuario.nome}.\n\nPediram para trocar o e-mail da sua conta no "
-                "Inóxio. Ele só muda depois da confirmação pelo e-mail novo.\n\n"
-                "Se não foi você, troque a sua senha em Minha conta.\n",
-            )
+        _mandar_links_da_troca(request, tarefas, ctx.usuario, email, token)
     return {
         "mensagem": "Enviamos um link para o e-mail novo. Ele vale por 24 horas; até a "
         "confirmação, o e-mail atual continua valendo."
@@ -223,27 +217,25 @@ def confirmar_troca_de_email(
     return {"mensagem": "E-mail trocado. Ele já vale para entrar e para recuperar a senha."}
 
 
-@rotas.get("/dados")
-def baixar_meus_dados(ctx: Contexto = Depends(sessao_atual), db: Session = Depends(banco)):
-    """Portabilidade: tudo o que o sistema guarda sobre a pessoa, num JSON só."""
+def _meus_dados(db: Session, usuario: Usuario) -> dict:
     investigacoes = db.scalars(
         select(Investigacao)
-        .where(Investigacao.usuario_id == ctx.usuario.id)
+        .where(Investigacao.usuario_id == usuario.id)
         .order_by(Investigacao.criada_em)
     )
     eventos = db.scalars(
-        select(Evento).where(Evento.usuario == ctx.usuario.nome).order_by(Evento.quando)
+        select(Evento).where(Evento.usuario == usuario.nome).order_by(Evento.quando)
     )
-    dados = {
+    return {
         "gerado_em": agora().isoformat(),
-        "conta": _perfil(ctx.usuario),
+        "conta": _perfil(usuario),
         "investigacoes": [
             {
                 "tipo": investigacao.tipo,
                 "valor": investigacao.valor,
                 "veredito": investigacao.veredito,
                 "nota": investigacao.nota,
-                "criada_em": _data(investigacao.criada_em),
+                "criada_em": iso(investigacao.criada_em),
                 "evidencias": investigacao.evidencias,
                 "analise": investigacao.analise,
             }
@@ -251,7 +243,7 @@ def baixar_meus_dados(ctx: Contexto = Depends(sessao_atual), db: Session = Depen
         ],
         "eventos_de_seguranca": [
             {
-                "quando": _data(evento.quando),
+                "quando": iso(evento.quando),
                 "tipo": evento.tipo,
                 "ip": evento.ip,
                 "detalhe": evento.detalhe,
@@ -259,7 +251,12 @@ def baixar_meus_dados(ctx: Contexto = Depends(sessao_atual), db: Session = Depen
             for evento in eventos
         ],
     }
-    conteudo = json.dumps(dados, ensure_ascii=False, indent=2)
+
+
+@rotas.get("/dados")
+def baixar_meus_dados(ctx: Contexto = Depends(sessao_atual), db: Session = Depends(banco)):
+    """Portabilidade: tudo o que o sistema guarda sobre a pessoa, num JSON só."""
+    conteudo = json.dumps(_meus_dados(db, ctx.usuario), ensure_ascii=False, indent=2)
     nome = f"inoxio-meus-dados-{ctx.usuario.nome}.json"
     return Response(
         conteudo,

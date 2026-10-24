@@ -88,6 +88,7 @@ function servidor(pedidos: string[]) {
             itens: Array.from({ length: numeroFora === 1 ? 5 : 2 }, (_, n) => ({
               quando: `2026-10-22T10:0${n}:00`,
               tipo: "login_falhou",
+              nome: "senha errada",
               ip: `9.9.${numeroFora}.${n}`,
               detalhe: "",
             })),

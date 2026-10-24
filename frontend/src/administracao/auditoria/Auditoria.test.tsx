@@ -13,16 +13,6 @@ function json(corpo: unknown, status = 200) {
   return new Response(JSON.stringify(corpo), { status });
 }
 
-const PAGINA = {
-  total: 2,
-  por_pagina: 50,
-  tipos: ["login", "login_falhou", "login_bloqueado", "investigacao", "conta_excluida"],
-  itens: [
-    { quando: "2026-10-20T14:00:00", tipo: "investigacao", usuario: "ana", ip: "1.2.3.4", detalhe: "ip 8.8.8.8 → malicioso" },
-    { quando: "2026-10-20T13:00:00", tipo: "login_falhou", usuario: "<b>x</b>", ip: "1.2.3.4", detalhe: "" },
-  ],
-};
-
 function servidor(papel: string, pedidos: string[]) {
   vi.stubGlobal(
     "fetch",
@@ -33,9 +23,10 @@ function servidor(papel: string, pedidos: string[]) {
         pedidos.push(caminho);
         return json(SESSOES);
       }
+      // A lista de todos os eventos saiu; o pedido fica registrado para o teste saber se voltou.
       if (caminho.startsWith("/api/auditoria")) {
         pedidos.push(caminho);
-        return json(PAGINA);
+        return json(pagina([]));
       }
       return json([]);
     }),
@@ -78,9 +69,9 @@ const SESSOES = {
       ip: "1.2.3.4",
       acoes: 1,
       eventos: [
-        { quando: "2026-10-23T13:00:00", tipo: "login", ip: "1.2.3.4", detalhe: "" },
-        { quando: "2026-10-23T13:05:00", tipo: "investigacao", ip: "1.2.3.4", detalhe: "ip 8.8.8.8 → sem_evidencia" },
-        { quando: "2026-10-23T13:40:00", tipo: "logout", ip: "1.2.3.4", detalhe: "" },
+        { quando: "2026-10-23T13:00:00", tipo: "login", nome: "entrou", ip: "1.2.3.4", detalhe: "" },
+        { quando: "2026-10-23T13:05:00", tipo: "investigacao", nome: "investigação", ip: "1.2.3.4", detalhe: "ip 8.8.8.8 → sem_evidencia" },
+        { quando: "2026-10-23T13:40:00", tipo: "logout", nome: "saiu", ip: "1.2.3.4", detalhe: "" },
       ],
     },
     {
@@ -93,10 +84,10 @@ const SESSOES = {
       aberta: false,
       ip: "1.2.3.4",
       acoes: 0,
-      eventos: [{ quando: "2026-10-20T12:00:00", tipo: "login", ip: "1.2.3.4", detalhe: "" }],
+      eventos: [{ quando: "2026-10-20T12:00:00", tipo: "login", nome: "entrou", ip: "1.2.3.4", detalhe: "" }],
     },
   ], 5),
-  fora_de_sessao: pagina([{ quando: "2026-10-22T10:00:00", tipo: "login_falhou", ip: "9.9.9.9", detalhe: "" }], 5),
+  fora_de_sessao: pagina([{ quando: "2026-10-22T10:00:00", tipo: "login_falhou", nome: "senha errada", ip: "9.9.9.9", detalhe: "" }], 5),
 };
 
 test("analista não tem a auditoria", async () => {

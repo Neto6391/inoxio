@@ -10,11 +10,10 @@ from datetime import timedelta
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from inoxio.auditoria import trilha
-from inoxio.auditoria.modelos import Evento
 from inoxio.contas.modelos import Usuario
 from inoxio.investigacoes import cota
 from inoxio.investigacoes.classificar import LIMITE_ENTRADA
@@ -37,6 +36,7 @@ from inoxio.web.dependencias import (
 INVESTIGACOES_POR_PAGINA = 5
 FOLGA_PENDENTE = timedelta(seconds=30)
 PEDIDOS_DE_EXPLICACAO_POR_HORA = 10
+UMA_HORA = timedelta(hours=1)
 JANELA_ALHEIA = timedelta(minutes=30)
 
 
@@ -191,26 +191,11 @@ def _registrar_abertura_alheia(
     a cada 3 s enquanto a IA escreve; dentro de JANELA_ALHEIA a mesma abertura conta uma vez."""
     dona = db.get(Usuario, investigacao.usuario_id)
     detalhe = f"{investigacao.valor[:200]} (de {dona.nome if dona else '?'}, {investigacao.id})"
-    repetida = db.scalar(
-        select(func.count())
-        .select_from(Evento)
-        .where(
-            Evento.tipo == "investigacao_alheia",
-            Evento.usuario == ctx.usuario.nome,
-            Evento.detalhe == detalhe,
-            Evento.quando >= agora() - JANELA_ALHEIA,
-        )
-    )
-    if repetida:
+    nome = ctx.usuario.nome
+    if trilha.contar_da_conta(db, "investigacao_alheia", nome, JANELA_ALHEIA, detalhe):
         return
-    trilha.registrar(
-        db,
-        "investigacao_alheia",
-        ip_do_cliente(request),
-        ctx.usuario.nome,
-        detalhe,
-        sessao=ctx.sessao.ref,
-    )
+    ip = ip_do_cliente(request)
+    trilha.registrar(db, "investigacao_alheia", ip, nome, detalhe, sessao=ctx.sessao.ref)
     db.commit()
 
 
@@ -230,7 +215,10 @@ def explicar_de_novo(
     explicador = request.app.state.explicador
     if not explicador.ativo or _estado_da_analise(investigacao) != "indisponivel":
         return JSONResponse({"erro": "Esta explicação já está pronta ou sendo escrita."}, 409)
-    if _pedidos_de_explicacao(db, ctx.usuario.nome) >= PEDIDOS_DE_EXPLICACAO_POR_HORA:
+    if (
+        trilha.contar_da_conta(db, "explicacao_pedida", ctx.usuario.nome, UMA_HORA)
+        >= PEDIDOS_DE_EXPLICACAO_POR_HORA
+    ):
         raise HTTPException(status_code=429)
     investigacao.analise_estado = "pendente"
     investigacao.analise_pedida_em = agora()
@@ -252,15 +240,3 @@ def explicar_de_novo(
     }
     explicador.pedir(investigacao.id, dados_da_mente(estado))
     return {"analise_estado": "pendente"}
-
-
-def _pedidos_de_explicacao(db: Session, nome: str) -> int:
-    return db.scalar(
-        select(func.count())
-        .select_from(Evento)
-        .where(
-            Evento.tipo == "explicacao_pedida",
-            Evento.usuario == nome,
-            Evento.quando >= agora() - timedelta(hours=1),
-        )
-    )

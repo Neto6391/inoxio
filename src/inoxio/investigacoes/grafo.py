@@ -83,6 +83,12 @@ def construir_grafo(fontes: list[Fonte], invocar: Invocar | None, buscar: Buscar
     grafo.add_node("consultar_fontes", consultar)
     grafo.add_node("decidir", decidir)
     grafo.add_node("mente", mente)
+    _ligar(grafo)
+    return grafo.compile()
+
+
+def _ligar(grafo: StateGraph) -> None:
+    """O caminho entre os nós; as rotas são funções puras do estado."""
     grafo.add_edge(START, "classificar")
     grafo.add_conditional_edges(
         "classificar", rota_entrada, {"ioc": "buscar_recente", "rejeitado": END}
@@ -95,4 +101,3 @@ def construir_grafo(fontes: list[Fonte], invocar: Invocar | None, buscar: Buscar
     grafo.add_edge("consultar_fontes", "decidir")
     grafo.add_edge("decidir", "mente")
     grafo.add_edge("mente", END)
-    return grafo.compile()

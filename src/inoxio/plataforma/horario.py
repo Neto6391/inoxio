@@ -1,4 +1,4 @@
-"""O dia de Brasília, onde as cotas zeram."""
+"""O dia de Brasília, onde as cotas zeram, e as datas no formato da API."""
 
 from __future__ import annotations
 
@@ -16,3 +16,8 @@ def inicio_do_dia(momento: datetime | None = None) -> datetime:
     em_brasilia = (momento or agora()).replace(tzinfo=UTC).astimezone(FUSO_BRASILIA)
     meia_noite = em_brasilia.replace(hour=0, minute=0, second=0, microsecond=0)
     return meia_noite.astimezone(UTC).replace(tzinfo=None)
+
+
+def iso(momento: datetime | None) -> str | None:
+    """A data como o JSON da API leva: ISO 8601, ou null quando não há."""
+    return momento.isoformat() if momento else None

@@ -54,6 +54,8 @@ def test_sessao_do_login_ao_logout(app, usuarios):
     entrar(admin, "chefe")
     [sessao] = sessoes(admin, "ana")["sessoes"]
     assert tipos(sessao) == ["login", "investigacao", "logout"]
+    # O nome que a tela mostra vem do servidor, da mesma lista que dá nome a todo tipo.
+    assert [evento["nome"] for evento in sessao["eventos"]] == ["entrou", "investigação", "saiu"]
     assert (sessao["aproximada"], sessao["motivo_fim"], sessao["acoes"]) == (False, "saiu", 1)
     assert sessao["fim"] >= sessao["inicio"]
 
@@ -148,6 +150,7 @@ def test_periodo_em_dias_de_brasilia_e_eventos_fora_de_sessao(app, usuarios, fab
     tudo = sessoes(admin, "ana")
     assert len(tudo["sessoes"]) == 2
     assert [evento["tipo"] for evento in tudo["fora_de_sessao"]] == ["login_falhou"]
+    assert [evento["nome"] for evento in tudo["fora_de_sessao"]] == ["senha errada"]
     antigo = (hoje - timedelta(days=10) + FUSO_BRASILIA.utcoffset(None)).date()
     recorte = sessoes(admin, "ana", de=antigo.isoformat(), ate=antigo.isoformat())
     assert len(recorte["sessoes"]) == 1 and len(recorte["fora_de_sessao"]) == 1

@@ -7,14 +7,12 @@ from datetime import timedelta
 from fastapi import APIRouter, BackgroundTasks, Depends, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from inoxio.auditoria import trilha
-from inoxio.auditoria.modelos import Evento
-from inoxio.contas import credenciais, regras
+from inoxio.contas import credenciais, emails, regras
 from inoxio.contas.modelos import Usuario
-from inoxio.plataforma.banco import agora
 from inoxio.web.dependencias import banco, ip_do_cliente
 
 rotas = APIRouter(prefix="/api/senha")
@@ -38,34 +36,12 @@ class SenhaNova(BaseModel):
     senha: str = Field(max_length=256)
 
 
-def _texto_do_email(nome: str, link: str) -> str:
-    return (
-        f"Olá, {nome}.\n\n"
-        "Recebemos um pedido para criar uma senha nova para a sua conta no Inóxio. "
-        f"Abra o link abaixo na próxima hora:\n\n{link}\n\n"
-        "Se não foi você, ignore esta mensagem: a senha atual continua valendo.\n"
-    )
-
-
-def _emails_recentes(db: Session, nome: str) -> int:
-    """Links mandados para a conta na última hora (o evento leva o nome só quando há envio)."""
-    return db.scalar(
-        select(func.count())
-        .select_from(Evento)
-        .where(
-            Evento.tipo == "senha_pedida",
-            Evento.usuario == nome,
-            Evento.quando >= agora() - JANELA_PEDIDOS,
-        )
-    )
-
-
 @rotas.post("/esqueci", status_code=202)
 def esqueci(
     request: Request, pedido: PedidoSenha, tarefas: BackgroundTasks, db: Session = Depends(banco)
 ):
     ip = ip_do_cliente(request)
-    if trilha.contar(db, "senha_pedida", ip, JANELA_PEDIDOS) >= PEDIDOS_POR_IP:
+    if trilha.contar_do_ip(db, "senha_pedida", ip, JANELA_PEDIDOS) >= PEDIDOS_POR_IP:
         return JSONResponse({"erro": "Muitos pedidos deste endereço. Tente mais tarde."}, 429)
     try:
         email = regras.normalizar_email(pedido.email)
@@ -84,17 +60,17 @@ def esqueci(
     if (
         enviar
         and regras.pode_redefinir(usuario)
-        and _emails_recentes(db, usuario.nome) < EMAILS_POR_CONTA
+        # O evento leva o nome só quando há envio: conta os links mandados à conta.
+        and trilha.contar_da_conta(db, "senha_pedida", usuario.nome, JANELA_PEDIDOS)
+        < EMAILS_POR_CONTA
     ):
         token = credenciais.abrir_redefinicao(db, usuario)
     # O e-mail digitado não entra na auditoria: pode ser de quem nunca teve conta.
     trilha.registrar(db, "senha_pedida", ip, usuario.nome if token else None)
     db.commit()
     if token:
-        link = f"{request.app.state.config.url_publica}/redefinir#{token}"
-        tarefas.add_task(
-            enviar, usuario.email, "Senha nova no Inóxio", _texto_do_email(usuario.nome, link)
-        )
+        aviso = emails.senha_nova(usuario.nome, emails.link(request, "redefinir", token))
+        emails.agendar(tarefas, enviar, usuario.email, aviso)
     return resposta
 
 
