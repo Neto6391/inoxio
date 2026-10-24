@@ -1,4 +1,4 @@
-"""Dependências de acesso: banco, sessão e CSRF."""
+"""Dependências de acesso: banco, sessão, CSRF e o IP de quem chama."""
 
 from __future__ import annotations
 
@@ -9,8 +9,8 @@ from dataclasses import dataclass
 from fastapi import Depends, HTTPException, Request
 from sqlalchemy.orm import Session
 
-from inoxio.db import Sessao, Usuario
-from inoxio.seguranca import sessoes
+from inoxio.contas import sessoes
+from inoxio.contas.modelos import Sessao, Usuario
 
 CABECALHO_CSRF = "X-CSRF-Token"
 
@@ -51,3 +51,8 @@ def conferir_csrf(ctx: Contexto, token: str) -> None:
 
 def token_csrf(request: Request) -> str:
     return request.headers.get(CABECALHO_CSRF, "")
+
+
+def ip_do_cliente(request: Request) -> str:
+    # Com o ProxyHeadersMiddleware, só a borda confiável consegue declarar o IP.
+    return request.client.host if request.client else "desconhecido"

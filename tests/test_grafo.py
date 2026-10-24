@@ -1,9 +1,9 @@
 import json
 
-from inoxio.agente.desenhar import README, bloco
-from inoxio.agente.fontes import evidencia
-from inoxio.agente.grafo import construir_grafo
-from inoxio.agente.mente import VERSAO_ANALISE
+from inoxio.investigacoes.desenhar import README, bloco
+from inoxio.investigacoes.fontes.base import evidencia
+from inoxio.investigacoes.grafo import construir_grafo
+from inoxio.investigacoes.ia.instrucoes import VERSAO_ANALISE
 
 VALIDA = {"resumo": "ok", "tecnicas_mitre": [], "recomendacoes": [], "confianca": "baixa"}
 MALICIOSA = evidencia(
@@ -103,7 +103,7 @@ def test_sem_consulta_anterior_consulta_as_fontes():
 
 def test_readme_tem_o_grafo_atual():
     texto = README.read_text(encoding="utf-8")
-    assert bloco() in texto, "rode: uv run python -m inoxio.agente.desenhar"
+    assert bloco() in texto, "rode: uv run python -m inoxio.investigacoes.desenhar"
 
 
 class FontePorTipo:
@@ -161,7 +161,7 @@ def test_caminho_da_url_vai_so_nos_dados_nao_confiaveis():
 
 def test_campos_so_da_tela_nao_vao_para_a_ia():
     # As instruções foram medidas sem estes números; eles servem à tela.
-    from inoxio.agente.grafo import dados_da_mente
+    from inoxio.investigacoes.grafo import dados_da_mente
 
     vt = evidencia(
         "virustotal",
@@ -195,7 +195,7 @@ def test_campos_so_da_tela_nao_vao_para_a_ia():
 
 
 def test_ips_alem_dos_consultados_nao_vao_para_a_ia():
-    from inoxio.agente.grafo import dados_da_mente
+    from inoxio.investigacoes.grafo import dados_da_mente
 
     dns = evidencia(
         "dns",

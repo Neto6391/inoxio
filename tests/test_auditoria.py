@@ -5,9 +5,10 @@ from ajudantes import SENHA, csrf, entrar
 from fastapi.testclient import TestClient
 from sqlalchemy import select
 
-from inoxio.agente.fontes import evidencia
-from inoxio.agente.grafo import construir_grafo
-from inoxio.db import Evento, agora
+from inoxio.auditoria.modelos import Evento
+from inoxio.investigacoes.fontes.base import evidencia
+from inoxio.investigacoes.grafo import construir_grafo
+from inoxio.plataforma.banco import agora
 from inoxio.web.app import criar_app
 
 MALICIOSA = evidencia(

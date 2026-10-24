@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 import yaml
 
-from inoxio.db import criar_fabrica
+from inoxio.plataforma.banco import criar_fabrica
 
 RAIZ = Path(__file__).resolve().parents[1] / "infra" / "observabilidade"
 PAINEL = json.loads((RAIZ / "paineis" / "inoxio.json").read_text(encoding="utf-8"))

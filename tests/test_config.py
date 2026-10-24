@@ -1,4 +1,4 @@
-from inoxio.config import Config
+from inoxio.plataforma.config import Config
 
 
 def test_padrao_nao_tem_segredo():

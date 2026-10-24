@@ -3,8 +3,9 @@ from ajudantes import SENHA, csrf, entrar
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, inspect, select, text
 
-from inoxio import usuarios as usuarios_mod
-from inoxio.db import Usuario, criar_fabrica
+from inoxio.contas import administracao, registro, regras
+from inoxio.contas.modelos import Usuario
+from inoxio.plataforma.banco import criar_fabrica
 
 NOVA = "outra-senha-bem-longa"
 
@@ -155,10 +156,10 @@ def test_ultimo_admin_ativo_nao_perde_o_papel(fabrica, usuarios):
     with fabrica() as db:
         chefe = db.scalar(select(Usuario).where(Usuario.nome == "chefe"))
         ana = db.scalar(select(Usuario).where(Usuario.nome == "ana"))
-        with pytest.raises(usuarios_mod.Conflito, match="pelo menos um admin"):
-            usuarios_mod.alterar(db, chefe, ana, papel="analista")
-        with pytest.raises(usuarios_mod.Conflito, match="pelo menos um admin"):
-            usuarios_mod.alterar(db, chefe, ana, ativo=False)
+        with pytest.raises(regras.Conflito, match="pelo menos um admin"):
+            administracao.alterar(db, chefe, ana, papel="analista")
+        with pytest.raises(regras.Conflito, match="pelo menos um admin"):
+            administracao.alterar(db, chefe, ana, ativo=False)
 
 
 def test_com_outro_admin_o_papel_pode_sair(app, cliente, usuarios):
@@ -251,7 +252,7 @@ def test_sessao_de_conta_desativada_direto_no_banco_nao_vale(cliente, usuarios, 
 def test_lista_de_usuarios_filtra_e_pagina(cliente, usuarios, fabrica):
     with fabrica() as db, db.begin():
         for n in range(25):
-            usuarios_mod.criar(db, f"conta{n:02d}", "analista", NOVA, email=f"c{n}@exemplo.com")
+            registro.criar(db, f"conta{n:02d}", "analista", NOVA, email=f"c{n}@exemplo.com")
         db.scalar(select(Usuario).where(Usuario.nome == "beto")).ativo = False
         db.scalar(select(Usuario).where(Usuario.nome == "ana")).nome_exibicao = "Ana Maria"
     entrar(cliente, "chefe")

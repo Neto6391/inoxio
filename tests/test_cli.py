@@ -2,7 +2,7 @@ import pytest
 from sqlalchemy import select
 
 from inoxio.cli import criar_usuario, main
-from inoxio.db import Usuario
+from inoxio.contas.modelos import Usuario
 
 
 def test_cria_usuario_com_hash(fabrica):

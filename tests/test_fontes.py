@@ -3,14 +3,10 @@ import time
 
 import httpx
 
-from inoxio.agente.fontes import (
-    AbuseIPDB,
-    ResolucaoDNS,
-    VirusTotal,
-    consultar_fontes,
-    evidencia,
-    id_da_url,
-)
+from inoxio.investigacoes.fontes.abuseipdb import AbuseIPDB
+from inoxio.investigacoes.fontes.base import consultar_fontes, evidencia
+from inoxio.investigacoes.fontes.dns import ResolucaoDNS
+from inoxio.investigacoes.fontes.virustotal import VirusTotal, id_da_url
 
 MD5 = "d41d8cd98f00b204e9800998ecf8427e"
 
@@ -194,8 +190,8 @@ def test_dns_lento_vira_falha_sem_travar():
 
 
 def test_grafo_de_producao_traz_os_ips_do_dominio(monkeypatch):
-    from inoxio.config import Config
-    from inoxio.db import criar_fabrica
+    from inoxio.plataforma.banco import criar_fabrica
+    from inoxio.plataforma.config import Config
     from inoxio.web.app import grafo_de_producao
 
     def responder(requisicao):

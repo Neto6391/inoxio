@@ -1,24 +1,24 @@
 import pytest
 
-from inoxio.seguranca import senhas
+from inoxio.contas import credenciais
 
 
 def test_hash_e_argon2id():
-    assert senhas.gerar_hash("uma-senha-bem-longa").startswith("$argon2id$")
+    assert credenciais.gerar_hash("uma-senha-bem-longa").startswith("$argon2id$")
 
 
 def test_senha_curta_e_recusada():
     with pytest.raises(ValueError):
-        senhas.gerar_hash("curta")
+        credenciais.gerar_hash("curta")
 
 
 def test_confere_certa_e_errada():
-    senha_hash = senhas.gerar_hash("uma-senha-bem-longa")
-    assert senhas.conferir(senha_hash, "uma-senha-bem-longa")
-    assert not senhas.conferir(senha_hash, "outra-senha-longa")
+    senha_hash = credenciais.gerar_hash("uma-senha-bem-longa")
+    assert credenciais.conferir(senha_hash, "uma-senha-bem-longa")
+    assert not credenciais.conferir(senha_hash, "outra-senha-longa")
 
 
 def test_usuario_inexistente_nunca_confere():
-    assert not senhas.conferir(None, "qualquer-coisa-aqui")
+    assert not credenciais.conferir(None, "qualquer-coisa-aqui")
     # Nem com a senha do hash usado para gastar tempo.
-    assert not senhas.conferir(None, senhas._SENHA_FALSA)
+    assert not credenciais.conferir(None, credenciais._SENHA_FALSA)

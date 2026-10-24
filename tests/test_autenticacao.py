@@ -4,8 +4,9 @@ from ajudantes import SENHA, csrf, entrar
 from fastapi.testclient import TestClient
 from sqlalchemy import select, update
 
-from inoxio.db import Sessao, agora
-from inoxio.seguranca.sessoes import NOME_COOKIE
+from inoxio.contas.modelos import Sessao
+from inoxio.contas.sessoes import NOME_COOKIE
+from inoxio.plataforma.banco import agora
 
 
 def test_sem_sessao_o_app_sabe_que_ninguem_entrou_sem_erro(cliente):

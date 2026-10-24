@@ -1,1 +1,1 @@
-"""Inóxio: agente Blue Team que investiga IOCs e audita o hardening do host."""
+"""Inóxio: investiga indicadores (IP, domínio, URL, hash) e explica o resultado."""

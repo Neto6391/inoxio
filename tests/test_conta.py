@@ -4,8 +4,10 @@ from ajudantes import SENHA, csrf, entrar
 from fastapi.testclient import TestClient
 from sqlalchemy import select
 
-from inoxio.db import Evento, Investigacao, Sessao, Usuario
-from inoxio.usuarios import VERSAO_TERMOS
+from inoxio.auditoria.modelos import Evento
+from inoxio.contas.modelos import Sessao, Usuario
+from inoxio.contas.regras import VERSAO_TERMOS
+from inoxio.investigacoes.modelos import Investigacao
 
 
 def id_de(fabrica, nome):

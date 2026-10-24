@@ -6,11 +6,13 @@ import pytest
 from ajudantes import csrf, entrar
 from sqlalchemy import create_engine, inspect, select, text
 
-from inoxio.agente.fontes import evidencia
-from inoxio.agente.grafo import construir_grafo
-from inoxio.db import Investigacao, Usuario, agora, criar_fabrica
-from inoxio.explicador import ESPERA_ESQUEMA, ESPERAS_429, PRAZO, Explicador
-from inoxio.historico import buscador
+from inoxio.contas.modelos import Usuario
+from inoxio.investigacoes.fontes.base import evidencia
+from inoxio.investigacoes.grafo import construir_grafo
+from inoxio.investigacoes.historico import buscador
+from inoxio.investigacoes.ia.explicador import ESPERA_ESQUEMA, ESPERAS_429, PRAZO, Explicador
+from inoxio.investigacoes.modelos import Investigacao
+from inoxio.plataforma.banco import agora, criar_fabrica
 from inoxio.web.app import criar_app
 
 BOA = {

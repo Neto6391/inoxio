@@ -3,8 +3,11 @@ from datetime import timedelta
 from ajudantes import entrar
 from sqlalchemy import select
 
+from inoxio.auditoria.modelos import Evento
 from inoxio.cli import criar_usuario
-from inoxio.db import Evento, Investigacao, Usuario, agora
+from inoxio.contas.modelos import Usuario
+from inoxio.investigacoes.modelos import Investigacao
+from inoxio.plataforma.banco import agora
 
 
 def vt(maliciosos, fonte="virustotal"):

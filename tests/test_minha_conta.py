@@ -3,7 +3,8 @@ from ajudantes import SENHA, CaixaDeSaida, csrf, entrar
 from fastapi.testclient import TestClient
 from sqlalchemy import select
 
-from inoxio.db import Evento, TrocaEmail, Usuario
+from inoxio.auditoria.modelos import Evento
+from inoxio.contas.modelos import TrocaEmail, Usuario
 from inoxio.web.app import criar_app
 
 NOVA = "senha-nova-bem-longa"

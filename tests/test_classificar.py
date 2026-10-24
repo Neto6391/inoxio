@@ -1,6 +1,6 @@
 import pytest
 
-from inoxio.agente.classificar import classificar_entrada, host_da_url
+from inoxio.investigacoes.classificar import classificar_entrada, host_da_url
 
 MD5 = "d41d8cd98f00b204e9800998ecf8427e"
 SHA1 = "da39a3ee5e6b4b0d3255bfef95601890afd80709"

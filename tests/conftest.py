@@ -3,8 +3,8 @@ from ajudantes import SENHA
 from fastapi.testclient import TestClient
 
 from inoxio.cli import criar_usuario
-from inoxio.config import Config
-from inoxio.db import criar_fabrica
+from inoxio.plataforma.banco import criar_fabrica
+from inoxio.plataforma.config import Config
 from inoxio.web.app import criar_app
 
 INDEX = '<!doctype html><meta name="csp-nonce" content="__CSP_NONCE__"><div id="raiz"></div>'
