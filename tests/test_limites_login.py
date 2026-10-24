@@ -28,10 +28,8 @@ def test_tentativas_em_paralelo_nao_furam_o_limite(cliente, usuarios):
     assert sorted(respostas) == [401] * 5 + [429] * 5
 
 
-def test_senhas_erradas_de_outro_ip_nao_trancam_o_dono(fabrica, usuarios, config):
-    app = criar_app(
-        Config(proxies_confiaveis="*", frontend_dir=config.frontend_dir), fabrica=fabrica
-    )
+def test_senhas_erradas_de_outro_ip_nao_trancam_o_dono(fabrica, usuarios):
+    app = criar_app(Config(proxies_confiaveis="*"), fabrica=fabrica)
     cliente = TestClient(app, base_url="https://testserver")
 
     def de(ip, senha=ERRADA):
@@ -95,10 +93,8 @@ def test_x_forwarded_for_forjado_e_ignorado(cliente, usuarios, fabrica):
         assert db.scalars(select(TentativaLogin.ip)).all() == ["testclient"]
 
 
-def test_proxy_confiavel_repassa_o_ip(fabrica, usuarios, config):
-    app = criar_app(
-        Config(proxies_confiaveis="*", frontend_dir=config.frontend_dir), fabrica=fabrica
-    )
+def test_proxy_confiavel_repassa_o_ip(fabrica, usuarios):
+    app = criar_app(Config(proxies_confiaveis="*"), fabrica=fabrica)
     cliente = TestClient(app, base_url="https://testserver")
     cliente.post(
         "/api/login",

@@ -14,8 +14,9 @@ services:
     networks: [ensaio]
 
   app-falso:
-    image: traefik/whoami
-    command: ["--port", "8100"]
+    image: nginx:stable@sha256:b972f831f200b19ef0767938224f9711e74cd783718738cd7405d5cabf75c442
+    volumes:
+      - ./app-falso.conf:/etc/nginx/conf.d/default.conf:ro
     networks: [ensaio]
 
   traefik:
@@ -50,6 +51,8 @@ services:
       - ../borda/em-construcao.html:/usr/share/nginx/borda/em-construcao.html:ro
       - ./tls:/etc/nginx/tls:ro
       - ./webroot:/var/www/certbot:ro
+      # Dois builds falsos e o link "atual", no mesmo caminho da produção.
+      - ./frontend:/home/inoxio/frontend:ro
     networks:
       ensaio:
         ipv4_address: 172.30.99.2

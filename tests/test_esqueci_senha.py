@@ -125,15 +125,13 @@ def test_pedido_de_outra_pessoa_nao_derruba_o_link_que_a_dona_pediu(
     assert redefinir(cliente, caixa.token("/redefinir#")).status_code == 400
 
 
-def test_no_maximo_tres_emails_por_conta_por_hora_de_ips_diferentes(
-    config, usuarios, caixa, fabrica
-):
+def test_no_maximo_tres_emails_por_conta_por_hora_de_ips_diferentes(usuarios, caixa, fabrica):
     from fastapi.testclient import TestClient
 
     from inoxio.plataforma.config import Config
 
     app = criar_app(
-        Config(proxies_confiaveis="*", frontend_dir=config.frontend_dir),
+        Config(proxies_confiaveis="*"),
         fabrica=fabrica,
         enviar_email=caixa,
     )

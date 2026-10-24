@@ -13,9 +13,8 @@ def test_documentacao_automatica_desligada(cliente):
 
 
 def test_head_responde_como_get(cliente):
-    # Monitores de disponibilidade costumam testar com HEAD.
+    # Monitores de disponibilidade costumam testar com HEAD. O HEAD da página é da borda.
     assert cliente.head("/saude").status_code == 200
-    assert cliente.head("/").status_code == 200
 
 
 def test_cliente_http_fecha_quando_o_app_para(app):

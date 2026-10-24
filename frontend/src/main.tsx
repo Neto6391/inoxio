@@ -6,7 +6,7 @@ import { App } from "./app/App";
 import { type Tema, useTema } from "./app/tema";
 import "./estilo.css";
 
-// O servidor troca o marcador por um nonce novo a cada resposta. O antd
+// A borda troca o marcador por um nonce novo a cada resposta. O antd
 // usa esse nonce nos estilos que injeta, e a CSP continua sem 'unsafe-inline'.
 const meta = document.querySelector<HTMLMetaElement>('meta[name="csp-nonce"]');
 const nonce = meta && meta.content !== "__CSP_NONCE__" ? meta.content : undefined;

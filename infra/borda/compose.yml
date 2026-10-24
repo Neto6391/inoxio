@@ -13,3 +13,5 @@ services:
       - ./tls:/etc/nginx/tls:ro
       - /var/www/certbot:/var/www/certbot:ro
       - /etc/letsencrypt:/etc/letsencrypt:ro
+      # O React publicado; o caminho é o mesmo do host para o link "atual" resolver.
+      - /home/inoxio/frontend:/home/inoxio/frontend:ro
