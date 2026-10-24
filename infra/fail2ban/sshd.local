@@ -3,6 +3,9 @@
 enabled  = true
 port     = ssh
 backend  = systemd
+# No Ubuntu 24.04 o serviço é ssh.service. O padrão do Fail2Ban 1.0.2 procura
+# sshd.service, que não tem nenhuma linha: sem isto, a jail nunca vê uma tentativa.
+journalmatch = _SYSTEMD_UNIT=ssh.service + _COMM=sshd
 maxretry = 4
 findtime = 10m
 bantime  = 86400
