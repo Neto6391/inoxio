@@ -2,8 +2,8 @@ import { App as AntApp, ConfigProvider, theme, type ThemeConfig } from "antd";
 import ptBR from "antd/locale/pt_BR";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
-import { App } from "./App";
-import { type Tema, useTema } from "./tema";
+import { App } from "./app/App";
+import { type Tema, useTema } from "./app/tema";
 import "./estilo.css";
 
 // O servidor troca o marcador por um nonce novo a cada resposta. O antd
