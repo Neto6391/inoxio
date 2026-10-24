@@ -1,5 +1,5 @@
 import type { CSSProperties } from "react";
-import { CORES_VEREDITO, diaCurto, NOMES_TIPO, NOMES_VEREDITO } from "../compartilhado/formato";
+import { CORES_VEREDITO, diaCurto, NOMES_TIPO, NOMES_VEREDITO } from "../../compartilhado/formato";
 
 export type Dia = { dia: string; vereditos: Record<string, number> };
 

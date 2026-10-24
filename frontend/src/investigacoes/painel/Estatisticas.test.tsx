@@ -1,7 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import { afterEach, expect, test, vi } from "vitest";
-import { App } from "../app/App";
-import { navegar } from "../app/rotas";
+import { App } from "../../app/App";
+import { navegar } from "../../app/rotas";
 
 afterEach(() => {
   vi.unstubAllGlobals();

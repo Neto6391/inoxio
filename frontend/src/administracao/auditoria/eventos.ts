@@ -1,6 +1,3 @@
-import { Flex, Typography } from "antd";
-import { AuditoriaPorUsuario } from "./AuditoriaPorUsuario";
-
 // O nome de cada tipo de evento; um teste do servidor confere que todo tipo registrado
 // (TIPOS_EVENTO) tem nome aqui.
 export const NOMES_EVENTO: Record<string, { texto: string; cor: string }> = {
@@ -30,17 +27,18 @@ export function nomeDoEvento(tipo: string) {
   return NOMES_EVENTO[tipo] ?? { texto: tipo, cor: "default" };
 }
 
-export function Auditoria() {
-  return (
-    <Flex vertical gap="large">
-      <div>
-        <Typography.Title level={2}>Auditoria</Typography.Title>
-        <Typography.Text type="secondary">
-          Quem entrou, quem errou a senha, o que foi investigado e o que o admin mudou, por
-          usuário. Os eventos ficam guardados por 90 dias.
-        </Typography.Text>
-      </div>
-      <AuditoriaPorUsuario />
-    </Flex>
-  );
-}
+export type EventoDaSessao = { quando: string; tipo: string; ip: string; detalhe: string };
+
+export type SessaoAuditada = {
+  id: string;
+  aproximada: boolean;
+  inicio_registrado: boolean;
+  inicio: string;
+  fim: string | null;
+  motivo_fim: string | null;
+  aberta: boolean;
+  expira_em?: string;
+  ip: string;
+  acoes: number;
+  eventos: EventoDaSessao[];
+};

@@ -1,6 +1,6 @@
 import { Alert, Button, Card, Flex, Tag, Typography } from "antd";
-import { IconeCheck, IconeLampada } from "../compartilhado/icones";
-import type { Analise } from "../compartilhado/tipos";
+import { IconeCheck, IconeLampada } from "../../compartilhado/icones";
+import type { Analise } from "../../compartilhado/tipos";
 
 const CONFIANCA: Record<string, string> = { baixa: "baixa", media: "média", alta: "alta" };
 

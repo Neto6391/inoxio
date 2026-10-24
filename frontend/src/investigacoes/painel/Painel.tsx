@@ -1,12 +1,12 @@
 import { Alert, Button, Card, Flex, Form, Input, Typography } from "antd";
 import { useState } from "react";
-import { chamar, ErroApi, mensagemDeErro, SESSAO_TROCADA } from "../compartilhado/api";
-import { Carregando } from "../compartilhado/Carregando";
-import { acabaram } from "./Creditos";
+import { chamar, ErroApi, mensagemDeErro, SESSAO_TROCADA } from "../../compartilhado/api";
+import { Carregando } from "../../compartilhado/Carregando";
+import { acabaram } from "../Creditos";
 import { MinhasEstatisticas } from "./Estatisticas";
-import { ListaInvestigacoes } from "./Investigacoes";
-import { Link, navegar } from "../app/rotas";
-import type { Creditos } from "../compartilhado/tipos";
+import { ListaInvestigacoes } from "../Investigacoes";
+import { Link, navegar } from "../../app/rotas";
+import type { Creditos } from "../../compartilhado/tipos";
 
 function saudacao(agora = new Date()): string {
   const hora = Number(
