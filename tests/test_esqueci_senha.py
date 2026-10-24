@@ -213,7 +213,8 @@ def test_todo_tipo_de_evento_registrado_aparece_no_filtro_da_auditoria():
 
 def test_todo_tipo_de_evento_tem_nome_na_tela_da_auditoria():
     # A tela tira as etiquetas da lista do servidor; sem nome, a etiqueta sai crua.
-    tela = Path(__file__).parents[1] / "frontend" / "src" / "Auditoria.tsx"
+    frontend = Path(__file__).parents[1] / "frontend" / "src"
+    tela = frontend / "administracao" / "auditoria" / "eventos.ts"
     nomes = set(re.findall(r"^  (\w+): \{ texto:", tela.read_text(encoding="utf-8"), re.M))
     assert set(TIPOS_EVENTO) <= nomes, set(TIPOS_EVENTO) - nomes
 

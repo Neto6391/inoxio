@@ -124,7 +124,7 @@ graph TD;
   sessão aberta, o logo e o endereço `/` levam ao Início: a página pública e o login
   só voltam depois de sair ou de a sessão vencer (1 hora sem uso, ou 8 horas no
   total). As datas aparecem no horário de Brasília (DD/MM/AAAA hh:mm:ss). As telas e
-  quem é filho de quem ficam numa lista só, em `frontend/src/navegacao.tsx`.
+  quem é filho de quem ficam numa lista só, em `frontend/src/app/navegacao.tsx`.
 - **Início** (`/inicio`; o endereço antigo `/painel` leva a ele): boas-vindas pelo nome, créditos restantes e os números do usuário, gráficos das
   investigações dos últimos 14 dias por veredito, da divisão por veredito e por tipo
   de indicador, as ameaças encontradas, os 10 indicadores mais pesquisados, o campo
@@ -197,9 +197,16 @@ src/inoxio/
   plataforma/     o que não é regra de negócio: configuração, banco, e-mail,
                   paginação, horário de Brasília e endereço de origem
   web/            a montagem do app, dependências de acesso e entrega do React
-frontend/src/  telas de login, painel e investigação
-infra/         Nginx da borda, Fail2Ban, Certbot e o script de deploy
-tests/         testes do backend (pytest)
+frontend/src/
+  app/            a casca: rotas, mapa das telas, menu, topo, tema e a sessão
+  compartilhado/  API, tipos, formatos, ícones, janela, paginação e carregamento
+  publico/        a página inicial (landing/) e os documentos legais (documentos/)
+  acesso/         entrar, criar conta, ativar, senha esquecida, termos e apresentação
+  investigacoes/  o painel (painel/), a lista e o resultado de cada uma (investigacao/)
+  conta/          Minha conta: perfil, e-mail, senha, dados e exclusão
+  administracao/  visão geral, usuários (usuarios/) e auditoria (auditoria/)
+infra/            Nginx da borda, Fail2Ban, Certbot e o script de deploy
+tests/            testes do backend (pytest); os do frontend ficam ao lado das telas
 ```
 
 ## OWASP Top 10:2025
@@ -216,7 +223,7 @@ falha se ele for removido.
 | Cadastro e lista de usuários só para o papel `admin`, que nunca vê o hash das senhas | `exigir_admin` em `src/inoxio/web/dependencias.py`; `src/inoxio/contas/rotas/usuarios.py` | `test_usuarios.py::test_analista_nao_lista_nem_cadastra`, `::test_admin_lista_sem_expor_hash` |
 | Trilha de auditoria lida só pelo `admin`; a alteração de senha entra como "senha trocada", nunca o valor; o admin abrindo investigação de outra pessoa fica registrado | `src/inoxio/auditoria/trilha.py`, `auditoria_por_usuario` em `src/inoxio/auditoria/rotas.py` | `test_auditoria.py` |
 | Minha conta só mostra, exporta e exclui a conta da própria sessão; a exclusão pede a senha de novo, para uma sessão esquecida aberta não bastar | `src/inoxio/contas/rotas/conta.py`, `excluir` em `src/inoxio/contas/exclusao.py` | `test_conta.py::test_baixar_meus_dados_traz_so_o_que_e_meu`, `::test_excluir_exige_a_senha_e_o_csrf`, `::test_excluir_tira_o_nome_do_detalhe_dos_eventos_do_admin` |
-| Escrita exige o token CSRF da sessão no cabeçalho `X-CSRF-Token`, comparado em tempo constante | `conferir_csrf` em `src/inoxio/web/dependencias.py`; o frontend envia em `frontend/src/api.ts` | `test_web_agente.py::test_post_sem_csrf_e_recusado`, `test_autenticacao.py::test_logout_sem_csrf_e_recusado` |
+| Escrita exige o token CSRF da sessão no cabeçalho `X-CSRF-Token`, comparado em tempo constante | `conferir_csrf` em `src/inoxio/web/dependencias.py`; o frontend envia em `frontend/src/compartilhado/api.ts` | `test_web_agente.py::test_post_sem_csrf_e_recusado`, `test_autenticacao.py::test_logout_sem_csrf_e_recusado` |
 | A API só aceita corpo JSON, o que barra formulário vindo de outro site | modelos Pydantic em `src/inoxio/contas/rotas/autenticacao.py` | `test_autenticacao.py::test_login_por_formulario_e_recusado` |
 
 ### A05 Injection

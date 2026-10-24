@@ -133,6 +133,8 @@ test("Investigações vem em páginas e busca pelo indicador", async () => {
   abrir("/investigacoes", pedidos);
   expect(await screen.findByText("10.0.1.0")).toBeInTheDocument();
   expect(screen.getByText("45 investigações")).toBeInTheDocument();
+  // O tamanho da página é do servidor: um número escrito na tela já mentiu uma vez (20 contra 5).
+  expect(screen.queryByText(/por página/)).toBeNull();
   prender();
   fireEvent.click(screen.getByTitle("3"));
   expect(await screen.findByText("Carregando a página 3")).toBeInTheDocument();

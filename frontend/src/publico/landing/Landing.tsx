@@ -2,7 +2,7 @@ import { INICIO } from "../../app/navegacao";
 import { navegar } from "../../app/rotas";
 import { Rodape } from "../../compartilhado/Rodape";
 import type { Sessao } from "../../compartilhado/tipos";
-import { usePublico } from "../Documentos";
+import { usePublico } from "../documentos/Documento";
 import { ChamadaFinal, ComoFunciona, Destaque, Planos, Recursos, TiposEGarantias, Topo } from "./Secoes";
 
 export function Landing({ sessao }: { sessao: Sessao | null }) {

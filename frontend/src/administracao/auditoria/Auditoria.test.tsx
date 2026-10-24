@@ -99,10 +99,6 @@ const SESSOES = {
   fora_de_sessao: pagina([{ quando: "2026-10-22T10:00:00", tipo: "login_falhou", ip: "9.9.9.9", detalhe: "" }], 5),
 };
 
-async function abrirEventos() {
-  fireEvent.click(await screen.findByText("Todos os eventos"));
-}
-
 test("analista não tem a auditoria", async () => {
   const pedidos: string[] = [];
   servidor("analista", pedidos);

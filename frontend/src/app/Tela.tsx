@@ -8,7 +8,8 @@ import { Conta } from "../conta/Conta";
 import { Investigacao } from "../investigacoes/investigacao/Investigacao";
 import { Investigacoes } from "../investigacoes/Investigacoes";
 import { Painel } from "../investigacoes/painel/Painel";
-import { Privacidade, Termos } from "../publico/Documentos";
+import { Privacidade } from "../publico/documentos/Privacidade";
+import { Termos } from "../publico/documentos/Termos";
 import { INICIO } from "./navegacao";
 import { navegar } from "./rotas";
 

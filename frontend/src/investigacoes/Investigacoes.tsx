@@ -36,22 +36,22 @@ export function ListaInvestigacoes({ limite, busca = "", paginar = false }: Prop
   const itens = limite ? pagina.itens.slice(0, limite) : pagina.itens;
   return (
     <>
-    <List<ResumoInvestigacao>
-      dataSource={itens}
-      renderItem={(item) => (
-        <List.Item
-          className="item-recente"
-          onClick={() => navegar(`/investigacoes/${item.id}`)}
-          extra={<TagVeredito veredito={item.veredito} />}
-        >
-          <List.Item.Meta
-            title={<span className="indicador">{item.valor}</span>}
-            description={`${NOMES_TIPO[item.tipo] ?? item.tipo} · ${quando(item.criada_em)}`}
-          />
-        </List.Item>
-      )}
-    />
-    {rodape}
+      <List<ResumoInvestigacao>
+        dataSource={itens}
+        renderItem={(item) => (
+          <List.Item
+            className="item-recente"
+            onClick={() => navegar(`/investigacoes/${item.id}`)}
+            extra={<TagVeredito veredito={item.veredito} />}
+          >
+            <List.Item.Meta
+              title={<span className="indicador">{item.valor}</span>}
+              description={`${NOMES_TIPO[item.tipo] ?? item.tipo} · ${quando(item.criada_em)}`}
+            />
+          </List.Item>
+        )}
+      />
+      {rodape}
     </>
   );
 }
@@ -63,8 +63,8 @@ export function Investigacoes() {
       <div>
         <Typography.Title level={2}>Investigações</Typography.Title>
         <Typography.Text type="secondary">
-          Todas as suas investigações, da mais nova para a mais antiga, 20 por página. Horários de
-          Brasília.
+          {/* Sem o tamanho da página aqui: quem decide é o servidor, e a paginação mostra o total. */}
+          Todas as suas investigações, da mais nova para a mais antiga. Horários de Brasília.
         </Typography.Text>
       </div>
       <Card>
