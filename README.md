@@ -278,7 +278,10 @@ VPS na Hostinger com Ubuntu Server 24.04.4 LTS.
   tem snap. A renovação roda duas vezes por dia pelo timer
   `infra/certbot/certbot-renova.timer`; o `certbot renew --dry-run` passou.
 - **SSH:** só por chave (`PasswordAuthentication no`). Fail2Ban na porta 22 com 4
-  erros e banimento de 24 h (`infra/fail2ban/sshd.local`).
+  erros e banimento de 24 h (`infra/fail2ban/sshd.local`). A jail lê o journal
+  de `ssh.service`, o nome do serviço no Ubuntu 24.04; até 24/10/2026 lia o de
+  `sshd.service`, vazio, e nunca tinha banido ninguém. Conferido com cinco logins
+  falhos de um container: o quinto já foi recusado e o IP entrou na lista.
 - **Firewall:** UFW negando toda entrada por padrão; abertas só a 22, a 80 e a
   443 (mais a do outro sistema, ver os desvios).
 - **App:** uvicorn ouvindo só em `127.0.0.1:8100`, rodando como o usuário
@@ -286,12 +289,16 @@ VPS na Hostinger com Ubuntu Server 24.04.4 LTS.
   `NoNewPrivileges` (`infra/implantacao/inoxio.service`). As chaves das APIs
   ficam em `~/.config/inoxio/env`, com modo 600, fora do repositório.
 
-Resultado dos testes de TLS, feitos em 26/09/2026 no endereço `179.199.133.136`:
+Resultado dos testes de TLS no endereço `179.199.133.136`, refeitos em 24/10/2026
+com o certificado renovado em 21/10 (os de 26/09/2026 deram o mesmo resultado):
 
-- [SSL.org](https://www.ssl.org/): *Certificate Trusted: Yes*; *sha384 / EC 256 bits ·
-  Good signature · Good key* (o escopo pede pelo menos *Acceptable key*).
-- [DigiCert PQC checker](https://www.digicert.com/pqc-checker): *Pass*, com TLS 1.3 e
-  troca de chaves ML-KEM (`X25519MLKEM768`).
+- [SSL.org](https://www.ssl.org/): *Certificate Trusted: Yes*; *Name Matches Domain:
+  Yes*; cadeia *Valid · Complete* até a ISRG Root X2; TLS 1.2 e 1.3; *sha384 / EC 256
+  bits · Good signature · Good key* (o escopo pede pelo menos *Acceptable key*);
+  *Certificate Transparency: Compliant*.
+- [DigiCert PQC checker](https://www.digicert.com/pqc-checker): *Pass* nas duas
+  verificações, *TLS 1.3 enabled* e *Quantum-safe key exchange* (`X25519MLKEM768`,
+  conferido também com `openssl s_client -groups X25519MLKEM768`).
 
 ## Observabilidade
 
