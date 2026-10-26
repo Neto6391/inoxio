@@ -289,8 +289,9 @@ VPS na Hostinger com Ubuntu Server 24.04.4 LTS.
   `NoNewPrivileges` (`infra/implantacao/inoxio.service`). As chaves das APIs
   ficam em `~/.config/inoxio/env`, com modo 600, fora do repositório.
 
-Resultado dos testes de TLS no endereço `179.199.133.136`, refeitos em 24/10/2026
-com o certificado renovado em 21/10 (os de 26/09/2026 deram o mesmo resultado):
+Resultado dos testes de TLS no endereço `179.199.133.136`, refeitos em 25/10/2026
+com o certificado renovado sozinho em 24/10 (válido até 31/10). Os de 26/09 e de
+24/10/2026, com os certificados anteriores, deram o mesmo resultado:
 
 - [SSL.org](https://www.ssl.org/): *Certificate Trusted: Yes*; *Name Matches Domain:
   Yes*; cadeia *Valid · Complete* até a ISRG Root X2; TLS 1.2 e 1.3; *sha384 / EC 256
